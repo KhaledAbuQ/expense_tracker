@@ -21,15 +21,18 @@ import {
 import { subMonths } from 'date-fns'
 
 export default function Dashboard() {
-  const currentMonthRange = getDateRange('month')
-  const lastMonthRange = getDateRange('last-month')
+  // Memoize date ranges to prevent infinite re-renders
+  const currentMonthRange = useMemo(() => getDateRange('month'), [])
+  const lastMonthRange = useMemo(() => getDateRange('last-month'), [])
   
   // Get last 6 months for monthly chart
-  const sixMonthsAgo = subMonths(new Date(), 6)
-  const yearRange = {
-    start: sixMonthsAgo,
-    end: new Date(),
-  }
+  const yearRange = useMemo(() => {
+    const sixMonthsAgo = subMonths(new Date(), 6)
+    return {
+      start: sixMonthsAgo,
+      end: new Date(),
+    }
+  }, [])
 
   const { expenses: currentExpenses, loading: currentLoading } = useExpenses({
     dateRange: currentMonthRange,

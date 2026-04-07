@@ -15,6 +15,10 @@ export function useExpenses(options?: UseExpensesOptions) {
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
 
+  // Convert Date objects to stable string format for dependency comparison
+  const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
+  const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
+
   const fetchExpenses = useCallback(async () => {
     if (!isSupabaseConfigured) {
       setLoading(false)
@@ -33,10 +37,10 @@ export function useExpenses(options?: UseExpensesOptions) {
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
 
-      if (options?.dateRange) {
+      if (startDateStr && endDateStr) {
         query = query
-          .gte('date', format(options.dateRange.start, 'yyyy-MM-dd'))
-          .lte('date', format(options.dateRange.end, 'yyyy-MM-dd'))
+          .gte('date', startDateStr)
+          .lte('date', endDateStr)
       }
 
       if (options?.categoryId) {
@@ -59,7 +63,7 @@ export function useExpenses(options?: UseExpensesOptions) {
     } finally {
       setLoading(false)
     }
-  }, [options?.dateRange?.start, options?.dateRange?.end, options?.categoryId])
+  }, [startDateStr, endDateStr, options?.categoryId])
 
   useEffect(() => {
     fetchExpenses()

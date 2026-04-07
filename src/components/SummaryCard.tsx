@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 interface SummaryCardProps {
@@ -8,6 +8,8 @@ interface SummaryCardProps {
   icon: ReactNode
   trend?: number
   trendLabel?: string
+  secondaryValue?: string
+  secondaryLabel?: string
 }
 
 export default function SummaryCard({
@@ -17,7 +19,11 @@ export default function SummaryCard({
   icon,
   trend,
   trendLabel,
+  secondaryValue,
+  secondaryLabel,
 }: SummaryCardProps) {
+  const [showSecondary, setShowSecondary] = useState(false)
+
   const getTrendIcon = () => {
     if (trend === undefined || trend === 0) return <Minus className="w-4 h-4" />
     return trend > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />
@@ -29,14 +35,26 @@ export default function SummaryCard({
     return trend > 0 ? 'text-red-500' : 'text-green-500'
   }
 
+  const hasSecondary = secondaryValue !== undefined
+
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+    <div 
+      className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 ${hasSecondary ? 'cursor-pointer hover:border-indigo-200 transition-colors' : ''}`}
+      onClick={() => hasSecondary && setShowSecondary(!showSecondary)}
+    >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {subtitle && (
+          <p className="text-sm font-medium text-gray-500">
+            {showSecondary && secondaryLabel ? secondaryLabel : title}
+          </p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">
+            {showSecondary && secondaryValue ? secondaryValue : value}
+          </p>
+          {subtitle && !showSecondary && (
             <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+          )}
+          {showSecondary && (
+            <p className="text-sm text-gray-500 mt-1">Full month</p>
           )}
         </div>
         <div className="p-3 bg-indigo-50 rounded-lg">
@@ -44,7 +62,7 @@ export default function SummaryCard({
         </div>
       </div>
       
-      {trend !== undefined && (
+      {trend !== undefined && !showSecondary && (
         <div className={`flex items-center gap-1 mt-4 ${getTrendColor()}`}>
           {getTrendIcon()}
           <span className="text-sm font-medium">
@@ -54,6 +72,12 @@ export default function SummaryCard({
             <span className="text-sm text-gray-500 ml-1">{trendLabel}</span>
           )}
         </div>
+      )}
+
+      {hasSecondary && (
+        <p className="text-xs text-indigo-400 mt-3">
+          {showSecondary ? 'Viewing last month' : 'Click for last month'}
+        </p>
       )}
     </div>
   )

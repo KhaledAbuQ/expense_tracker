@@ -1,18 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { Expense, ExpenseFormData, DateRange, ExpenseType, PaidBy } from '../types'
+import { Income, IncomeFormData, DateRange } from '../types'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
-interface UseExpensesOptions {
+interface UseIncomeOptions {
   dateRange?: DateRange
   categoryId?: string
-  expenseType?: ExpenseType
-  paidBy?: PaidBy
 }
 
-export function useExpenses(options?: UseExpensesOptions) {
-  const [expenses, setExpenses] = useState<Expense[]>([])
+export function useIncome(options?: UseIncomeOptions) {
+  const [income, setIncome] = useState<Income[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
@@ -21,7 +19,7 @@ export function useExpenses(options?: UseExpensesOptions) {
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
 
-  const fetchExpenses = useCallback(async () => {
+  const fetchIncome = useCallback(async () => {
     if (!isSupabaseConfigured) {
       setLoading(false)
       return
@@ -31,7 +29,7 @@ export function useExpenses(options?: UseExpensesOptions) {
       setLoading(true)
       setError(null)
       let query = supabase
-        .from('expenses')
+        .from('income')
         .select(`
           *,
           category:categories(*)
@@ -49,21 +47,13 @@ export function useExpenses(options?: UseExpensesOptions) {
         query = query.eq('category_id', options.categoryId)
       }
 
-      if (options?.expenseType) {
-        query = query.eq('expense_type', options.expenseType)
-      }
-
-      if (options?.paidBy) {
-        query = query.eq('paid_by', options.paidBy)
-      }
-
       const { data, error } = await query
 
       if (error) throw error
-      setExpenses(data || [])
+      setIncome(data || [])
       hasShownError.current = false
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch expenses'
+      const message = err instanceof Error ? err.message : 'Failed to fetch income'
       setError(message)
       // Only show toast once per error
       if (!hasShownError.current) {
@@ -73,13 +63,13 @@ export function useExpenses(options?: UseExpensesOptions) {
     } finally {
       setLoading(false)
     }
-  }, [startDateStr, endDateStr, options?.categoryId, options?.expenseType, options?.paidBy])
+  }, [startDateStr, endDateStr, options?.categoryId])
 
   useEffect(() => {
-    fetchExpenses()
-  }, [fetchExpenses])
+    fetchIncome()
+  }, [fetchIncome])
 
-  const addExpense = async (formData: ExpenseFormData) => {
+  const addIncome = async (formData: IncomeFormData) => {
     if (!isSupabaseConfigured) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
@@ -87,7 +77,7 @@ export function useExpenses(options?: UseExpensesOptions) {
 
     try {
       const { data, error } = await supabase
-        .from('expenses')
+        .from('income')
         .insert([formData])
         .select(`
           *,
@@ -96,17 +86,17 @@ export function useExpenses(options?: UseExpensesOptions) {
         .single()
 
       if (error) throw error
-      setExpenses(prev => [data, ...prev])
-      toast.success('Expense added successfully')
+      setIncome(prev => [data, ...prev])
+      toast.success('Income added successfully')
       return data
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to add expense'
+      const message = err instanceof Error ? err.message : 'Failed to add income'
       toast.error(message)
       throw err
     }
   }
 
-  const updateExpense = async (id: string, formData: Partial<ExpenseFormData>) => {
+  const updateIncome = async (id: string, formData: Partial<IncomeFormData>) => {
     if (!isSupabaseConfigured) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
@@ -114,7 +104,7 @@ export function useExpenses(options?: UseExpensesOptions) {
 
     try {
       const { data, error } = await supabase
-        .from('expenses')
+        .from('income')
         .update(formData)
         .eq('id', id)
         .select(`
@@ -124,17 +114,17 @@ export function useExpenses(options?: UseExpensesOptions) {
         .single()
 
       if (error) throw error
-      setExpenses(prev => prev.map(e => (e.id === id ? data : e)))
-      toast.success('Expense updated successfully')
+      setIncome(prev => prev.map(i => (i.id === id ? data : i)))
+      toast.success('Income updated successfully')
       return data
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update expense'
+      const message = err instanceof Error ? err.message : 'Failed to update income'
       toast.error(message)
       throw err
     }
   }
 
-  const deleteExpense = async (id: string) => {
+  const deleteIncome = async (id: string) => {
     if (!isSupabaseConfigured) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
@@ -142,27 +132,27 @@ export function useExpenses(options?: UseExpensesOptions) {
 
     try {
       const { error } = await supabase
-        .from('expenses')
+        .from('income')
         .delete()
         .eq('id', id)
 
       if (error) throw error
-      setExpenses(prev => prev.filter(e => e.id !== id))
-      toast.success('Expense deleted successfully')
+      setIncome(prev => prev.filter(i => i.id !== id))
+      toast.success('Income deleted successfully')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete expense'
+      const message = err instanceof Error ? err.message : 'Failed to delete income'
       toast.error(message)
       throw err
     }
   }
 
   return {
-    expenses,
+    income,
     loading,
     error,
-    fetchExpenses,
-    addExpense,
-    updateExpense,
-    deleteExpense,
+    fetchIncome,
+    addIncome,
+    updateIncome,
+    deleteIncome,
   }
 }

@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Receipt, Tags, Wallet } from 'lucide-react'
+import { LayoutDashboard, Receipt, Tags, Wallet, TrendingUp } from 'lucide-react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/income', icon: TrendingUp, label: 'Income' },
   { to: '/expenses', icon: Receipt, label: 'Expenses' },
   { to: '/categories', icon: Tags, label: 'Categories' },
 ]
@@ -46,7 +47,7 @@ export default function Sidebar() {
       
       <div className="p-4 border-t border-gray-200">
         <p className="text-xs text-gray-400 text-center">
-          Track your household expenses
+          Track your finances
         </p>
       </div>
     </aside>

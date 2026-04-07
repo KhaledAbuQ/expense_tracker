@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Category, CategoryFormData } from '../types'
+import { Category, CategoryFormData, CategoryType } from '../types'
 
 const PRESET_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -9,6 +9,7 @@ const PRESET_COLORS = [
 const PRESET_ICONS = [
   'tag', 'home', 'car', 'zap', 'heart-pulse', 'shopping-cart',
   'utensils', 'tv', 'plane', 'gift', 'briefcase', 'book',
+  'laptop', 'trending-up', 'plus-circle',
 ]
 
 interface CategoryFormProps {
@@ -26,6 +27,7 @@ export default function CategoryForm({
     name: initialData?.name || '',
     icon: initialData?.icon || 'tag',
     color: initialData?.color || '#6366f1',
+    category_type: initialData?.category_type || 'expense',
   })
   const [loading, setLoading] = useState(false)
 
@@ -35,6 +37,7 @@ export default function CategoryForm({
         name: initialData.name,
         icon: initialData.icon,
         color: initialData.color,
+        category_type: initialData.category_type || 'expense',
       })
     }
   }, [initialData])
@@ -66,6 +69,27 @@ export default function CategoryForm({
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="e.g., Pet Supplies"
         />
+      </div>
+
+      <div>
+        <label htmlFor="category_type" className="block text-sm font-medium text-gray-700 mb-1">
+          Category Type
+        </label>
+        <select
+          id="category_type"
+          value={formData.category_type}
+          onChange={(e) => setFormData({ ...formData, category_type: e.target.value as CategoryType })}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+          <option value="both">Both</option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {formData.category_type === 'expense' && 'This category will only appear when adding expenses.'}
+          {formData.category_type === 'income' && 'This category will only appear when adding income.'}
+          {formData.category_type === 'both' && 'This category will appear for both expenses and income.'}
+        </p>
       </div>
 
       <div>
@@ -122,6 +146,9 @@ export default function CategoryForm({
             }}
           >
             {formData.name || 'Category Name'}
+          </span>
+          <span className="text-xs text-gray-400">
+            ({formData.category_type})
           </span>
         </div>
       </div>

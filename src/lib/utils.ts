@@ -97,11 +97,11 @@ export function groupExpensesByDate(expenses: Expense[]): ChartDataPoint[] {
   }, {} as Record<string, number>)
 
   return Object.entries(grouped)
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
     .map(([date, value]) => ({
       name: formatDateShort(date),
       value: Number(value.toFixed(2)),
     }))
-    .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime())
 }
 
 export function groupExpensesByMonth(expenses: Expense[]): ChartDataPoint[] {
@@ -133,4 +133,9 @@ export function getTopCategory(
 export function getDaysInRange(range: DateRange): number {
   const diffTime = Math.abs(range.end.getTime() - range.start.getTime())
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+}
+
+export function getElapsedDaysInMonth(): number {
+  const now = new Date()
+  return now.getDate()
 }

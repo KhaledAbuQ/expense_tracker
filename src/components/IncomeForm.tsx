@@ -36,15 +36,14 @@ export default function IncomeForm({
   )
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        amount: initialData.amount,
-        description: initialData.description || '',
-        category_id: initialData.category_id || '',
-        date: initialData.date,
-        account_type: initialData.account_type || 'bank',
-      })
-    }
+    // Reset form when initialData changes (both for edit mode and new income mode)
+    setFormData({
+      amount: initialData?.amount || 0,
+      description: initialData?.description || '',
+      category_id: initialData?.category_id || '',
+      date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+      account_type: initialData?.account_type || 'bank',
+    })
   }, [initialData])
 
   const handleSubmit = async (e: React.FormEvent) => {

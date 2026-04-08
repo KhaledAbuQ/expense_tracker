@@ -30,15 +30,14 @@ export default function TransferForm({
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        amount: initialData.amount,
-        from_account: initialData.from_account,
-        to_account: initialData.to_account,
-        description: initialData.description || '',
-        date: initialData.date,
-      })
-    }
+    // Reset form when initialData changes (both for edit mode and new transfer mode)
+    setFormData({
+      amount: initialData?.amount || 0,
+      from_account: initialData?.from_account || 'bank',
+      to_account: initialData?.to_account || 'savings',
+      description: initialData?.description || '',
+      date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+    })
   }, [initialData])
 
   // Ensure from and to accounts are different

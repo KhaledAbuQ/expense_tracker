@@ -32,17 +32,16 @@ export default function ExpenseForm({
   )
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        amount: initialData.amount,
-        description: initialData.description || '',
-        category_id: initialData.category_id || '',
-        date: initialData.date,
-        expense_type: initialData.expense_type || 'personal',
-        paid_by: initialData.paid_by || 'me',
-        account_type: initialData.account_type || 'bank',
-      })
-    }
+    // Reset form when initialData changes (both for edit mode and new expense mode)
+    setFormData({
+      amount: initialData?.amount || 0,
+      description: initialData?.description || '',
+      category_id: initialData?.category_id || '',
+      date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+      expense_type: initialData?.expense_type || 'personal',
+      paid_by: initialData?.paid_by || 'me',
+      account_type: initialData?.account_type || 'bank',
+    })
   }, [initialData])
 
   const handleSubmit = async (e: React.FormEvent) => {

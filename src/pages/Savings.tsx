@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { PiggyBank, TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-react'
+import { PiggyBank, TrendingUp, TrendingDown } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
 import { Income, Transfer } from '../types'

@@ -21,6 +21,7 @@ CREATE TABLE expenses (
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   expense_type VARCHAR(20) DEFAULT 'personal' CHECK (expense_type IN ('personal', 'household')),
   paid_by VARCHAR(20) DEFAULT 'me' CHECK (paid_by IN ('me', 'family')),
+  account_type VARCHAR(20) DEFAULT 'bank' CHECK (account_type IN ('bank', 'cash')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -31,7 +32,20 @@ CREATE TABLE income (
   description TEXT,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
+  account_type VARCHAR(20) DEFAULT 'bank' CHECK (account_type IN ('bank', 'cash', 'savings')),
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Transfers table (for moving money between accounts: bank, cash, savings)
+CREATE TABLE transfers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  from_account VARCHAR(20) NOT NULL CHECK (from_account IN ('bank', 'cash', 'savings')),
+  to_account VARCHAR(20) NOT NULL CHECK (to_account IN ('bank', 'cash', 'savings')),
+  description TEXT,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT different_accounts CHECK (from_account != to_account)
 );
 
 -- Indexes for faster queries
@@ -39,8 +53,13 @@ CREATE INDEX idx_expenses_date ON expenses(date DESC);
 CREATE INDEX idx_expenses_category ON expenses(category_id);
 CREATE INDEX idx_expenses_type ON expenses(expense_type);
 CREATE INDEX idx_expenses_paid_by ON expenses(paid_by);
+CREATE INDEX idx_expenses_account ON expenses(account_type);
 CREATE INDEX idx_income_date ON income(date DESC);
 CREATE INDEX idx_income_category ON income(category_id);
+CREATE INDEX idx_income_account ON income(account_type);
+CREATE INDEX idx_transfers_date ON transfers(date DESC);
+CREATE INDEX idx_transfers_from ON transfers(from_account);
+CREATE INDEX idx_transfers_to ON transfers(to_account);
 
 -- Seed default expense categories
 INSERT INTO categories (name, icon, color, is_default, category_type) VALUES
@@ -80,6 +99,14 @@ CREATE POLICY "Allow all expenses" ON expenses
   WITH CHECK (true);
 
 CREATE POLICY "Allow all income" ON income 
+  FOR ALL 
+  USING (true) 
+  WITH CHECK (true);
+
+-- Transfers table RLS
+ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all transfers" ON transfers 
   FOR ALL 
   USING (true) 
   WITH CHECK (true);

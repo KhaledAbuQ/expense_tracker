@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Category, IncomeFormData, Income } from '../types'
+import { Category, IncomeFormData, Income, IncomeAccountType } from '../types'
 
 interface IncomeFormProps {
   categories: Category[]
   onSubmit: (data: IncomeFormData) => Promise<void>
   onCancel: () => void
   initialData?: Income
+}
+
+const accountLabels: Record<IncomeAccountType, string> = {
+  bank: 'bank account',
+  cash: 'cash',
+  savings: 'savings',
 }
 
 export default function IncomeForm({
@@ -20,6 +26,7 @@ export default function IncomeForm({
     description: initialData?.description || '',
     category_id: initialData?.category_id || '',
     date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+    account_type: initialData?.account_type || 'bank',
   })
   const [loading, setLoading] = useState(false)
 
@@ -35,6 +42,7 @@ export default function IncomeForm({
         description: initialData.description || '',
         category_id: initialData.category_id || '',
         date: initialData.date,
+        account_type: initialData.account_type || 'bank',
       })
     }
   }, [initialData])
@@ -93,6 +101,22 @@ export default function IncomeForm({
       </div>
 
       <div>
+        <label htmlFor="account_type" className="block text-sm font-medium text-gray-700 mb-1">
+          Deposit To
+        </label>
+        <select
+          id="account_type"
+          value={formData.account_type}
+          onChange={(e) => setFormData({ ...formData, account_type: e.target.value as IncomeAccountType })}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+        >
+          <option value="bank">Bank Account</option>
+          <option value="cash">Cash</option>
+          <option value="savings">Savings</option>
+        </select>
+      </div>
+
+      <div>
         <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
           Date *
         </label>
@@ -120,8 +144,12 @@ export default function IncomeForm({
         />
       </div>
 
-      <p className="text-sm text-green-600 bg-green-50 p-2 rounded">
-        This income will be added to your balance.
+      <p className={`text-sm p-2 rounded ${
+        formData.account_type === 'savings' 
+          ? 'text-purple-600 bg-purple-50' 
+          : 'text-green-600 bg-green-50'
+      }`}>
+        This income will be added to your {accountLabels[formData.account_type]}.
       </p>
 
       <div className="flex gap-3 pt-4">

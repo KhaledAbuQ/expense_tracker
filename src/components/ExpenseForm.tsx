@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Category, ExpenseFormData, Expense } from '../types'
+import { Category, ExpenseFormData, Expense, AccountType } from '../types'
 
 interface ExpenseFormProps {
   categories: Category[]
@@ -22,6 +22,7 @@ export default function ExpenseForm({
     date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
     expense_type: initialData?.expense_type || 'personal',
     paid_by: initialData?.paid_by || 'me',
+    account_type: initialData?.account_type || 'bank',
   })
   const [loading, setLoading] = useState(false)
 
@@ -39,6 +40,7 @@ export default function ExpenseForm({
         date: initialData.date,
         expense_type: initialData.expense_type || 'personal',
         paid_by: initialData.paid_by || 'me',
+        account_type: initialData.account_type || 'bank',
       })
     }
   }, [initialData])
@@ -110,6 +112,21 @@ export default function ExpenseForm({
       </div>
 
       <div>
+        <label htmlFor="account_type" className="block text-sm font-medium text-gray-700 mb-1">
+          Account
+        </label>
+        <select
+          id="account_type"
+          value={formData.account_type}
+          onChange={(e) => setFormData({ ...formData, account_type: e.target.value as AccountType })}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="bank">Bank Account</option>
+          <option value="cash">Cash</option>
+        </select>
+      </div>
+
+      <div>
         <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
           Category
         </label>
@@ -158,7 +175,7 @@ export default function ExpenseForm({
 
       {formData.paid_by === 'me' && (
         <p className="text-sm text-gray-500 bg-gray-50 p-2 rounded">
-          This expense will be deducted from your balance.
+          This expense will be deducted from your {formData.account_type === 'bank' ? 'bank account' : 'cash'} balance.
         </p>
       )}
 

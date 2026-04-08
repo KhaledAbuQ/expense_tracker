@@ -1,4 +1,4 @@
-import { Pencil, Trash2, User, Users } from 'lucide-react'
+import { Pencil, Trash2, User, Users, Building2, Banknote } from 'lucide-react'
 import { Expense } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
 import CategoryBadge from './CategoryBadge'
@@ -15,6 +15,8 @@ export default function ExpenseRow({ expense, onEdit, onDelete }: ExpenseRowProp
       onDelete(expense.id)
     }
   }
+
+  const accountType = expense.account_type || 'bank'
 
   return (
     <tr className="hover:bg-gray-50 transition-colors">
@@ -39,6 +41,14 @@ export default function ExpenseRow({ expense, onEdit, onDelete }: ExpenseRowProp
             }`}>
               {expense.paid_by === 'me' ? <User className="w-3 h-3" /> : <Users className="w-3 h-3" />}
               {expense.paid_by === 'me' ? 'Me' : 'Family'}
+            </span>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${
+              accountType === 'bank' 
+                ? 'bg-blue-50 text-blue-600' 
+                : 'bg-green-50 text-green-600'
+            }`}>
+              {accountType === 'bank' ? <Building2 className="w-3 h-3" /> : <Banknote className="w-3 h-3" />}
+              {accountType === 'bank' ? 'Bank' : 'Cash'}
             </span>
           </div>
         </div>

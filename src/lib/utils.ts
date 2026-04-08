@@ -106,17 +106,21 @@ export function groupExpensesByDate(expenses: Expense[]): ChartDataPoint[] {
 
 export function groupExpensesByMonth(expenses: Expense[]): ChartDataPoint[] {
   const grouped = expenses.reduce((acc, expense) => {
-    const month = format(new Date(expense.date), 'MMM yyyy')
-    if (!acc[month]) {
-      acc[month] = 0
+    const date = new Date(expense.date)
+    // Use YYYY-MM format as key for proper sorting, store display name separately
+    const sortKey = format(date, 'yyyy-MM')
+    const displayName = format(date, 'MMM yyyy')
+    if (!acc[sortKey]) {
+      acc[sortKey] = { displayName, value: 0 }
     }
-    acc[month] += Number(expense.amount)
+    acc[sortKey].value += Number(expense.amount)
     return acc
-  }, {} as Record<string, number>)
+  }, {} as Record<string, { displayName: string; value: number }>)
 
   return Object.entries(grouped)
-    .map(([month, value]) => ({
-      name: month,
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([, { displayName, value }]) => ({
+      name: displayName,
       value: Number(value.toFixed(2)),
     }))
 }

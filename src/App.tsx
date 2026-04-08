@@ -3,6 +3,8 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Expenses from './pages/Expenses'
 import Income from './pages/Income'
+import Transfers from './pages/Transfers'
+import Savings from './pages/Savings'
 import Categories from './pages/Categories'
 
 function App() {
@@ -12,6 +14,8 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="income" element={<Income />} />
         <Route path="expenses" element={<Expenses />} />
+        <Route path="transfers" element={<Transfers />} />
+        <Route path="savings" element={<Savings />} />
         <Route path="categories" element={<Categories />} />
       </Route>
     </Routes>

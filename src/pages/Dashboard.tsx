@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { TrendingUp, Calendar, Wallet, Building2, Banknote } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Calendar, Wallet, Building2, Banknote } from 'lucide-react'
 import { useExpenses } from '../hooks/useExpenses'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
@@ -125,6 +125,10 @@ export default function Dashboard() {
     }
   }, [allIncome, allExpenses, allTransfers])
 
+  // Expense view toggle state: 0 = My Expenses, 1 = Household, 2 = All
+  const [expenseView, setExpenseView] = useState(0)
+  const expenseViews = ['My Expenses', 'Household Expenses', 'All Expenses'] as const
+
   const stats = useMemo(() => {
     const currentTotal = calculateTotalExpenses(currentExpenses)
     const lastTotal = calculateTotalExpenses(lastMonthExpenses)
@@ -141,16 +145,30 @@ export default function Dashboard() {
     // Expenses paid by me this month
     const myExpensesThisMonth = currentExpenses.filter(e => e.paid_by === 'me')
     const myExpensesTotal = calculateTotalExpenses(myExpensesThisMonth)
+    
+    // Household expenses this month
+    const householdExpensesThisMonth = currentExpenses.filter(e => e.expense_type === 'household')
+    const householdExpensesTotal = calculateTotalExpenses(householdExpensesThisMonth)
+
+    // Last month values for comparison
+    const lastMyExpenses = calculateTotalExpenses(lastMonthExpenses.filter(e => e.paid_by === 'me'))
+    const lastHouseholdExpenses = calculateTotalExpenses(lastMonthExpenses.filter(e => e.expense_type === 'household'))
+    
+    const myExpensesPercentChange = calculatePercentChange(myExpensesTotal, lastMyExpenses)
+    const householdPercentChange = calculatePercentChange(householdExpensesTotal, lastHouseholdExpenses)
 
     return {
       currentTotal,
       currentIncomeTotal,
       myExpensesTotal,
+      householdExpensesTotal,
       avgDailyCurrent,
       avgDailyLastMonth,
       elapsedDays,
       percentChange,
       incomePercentChange,
+      myExpensesPercentChange,
+      householdPercentChange,
       topCategory,
     }
   }, [currentExpenses, lastMonthExpenses, currentIncome, lastMonthIncome, categories, lastMonthRange])
@@ -227,7 +245,7 @@ export default function Dashboard() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <SummaryCard
           title="Income This Month"
           value={loading ? '...' : formatCurrency(stats.currentIncomeTotal)}
@@ -235,12 +253,66 @@ export default function Dashboard() {
           trend={stats.incomePercentChange}
           trendLabel="vs last month"
         />
-        <SummaryCard
-          title="My Expenses"
-          value={loading ? '...' : formatCurrency(stats.myExpensesTotal)}
-          icon={<span className="text-red-600 font-bold text-lg">د.ا</span>}
-          subtitle="Paid by me this month"
-        />
+        
+        {/* Combined Expenses Card - Clickable to cycle through views */}
+        <div 
+          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 cursor-pointer hover:border-red-200 transition-colors"
+          onClick={() => setExpenseView((prev) => (prev + 1) % 3)}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                {expenseViews[expenseView]}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {loading ? '...' : formatCurrency(
+                  expenseView === 0 ? stats.myExpensesTotal :
+                  expenseView === 1 ? stats.householdExpensesTotal :
+                  stats.currentTotal
+                )}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                {expenseView === 0 ? 'Paid by me' :
+                 expenseView === 1 ? 'Household spending' :
+                 'All spending'}
+              </p>
+            </div>
+            <div className="p-3 bg-red-50 rounded-lg">
+              <span className="text-red-600 font-bold text-lg">د.ا</span>
+            </div>
+          </div>
+          
+          {/* Trend indicator */}
+          <div className={`flex items-center gap-1 mt-4 ${
+            (expenseView === 0 ? stats.myExpensesPercentChange :
+             expenseView === 1 ? stats.householdPercentChange :
+             stats.percentChange) > 0 ? 'text-red-500' : 'text-green-500'
+          }`}>
+            <span className="text-sm font-medium">
+              {Math.abs(
+                expenseView === 0 ? stats.myExpensesPercentChange :
+                expenseView === 1 ? stats.householdPercentChange :
+                stats.percentChange
+              ).toFixed(1)}%
+            </span>
+            <span className="text-sm text-gray-500 ml-1">vs last month</span>
+          </div>
+          
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-xs text-red-400">Click to switch view</p>
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <div 
+                  key={i} 
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    i === expenseView ? 'bg-red-500' : 'bg-gray-200'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        
         <SummaryCard
           title="Daily Avg (This Month)"
           value={loading ? '...' : formatCurrency(stats.avgDailyCurrent)}
@@ -248,13 +320,6 @@ export default function Dashboard() {
           subtitle={`Based on ${stats.elapsedDays} days`}
           secondaryValue={loading ? '...' : formatCurrency(stats.avgDailyLastMonth)}
           secondaryLabel="Daily Avg (Last Month)"
-        />
-        <SummaryCard
-          title="All Expenses"
-          value={loading ? '...' : formatCurrency(stats.currentTotal)}
-          icon={<TrendingUp className="w-6 h-6 text-indigo-600" />}
-          trend={stats.percentChange}
-          trendLabel="vs last month"
         />
       </div>
 

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { PiggyBank, TrendingUp, TrendingDown } from 'lucide-react'
+import {TrendingUp, TrendingDown, HandCoins } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
 import { Income, Transfer } from '../types'
@@ -152,7 +152,7 @@ export default function SavingsPage() {
               <p className="text-purple-200 text-xs mt-1">All-time balance</p>
             </div>
             <div className="p-3 bg-white/10 rounded-xl">
-              <PiggyBank className="w-6 h-6" />
+              <HandCoins className="w-6 h-6" />
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function SavingsPage() {
           <div className="p-8 text-center text-gray-500">Loading savings data...</div>
         ) : monthlyData.length === 0 ? (
           <div className="p-8 text-center">
-            <PiggyBank className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <HandCoins className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">No savings activity yet</p>
             <p className="text-sm text-gray-400 mt-1">
               Add income to savings or transfer money to your savings account
@@ -282,24 +282,6 @@ export default function SavingsPage() {
           </div>
         )}
       </div>
-
-      {/* Tips Section
-      <div className="bg-purple-50 rounded-xl p-5 border border-purple-100">
-        <div className="flex items-start gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <ArrowRightLeft className="w-5 h-5 text-purple-600" />
-          </div>
-          <div>
-            <h3 className="font-medium text-purple-900">How Savings Work</h3>
-            <ul className="text-sm text-purple-700 mt-2 space-y-1">
-              <li>• Add income directly to savings from the Income page</li>
-              <li>• Transfer money to savings from bank or cash accounts</li>
-              <li>• Savings balance is separate from your available balance</li>
-              <li>• Transfer out of savings when you need to use the funds</li>
-            </ul>
-          </div>
-        </div>
-      </div> */}
     </div>
   )
 }

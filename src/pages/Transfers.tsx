@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRightLeft, Trash2, Pencil, Building2, Banknote, PiggyBank, ArrowRight } from 'lucide-react'
+import { ArrowRightLeft, Trash2, Pencil, Building2, Banknote, ArrowRight, HandCoins } from 'lucide-react'
 import { useTransfers } from '../hooks/useTransfers'
 import TransferForm from '../components/TransferForm'
 import Modal from '../components/Modal'
@@ -10,7 +10,7 @@ import { getDateRange, formatCurrency, formatDate } from '../lib/utils'
 const accountIcons: Record<TransferAccountType, typeof Building2> = {
   bank: Building2,
   cash: Banknote,
-  savings: PiggyBank,
+  savings: HandCoins,
 }
 
 const accountLabels: Record<TransferAccountType, string> = {

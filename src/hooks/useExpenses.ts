@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { Expense, ExpenseFormData, DateRange, ExpenseType, PaidBy } from '../types'
+import { Expense, ExpenseFormData, DateRange } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 interface UseExpensesOptions {
   dateRange?: DateRange
   categoryId?: string
-  expenseType?: ExpenseType
-  paidBy?: PaidBy
+  visibility?: 'private' | 'household'
 }
 
 export function useExpenses(options?: UseExpensesOptions) {
@@ -16,13 +16,14 @@ export function useExpenses(options?: UseExpensesOptions) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
+  const { member } = useAuth()
 
   // Convert Date objects to stable string format for dependency comparison
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
 
   const fetchExpenses = useCallback(async () => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       setLoading(false)
       return
     }
@@ -34,7 +35,8 @@ export function useExpenses(options?: UseExpensesOptions) {
         .from('expenses')
         .select(`
           *,
-          category:categories(*)
+          category:categories(*),
+          member:members(*)
         `)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
@@ -49,18 +51,17 @@ export function useExpenses(options?: UseExpensesOptions) {
         query = query.eq('category_id', options.categoryId)
       }
 
-      if (options?.expenseType) {
-        query = query.eq('expense_type', options.expenseType)
-      }
-
-      if (options?.paidBy) {
-        query = query.eq('paid_by', options.paidBy)
+      if (options?.visibility) {
+        query = query.eq('visibility', options.visibility)
       }
 
       const { data, error } = await query
 
       if (error) throw error
-      setExpenses(data || [])
+      const scopedExpenses = (data || []).filter(expense =>
+        expense.visibility === 'household' || expense.member_id === member.id
+      )
+      setExpenses(scopedExpenses)
       hasShownError.current = false
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch expenses'
@@ -73,25 +74,31 @@ export function useExpenses(options?: UseExpensesOptions) {
     } finally {
       setLoading(false)
     }
-  }, [startDateStr, endDateStr, options?.categoryId, options?.expenseType, options?.paidBy])
+  }, [startDateStr, endDateStr, options?.categoryId, options?.visibility, member])
 
   useEffect(() => {
     fetchExpenses()
   }, [fetchExpenses])
 
   const addExpense = async (formData: ExpenseFormData) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
 
     try {
+      const payload = {
+        ...formData,
+        member_id: formData.member_id ?? member.id,
+      }
+
       const { data, error } = await supabase
         .from('expenses')
-        .insert([formData])
+        .insert([payload])
         .select(`
           *,
-          category:categories(*)
+          category:categories(*),
+          member:members(*)
         `)
         .single()
 
@@ -107,7 +114,7 @@ export function useExpenses(options?: UseExpensesOptions) {
   }
 
   const updateExpense = async (id: string, formData: Partial<ExpenseFormData>) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
@@ -119,7 +126,8 @@ export function useExpenses(options?: UseExpensesOptions) {
         .eq('id', id)
         .select(`
           *,
-          category:categories(*)
+          category:categories(*),
+          member:members(*)
         `)
         .single()
 
@@ -135,7 +143,7 @@ export function useExpenses(options?: UseExpensesOptions) {
   }
 
   const deleteExpense = async (id: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }

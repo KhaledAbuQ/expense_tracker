@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Category, IncomeFormData, Income, IncomeAccountType } from '../types'
+import { Category, IncomeFormData, Income, IncomeAccountType, Visibility } from '../types'
 
 interface IncomeFormProps {
   categories: Category[]
@@ -26,6 +26,7 @@ export default function IncomeForm({
     description: initialData?.description || '',
     category_id: initialData?.category_id || '',
     date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+    visibility: initialData?.visibility || 'private',
     account_type: initialData?.account_type || 'bank',
   })
   const [loading, setLoading] = useState(false)
@@ -42,6 +43,7 @@ export default function IncomeForm({
       description: initialData?.description || '',
       category_id: initialData?.category_id || '',
       date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
+      visibility: initialData?.visibility || 'private',
       account_type: initialData?.account_type || 'bank',
     })
   }, [initialData])
@@ -96,6 +98,21 @@ export default function IncomeForm({
               {category.name}
             </option>
           ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="visibility" className="block text-sm font-medium text-gray-700 mb-1">
+          Visibility
+        </label>
+        <select
+          id="visibility"
+          value={formData.visibility}
+          onChange={(e) => setFormData({ ...formData, visibility: e.target.value as Visibility })}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+        >
+          <option value="private">Personal</option>
+          <option value="household">Household (shared)</option>
         </select>
       </div>
 

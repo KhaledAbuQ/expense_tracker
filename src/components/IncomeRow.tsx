@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Building2, Banknote, PiggyBank } from 'lucide-react'
+import { Pencil, Trash2, Building2, Banknote, PiggyBank, Users } from 'lucide-react'
 import { Income, IncomeAccountType } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
 import CategoryBadge from './CategoryBadge'
@@ -38,6 +38,17 @@ export default function IncomeRow({ income, onEdit, onDelete }: IncomeRowProps) 
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${config.className}`}>
               <Icon className="w-3 h-3" />
               {config.label}
+            </span>
+            <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded ${
+              income.visibility === 'household'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              {income.visibility === 'household' ? 'Household' : 'Personal'}
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700">
+              <Users className="w-3 h-3" />
+              {income.member?.name || 'Member'}
             </span>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { Pencil, Trash2, User, Users, Building2, Banknote } from 'lucide-react'
+import { Pencil, Trash2, Building2, Banknote, Users } from 'lucide-react'
 import { Expense } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
 import CategoryBadge from './CategoryBadge'
@@ -28,19 +28,15 @@ export default function ExpenseRow({ expense, onEdit, onDelete }: ExpenseRowProp
           <span>{expense.description || <span className="text-gray-400 italic">No description</span>}</span>
           <div className="flex items-center gap-2 mt-1">
             <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded ${
-              expense.expense_type === 'personal' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-purple-100 text-purple-700'
+              expense.visibility === 'household' 
+                ? 'bg-purple-100 text-purple-700' 
+                : 'bg-blue-100 text-blue-700'
             }`}>
-              {expense.expense_type === 'personal' ? 'Personal' : 'Household'}
+              {expense.visibility === 'household' ? 'Household' : 'Personal'}
             </span>
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${
-              expense.paid_by === 'me' 
-                ? 'bg-gray-100 text-gray-700' 
-                : 'bg-orange-100 text-orange-700'
-            }`}>
-              {expense.paid_by === 'me' ? <User className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-              {expense.paid_by === 'me' ? 'Me' : 'Family'}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700">
+              <Users className="w-3 h-3" />
+              {expense.member?.name || 'Member'}
             </span>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded ${
               accountType === 'bank' 

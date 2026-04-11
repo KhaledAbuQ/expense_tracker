@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Category, ExpenseFormData, Expense, AccountType } from '../types'
+import { Category, ExpenseFormData, Expense, AccountType, Visibility } from '../types'
 
 interface ExpenseFormProps {
   categories: Category[]
@@ -20,8 +20,8 @@ export default function ExpenseForm({
     description: initialData?.description || '',
     category_id: initialData?.category_id || '',
     date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
-    expense_type: initialData?.expense_type || 'personal',
-    paid_by: initialData?.paid_by || 'me',
+    visibility: initialData?.visibility || 'private',
+    member_id: initialData?.member_id || '',
     account_type: initialData?.account_type || 'bank',
   })
   const [loading, setLoading] = useState(false)
@@ -38,8 +38,8 @@ export default function ExpenseForm({
       description: initialData?.description || '',
       category_id: initialData?.category_id || '',
       date: initialData?.date || format(new Date(), 'yyyy-MM-dd'),
-      expense_type: initialData?.expense_type || 'personal',
-      paid_by: initialData?.paid_by || 'me',
+      visibility: initialData?.visibility || 'private',
+      member_id: initialData?.member_id || '',
       account_type: initialData?.account_type || 'bank',
     })
   }, [initialData])
@@ -78,36 +78,19 @@ export default function ExpenseForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="expense_type" className="block text-sm font-medium text-gray-700 mb-1">
-            Type
-          </label>
-          <select
-            id="expense_type"
-            value={formData.expense_type}
-            onChange={(e) => setFormData({ ...formData, expense_type: e.target.value as 'personal' | 'household' })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="personal">Personal</option>
-            <option value="household">Household</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="paid_by" className="block text-sm font-medium text-gray-700 mb-1">
-            Paid By
-          </label>
-          <select
-            id="paid_by"
-            value={formData.paid_by}
-            onChange={(e) => setFormData({ ...formData, paid_by: e.target.value as 'me' | 'family' })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="me">Me</option>
-            <option value="family">Family Member</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="visibility" className="block text-sm font-medium text-gray-700 mb-1">
+          Visibility
+        </label>
+        <select
+          id="visibility"
+          value={formData.visibility}
+          onChange={(e) => setFormData({ ...formData, visibility: e.target.value as Visibility })}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="private">Personal</option>
+          <option value="household">Household (shared)</option>
+        </select>
       </div>
 
       <div>
@@ -172,11 +155,9 @@ export default function ExpenseForm({
         />
       </div>
 
-      {formData.paid_by === 'me' && (
-        <p className="text-sm text-gray-500 bg-gray-50 p-2 rounded">
-          This expense will be deducted from your {formData.account_type === 'bank' ? 'bank account' : 'cash'} balance.
-        </p>
-      )}
+      <p className="text-sm text-gray-500 bg-gray-50 p-2 rounded">
+        This expense will be deducted from your {formData.account_type === 'bank' ? 'bank account' : 'cash'} balance.
+      </p>
 
       <div className="flex gap-3 pt-4">
         <button

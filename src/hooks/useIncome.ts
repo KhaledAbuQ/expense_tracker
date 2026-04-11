@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Income, IncomeFormData, DateRange } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 interface UseIncomeOptions {
   dateRange?: DateRange
   categoryId?: string
+  visibility?: 'private' | 'household'
 }
 
 export function useIncome(options?: UseIncomeOptions) {
@@ -14,13 +16,14 @@ export function useIncome(options?: UseIncomeOptions) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
+  const { member } = useAuth()
 
   // Convert Date objects to stable string format for dependency comparison
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
 
   const fetchIncome = useCallback(async () => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       setLoading(false)
       return
     }
@@ -32,7 +35,8 @@ export function useIncome(options?: UseIncomeOptions) {
         .from('income')
         .select(`
           *,
-          category:categories(*)
+          category:categories(*),
+          member:members(*)
         `)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
@@ -47,10 +51,17 @@ export function useIncome(options?: UseIncomeOptions) {
         query = query.eq('category_id', options.categoryId)
       }
 
+      if (options?.visibility) {
+        query = query.eq('visibility', options.visibility)
+      }
+
       const { data, error } = await query
 
       if (error) throw error
-      setIncome(data || [])
+      const scopedIncome = (data || []).filter(entry =>
+        entry.visibility === 'household' || entry.member_id === member.id
+      )
+      setIncome(scopedIncome)
       hasShownError.current = false
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch income'
@@ -63,25 +74,31 @@ export function useIncome(options?: UseIncomeOptions) {
     } finally {
       setLoading(false)
     }
-  }, [startDateStr, endDateStr, options?.categoryId])
+  }, [startDateStr, endDateStr, options?.categoryId, options?.visibility, member])
 
   useEffect(() => {
     fetchIncome()
   }, [fetchIncome])
 
   const addIncome = async (formData: IncomeFormData) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
 
     try {
+      const payload = {
+        ...formData,
+        member_id: formData.member_id ?? member.id,
+      }
+
       const { data, error } = await supabase
         .from('income')
-        .insert([formData])
+        .insert([payload])
         .select(`
           *,
-          category:categories(*)
+          category:categories(*),
+          member:members(*)
         `)
         .single()
 
@@ -97,7 +114,7 @@ export function useIncome(options?: UseIncomeOptions) {
   }
 
   const updateIncome = async (id: string, formData: Partial<IncomeFormData>) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
@@ -109,7 +126,8 @@ export function useIncome(options?: UseIncomeOptions) {
         .eq('id', id)
         .select(`
           *,
-          category:categories(*)
+          category:categories(*),
+          member:members(*)
         `)
         .single()
 
@@ -125,7 +143,7 @@ export function useIncome(options?: UseIncomeOptions) {
   }
 
   const deleteIncome = async (id: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }

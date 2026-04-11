@@ -7,6 +7,7 @@ import IncomeForm from '../components/IncomeForm'
 import Modal from '../components/Modal'
 import DateRangePicker from '../components/DateRangePicker'
 import { Income, IncomeFormData, DateRange } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { getDateRange, formatCurrency } from '../lib/utils'
 
 function calculateTotalIncome(income: Income[]): number {
@@ -16,12 +17,15 @@ function calculateTotalIncome(income: Income[]): number {
 export default function IncomePage() {
   const [dateRange, setDateRange] = useState<DateRange>(getDateRange('month'))
   const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'private' | 'household'>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingIncome, setEditingIncome] = useState<Income | null>(null)
+  const { member } = useAuth()
 
   const { income, loading, addIncome, updateIncome, deleteIncome } = useIncome({
     dateRange,
     categoryId: categoryFilter || undefined,
+    visibility: visibilityFilter === 'all' ? undefined : visibilityFilter,
   })
   const { categories } = useCategories()
 
@@ -31,10 +35,17 @@ export default function IncomePage() {
   )
 
   const handleSubmit = async (data: IncomeFormData) => {
+    if (!member) return
+
+    const payload = {
+      ...data,
+      member_id: member.id,
+    }
+
     if (editingIncome) {
-      await updateIncome(editingIncome.id, data)
+      await updateIncome(editingIncome.id, payload)
     } else {
-      await addIncome(data)
+      await addIncome(payload)
     }
     setIsModalOpen(false)
     setEditingIncome(null)
@@ -76,6 +87,16 @@ export default function IncomePage() {
           <DateRangePicker value={dateRange} onChange={setDateRange} />
           
           <div className="flex items-center gap-4">
+            <select
+              value={visibilityFilter}
+              onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'private' | 'household')}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="all">All visibility</option>
+              <option value="private">Personal</option>
+              <option value="household">Household</option>
+            </select>
+
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}

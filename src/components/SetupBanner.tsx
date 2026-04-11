@@ -32,6 +32,7 @@ export default function SetupBanner() {
                 <code className="bg-amber-100 px-1 rounded">.env</code>
               </li>
               <li>Add your Supabase URL and anon key to the <code className="bg-amber-100 px-1 rounded">.env</code> file</li>
+              <li>Enable Email auth in Supabase Authentication → Providers</li>
               <li>Restart the development server</li>
             </ol>
           </div>

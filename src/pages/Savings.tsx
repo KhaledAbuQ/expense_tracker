@@ -171,7 +171,7 @@ export default function SavingsPage() {
 
     allExpenses.forEach((e: Expense) => {
       // Focus on money you personally spend when judging goal difficulty
-      if (e.paid_by !== 'me') return
+      if (e.visibility !== 'private') return
 
       const date = parseISO(e.date)
       const monthKey = format(date, 'yyyy-MM')

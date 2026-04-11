@@ -42,13 +42,17 @@ A household expense tracking application built with React, TypeScript, and Supab
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-4. Start the development server:
+4. Enable email/password authentication in Supabase:
+   - In the Supabase dashboard, go to Authentication → Providers
+   - Enable Email
+
+5. Start the development server:
 
    ```bash
    npm run dev
    ```
 
-5. Open [http://localhost:5173](http://localhost:5173) in your browser.
+6. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ### Available Scripts
 
@@ -208,6 +212,23 @@ The project uses Tailwind CSS. Customize styles in:
 | is_default | BOOLEAN | Whether it's a default category |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 
+**households**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | VARCHAR(150) | Household name |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+**members**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| household_id | UUID | Foreign key to households |
+| user_id | UUID | Supabase auth user id |
+| name | VARCHAR(120) | Member display name |
+| role | VARCHAR(20) | admin or member |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
 **expenses**
 | Column | Type | Description |
 |--------|------|-------------|
@@ -216,6 +237,20 @@ The project uses Tailwind CSS. Customize styles in:
 | description | TEXT | Optional description |
 | category_id | UUID | Foreign key to categories |
 | date | DATE | Expense date |
+| member_id | UUID | Foreign key to members |
+| visibility | VARCHAR(20) | private or household |
+| created_at | TIMESTAMPTZ | Creation timestamp |
+
+**income**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| amount | DECIMAL(10,2) | Income amount (positive) |
+| description | TEXT | Optional description |
+| category_id | UUID | Foreign key to categories |
+| date | DATE | Income date |
+| member_id | UUID | Foreign key to members |
+| visibility | VARCHAR(20) | private or household |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 
 ## License

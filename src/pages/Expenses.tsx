@@ -7,25 +7,36 @@ import ExpenseForm from '../components/ExpenseForm'
 import Modal from '../components/Modal'
 import DateRangePicker from '../components/DateRangePicker'
 import { Expense, ExpenseFormData, DateRange } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { getDateRange, formatCurrency, calculateTotalExpenses } from '../lib/utils'
 
 export default function Expenses() {
   const [dateRange, setDateRange] = useState<DateRange>(getDateRange('month'))
   const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'private' | 'household'>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const { member } = useAuth()
 
   const { expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses({
     dateRange,
     categoryId: categoryFilter || undefined,
+    visibility: visibilityFilter === 'all' ? undefined : visibilityFilter,
   })
   const { categories } = useCategories()
 
   const handleSubmit = async (data: ExpenseFormData) => {
+    if (!member) return
+
+    const payload = {
+      ...data,
+      member_id: member.id,
+    }
+
     if (editingExpense) {
-      await updateExpense(editingExpense.id, data)
+      await updateExpense(editingExpense.id, payload)
     } else {
-      await addExpense(data)
+      await addExpense(payload)
     }
     setIsModalOpen(false)
     setEditingExpense(null)
@@ -67,6 +78,16 @@ export default function Expenses() {
           <DateRangePicker value={dateRange} onChange={setDateRange} />
           
           <div className="flex items-center gap-4">
+            <select
+              value={visibilityFilter}
+              onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'private' | 'household')}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">All visibility</option>
+              <option value="private">Personal</option>
+              <option value="household">Household</option>
+            </select>
+
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}

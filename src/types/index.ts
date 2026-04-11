@@ -1,9 +1,23 @@
 export type CategoryType = 'expense' | 'income' | 'both';
-export type ExpenseType = 'personal' | 'household';
-export type PaidBy = 'me' | 'family';
+export type Visibility = 'private' | 'household';
 export type AccountType = 'bank' | 'cash';
 export type IncomeAccountType = 'bank' | 'cash' | 'savings';
 export type TransferAccountType = 'bank' | 'cash' | 'savings';
+
+export interface Household {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Member {
+  id: string;
+  household_id: string;
+  user_id: string;
+  name: string;
+  role: 'admin' | 'member';
+  created_at: string;
+}
 
 export interface Category {
   id: string;
@@ -21,11 +35,12 @@ export interface Expense {
   description: string | null;
   category_id: string | null;
   date: string;
-  expense_type: ExpenseType;
-  paid_by: PaidBy;
+  member_id: string;
+  visibility: Visibility;
   account_type: AccountType;
   created_at: string;
   category?: Category;
+  member?: Member;
 }
 
 export interface ExpenseFormData {
@@ -33,8 +48,8 @@ export interface ExpenseFormData {
   description: string;
   category_id: string;
   date: string;
-  expense_type: ExpenseType;
-  paid_by: PaidBy;
+  visibility: Visibility;
+  member_id?: string;
   account_type: AccountType;
 }
 
@@ -44,9 +59,12 @@ export interface Income {
   description: string | null;
   category_id: string | null;
   date: string;
+  member_id: string;
+  visibility: Visibility;
   account_type: IncomeAccountType;
   created_at: string;
   category?: Category;
+  member?: Member;
 }
 
 export interface IncomeFormData {
@@ -54,6 +72,8 @@ export interface IncomeFormData {
   description: string;
   category_id: string;
   date: string;
+  member_id?: string;
+  visibility: Visibility;
   account_type: IncomeAccountType;
 }
 
@@ -64,7 +84,9 @@ export interface Transfer {
   to_account: TransferAccountType;
   description: string | null;
   date: string;
+  member_id: string;
   created_at: string;
+  member?: Member;
 }
 
 export interface TransferFormData {
@@ -73,6 +95,7 @@ export interface TransferFormData {
   to_account: TransferAccountType;
   description: string;
   date: string;
+  member_id?: string;
 }
 
 export interface CategoryFormData {

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Receipt, Tags, Wallet, TrendingUp, ArrowRightLeft, HandCoins } from 'lucide-react'
+import { LayoutDashboard, Receipt, Tags, Wallet, TrendingUp, ArrowRightLeft, HandCoins, LogOut, UserCircle, Users } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -7,10 +8,13 @@ const navItems = [
   { to: '/expenses', icon: Receipt, label: 'Expenses' },
   { to: '/transfers', icon: ArrowRightLeft, label: 'Transfers' },
   { to: '/savings', icon: HandCoins, label: 'Savings' },
+  { to: '/members', icon: Users, label: 'Members' },
   { to: '/categories', icon: Tags, label: 'Categories' },
 ]
 
 export default function Sidebar() {
+  const { member, signOut } = useAuth()
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
       <div className="p-6 border-b border-gray-200">
@@ -48,9 +52,20 @@ export default function Sidebar() {
       </nav>
       
       <div className="p-4 border-t border-gray-200">
-        <p className="text-xs text-gray-400 text-center">
-          Track your finances
-        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <UserCircle className="w-4 h-4" />
+            <span>{member?.name ?? 'Account'}</span>
+          </div>
+          <button
+            type="button"
+            onClick={signOut}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </aside>
   )

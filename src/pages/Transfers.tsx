@@ -6,6 +6,7 @@ import Modal from '../components/Modal'
 import DateRangePicker from '../components/DateRangePicker'
 import { Transfer, TransferFormData, DateRange, TransferAccountType } from '../types'
 import { getDateRange, formatCurrency, formatDate } from '../lib/utils'
+import { useAuth } from '../context/AuthContext'
 
 const accountIcons: Record<TransferAccountType, typeof Building2> = {
   bank: Building2,
@@ -29,16 +30,23 @@ export default function TransfersPage() {
   const [dateRange, setDateRange] = useState<DateRange>(getDateRange('month'))
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null)
+  const { member } = useAuth()
 
   const { transfers, loading, addTransfer, updateTransfer, deleteTransfer } = useTransfers({
     dateRange,
   })
 
   const handleSubmit = async (data: TransferFormData) => {
+    if (!member) return
+    const payload = {
+      ...data,
+      member_id: member.id,
+    }
+
     if (editingTransfer) {
-      await updateTransfer(editingTransfer.id, data)
+      await updateTransfer(editingTransfer.id, payload)
     } else {
-      await addTransfer(data)
+      await addTransfer(payload)
     }
     setIsModalOpen(false)
     setEditingTransfer(null)

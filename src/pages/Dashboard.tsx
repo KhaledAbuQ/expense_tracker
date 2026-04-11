@@ -23,6 +23,7 @@ import {
 } from '../lib/utils'
 import { subMonths } from 'date-fns'
 import { Income, Expense, Transfer, AccountType, TransferAccountType, IncomeAccountType } from '../types'
+import { useAuth } from '../context/AuthContext'
 
 // Calculate total income (excluding savings)
 function calculateTotalIncome(income: Income[]): number {
@@ -41,7 +42,7 @@ function calculateIncomeByAccount(income: Income[], accountType: IncomeAccountTy
 // Calculate expenses by account type (only expenses paid by 'me')
 function calculateExpensesByAccount(expenses: Expense[], accountType: AccountType): number {
   return expenses
-    .filter(e => e.paid_by === 'me' && e.account_type === accountType)
+    .filter(e => e.visibility === 'private' && e.account_type === accountType)
     .reduce((sum, e) => sum + Number(e.amount), 0)
 }
 
@@ -60,6 +61,7 @@ function calculateTransferImpact(transfers: Transfer[], accountType: TransferAcc
 }
 
 export default function Dashboard() {
+  const { member } = useAuth()
   // Memoize date ranges to prevent infinite re-renders
   const currentMonthRange = useMemo(() => getDateRange('month'), [])
   const lastMonthRange = useMemo(() => getDateRange('last-month'), [])
@@ -96,6 +98,28 @@ export default function Dashboard() {
   })
 
   const { categories, loading: categoriesLoading } = useCategories()
+
+  console.log({
+  currentLoading,
+  lastLoading,
+  yearLoading,
+  categoriesLoading,
+  currentIncomeLoading,
+  lastIncomeLoading,
+  allExpensesLoading,
+  allIncomeLoading,
+  allTransfersLoading,
+
+  currentExpenses,
+  lastMonthExpenses,
+  yearExpenses,
+  currentIncome,
+  lastMonthIncome,
+  allExpenses,
+  allIncome,
+  allTransfers,
+  categories,
+})
 
   const loading = currentLoading || lastLoading || yearLoading || categoriesLoading || 
                   currentIncomeLoading || lastIncomeLoading || allExpensesLoading || allIncomeLoading || 
@@ -143,16 +167,20 @@ export default function Dashboard() {
     const topCategory = getTopCategory(currentExpenses, categories)
 
     // Expenses paid by me this month
-    const myExpensesThisMonth = currentExpenses.filter(e => e.paid_by === 'me')
+    const myExpensesThisMonth = member
+      ? currentExpenses.filter(e => e.member_id === member.id && e.visibility === 'private')
+      : []
     const myExpensesTotal = calculateTotalExpenses(myExpensesThisMonth)
     
     // Household expenses this month
-    const householdExpensesThisMonth = currentExpenses.filter(e => e.expense_type === 'household')
+    const householdExpensesThisMonth = currentExpenses.filter(e => e.visibility === 'household')
     const householdExpensesTotal = calculateTotalExpenses(householdExpensesThisMonth)
 
     // Last month values for comparison
-    const lastMyExpenses = calculateTotalExpenses(lastMonthExpenses.filter(e => e.paid_by === 'me'))
-    const lastHouseholdExpenses = calculateTotalExpenses(lastMonthExpenses.filter(e => e.expense_type === 'household'))
+    const lastMyExpenses = member
+      ? calculateTotalExpenses(lastMonthExpenses.filter(e => e.member_id === member.id && e.visibility === 'private'))
+      : 0
+    const lastHouseholdExpenses = calculateTotalExpenses(lastMonthExpenses.filter(e => e.visibility === 'household'))
     
     const myExpensesPercentChange = calculatePercentChange(myExpensesTotal, lastMyExpenses)
     const householdPercentChange = calculatePercentChange(householdExpensesTotal, lastHouseholdExpenses)
@@ -171,7 +199,7 @@ export default function Dashboard() {
       householdPercentChange,
       topCategory,
     }
-  }, [currentExpenses, lastMonthExpenses, currentIncome, lastMonthIncome, categories, lastMonthRange])
+  }, [currentExpenses, lastMonthExpenses, currentIncome, lastMonthIncome, categories, lastMonthRange, member])
 
   const categoryChartData = useMemo(
     () => groupExpensesByCategory(currentExpenses, categories),

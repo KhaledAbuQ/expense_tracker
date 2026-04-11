@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Transfer, TransferFormData, DateRange } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -13,13 +14,14 @@ export function useTransfers(options?: UseTransfersOptions) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
+  const { member } = useAuth()
 
   // Convert Date objects to stable string format for dependency comparison
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
 
   const fetchTransfers = useCallback(async () => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       setLoading(false)
       return
     }
@@ -29,7 +31,10 @@ export function useTransfers(options?: UseTransfersOptions) {
       setError(null)
       let query = supabase
         .from('transfers')
-        .select('*')
+        .select(`
+          *,
+          member:members(*)
+        `)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -42,7 +47,8 @@ export function useTransfers(options?: UseTransfersOptions) {
       const { data, error } = await query
 
       if (error) throw error
-      setTransfers(data || [])
+      const scopedTransfers = (data || []).filter(transfer => transfer.member_id === member.id)
+      setTransfers(scopedTransfers)
       hasShownError.current = false
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch transfers'
@@ -55,23 +61,31 @@ export function useTransfers(options?: UseTransfersOptions) {
     } finally {
       setLoading(false)
     }
-  }, [startDateStr, endDateStr])
+  }, [startDateStr, endDateStr, member])
 
   useEffect(() => {
     fetchTransfers()
   }, [fetchTransfers])
 
   const addTransfer = async (formData: TransferFormData) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
 
     try {
+      const payload = {
+        ...formData,
+        member_id: formData.member_id ?? member.id,
+      }
+
       const { data, error } = await supabase
         .from('transfers')
-        .insert([formData])
-        .select('*')
+        .insert([payload])
+        .select(`
+          *,
+          member:members(*)
+        `)
         .single()
 
       if (error) throw error
@@ -86,7 +100,7 @@ export function useTransfers(options?: UseTransfersOptions) {
   }
 
   const updateTransfer = async (id: string, formData: Partial<TransferFormData>) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
@@ -96,7 +110,10 @@ export function useTransfers(options?: UseTransfersOptions) {
         .from('transfers')
         .update(formData)
         .eq('id', id)
-        .select('*')
+        .select(`
+          *,
+          member:members(*)
+        `)
         .single()
 
       if (error) throw error
@@ -111,7 +128,7 @@ export function useTransfers(options?: UseTransfersOptions) {
   }
 
   const deleteTransfer = async (id: string) => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !member) {
       toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }

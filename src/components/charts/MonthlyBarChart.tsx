@@ -18,7 +18,7 @@ export default function MonthlyBarChart({ data }: MonthlyBarChartProps) {
   if (data.length === 0) {
     return (
       <div className="h-[300px] flex items-center justify-center text-gray-500">
-        No expense data available
+        No data available
       </div>
     )
   }

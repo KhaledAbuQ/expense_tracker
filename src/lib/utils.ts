@@ -87,21 +87,42 @@ export function groupExpensesByCategory(
 }
 
 export function groupExpensesByDate(expenses: Expense[]): ChartDataPoint[] {
-  const grouped = expenses.reduce((acc, expense) => {
-    const date = expense.date
-    if (!acc[date]) {
-      acc[date] = 0
-    }
-    acc[date] += Number(expense.amount)
-    return acc
-  }, {} as Record<string, number>)
+	const grouped = expenses.reduce((acc, expense) => {
+		const date = expense.date
+		if (!acc[date]) {
+			acc[date] = 0
+		}
+		acc[date] += Number(expense.amount)
+		return acc
+	}, {} as Record<string, number>)
 
-  return Object.entries(grouped)
-    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
-    .map(([date, value]) => ({
-      name: formatDateShort(date),
-      value: Number(value.toFixed(2)),
-    }))
+	const dates = Object.keys(grouped).sort(
+		(a, b) => new Date(a).getTime() - new Date(b).getTime()
+	)
+
+	// If there are no expenses, return empty so the chart can show its empty state
+	if (dates.length === 0) return []
+
+	const result: ChartDataPoint[] = []
+	const start = new Date(dates[0])
+	const end = new Date(dates[dates.length - 1])
+
+	// Walk day-by-day between first and last expense date,
+	// filling missing days with zero values so the chart is continuous
+	for (
+		let current = new Date(start.getTime());
+		current <= end;
+		current.setDate(current.getDate() + 1)
+	) {
+		const key = format(current, 'yyyy-MM-dd')
+		const value = grouped[key] ?? 0
+		result.push({
+			name: formatDateShort(key),
+			value: Number(value.toFixed(2)),
+		})
+	}
+
+	return result
 }
 
 export function groupExpensesByMonth(expenses: Expense[]): ChartDataPoint[] {

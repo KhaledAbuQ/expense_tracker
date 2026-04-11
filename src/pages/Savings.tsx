@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {TrendingUp, TrendingDown, HandCoins } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
 import { Income, Transfer } from '../types'
 import { formatCurrency } from '../lib/utils'
+import MonthlyBarChart from '../components/charts/MonthlyBarChart'
 import { format, parseISO, subMonths } from 'date-fns'
 
 interface MonthlySavingsData {
@@ -116,6 +117,19 @@ export default function SavingsPage() {
     return groupSavingsByMonth(allIncome, allTransfers)
   }, [allIncome, allTransfers])
 
+  // Prepare chart data for savings over time
+  const monthlyChartData = useMemo(
+    () =>
+      // Sort chronologically (oldest to newest) for the chart axis
+      [...monthlyData]
+        .sort((a, b) => a.month.localeCompare(b.month))
+        .map((m) => ({
+          name: m.monthLabel,
+          value: Number(m.netChange.toFixed(2)),
+        })),
+    [monthlyData]
+  )
+
   // Calculate this month's savings
   const thisMonthSavings = useMemo(() => {
     const currentMonth = format(new Date(), 'yyyy-MM')
@@ -129,6 +143,50 @@ export default function SavingsPage() {
     const data = monthlyData.find(m => m.month === lastMonth)
     return data?.netChange || 0
   }, [monthlyData])
+
+  // Average monthly income across history (for goal calculator context)
+  const incomeStats = useMemo(() => {
+    const monthMap = new Map<string, number>()
+
+    allIncome.forEach((i) => {
+      const date = parseISO(i.date)
+      const monthKey = format(date, 'yyyy-MM')
+      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(i.amount))
+    })
+
+    const months = monthMap.size
+    const total = Array.from(monthMap.values()).reduce((sum, value) => sum + value, 0)
+
+    return {
+      averageMonthlyIncome: months > 0 ? total / months : 0,
+      monthsOfHistory: months,
+    }
+  }, [allIncome])
+
+  // Savings goal calculator state
+  const [goalAmountInput, setGoalAmountInput] = useState('')
+  const [monthsInput, setMonthsInput] = useState('')
+  const [currentSavingsInput, setCurrentSavingsInput] = useState('')
+  const [monthlyIncomeInput, setMonthlyIncomeInput] = useState('')
+
+  const goalAmount = parseFloat(goalAmountInput) || 0
+  const monthsToGoal = parseInt(monthsInput, 10) || 0
+  const effectiveCurrentSavings =
+    currentSavingsInput !== '' ? parseFloat(currentSavingsInput) || 0 : totalSavings
+
+  const remainingToGoal = Math.max(goalAmount - effectiveCurrentSavings, 0)
+  const monthlyRequired =
+    monthsToGoal > 0 ? remainingToGoal / monthsToGoal : 0
+
+  const effectiveMonthlyIncome =
+    monthlyIncomeInput !== ''
+      ? parseFloat(monthlyIncomeInput) || 0
+      : incomeStats.averageMonthlyIncome
+
+  const savingsPercentOfIncome =
+    effectiveMonthlyIncome > 0 && monthlyRequired > 0
+      ? (monthlyRequired / effectiveMonthlyIncome) * 100
+      : 0
 
   return (
     <div className="space-y-6">
@@ -193,6 +251,23 @@ export default function SavingsPage() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Savings Overview Chart */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900">Savings Over Time</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          See how your savings are changing month by month
+        </p>
+        <div className="mt-4">
+          {loading ? (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Loading savings data...
+            </div>
+          ) : (
+            <MonthlyBarChart data={monthlyChartData} />
+          )}
         </div>
       </div>
 
@@ -279,6 +354,111 @@ export default function SavingsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Savings Goal Calculator */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900">Savings Goal Planner</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Set a goal and see how much you need to save each month to reach it.
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Goal amount</label>
+            <input
+              type="number"
+              min="0"
+              value={goalAmountInput}
+              onChange={(e) => setGoalAmountInput(e.target.value)}
+              placeholder="e.g. 2000"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Months to reach goal</label>
+            <input
+              type="number"
+              min="1"
+              value={monthsInput}
+              onChange={(e) => setMonthsInput(e.target.value)}
+              placeholder="e.g. 12"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Current savings</label>
+            <input
+              type="number"
+              min="0"
+              value={currentSavingsInput}
+              onChange={(e) => setCurrentSavingsInput(e.target.value)}
+              placeholder={loading ? 'Detecting current savings...' : String(totalSavings.toFixed(2))}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Leave blank to use your total savings balance.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Monthly income</label>
+            <input
+              type="number"
+              min="0"
+              value={monthlyIncomeInput}
+              onChange={(e) => setMonthlyIncomeInput(e.target.value)}
+              placeholder={
+                incomeStats.averageMonthlyIncome > 0
+                  ? String(incomeStats.averageMonthlyIncome.toFixed(2))
+                  : 'e.g. 1000'
+              }
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Leave blank to use your average monthly income.
+            </p>
+          </div>
+        </div>
+
+        {goalAmount > 0 && monthsToGoal > 0 && (
+          <div className="mt-6 border-t border-gray-100 pt-4">
+            {remainingToGoal <= 0 ? (
+              <p className="text-sm font-medium text-green-600">
+                You have already reached this goal.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-700">
+                  To reach a goal of <span className="font-semibold">{formatCurrency(goalAmount)}</span> in{' '}
+                  <span className="font-semibold">{monthsToGoal}</span> months, starting from{' '}
+                  <span className="font-semibold">{formatCurrency(effectiveCurrentSavings)}</span>, you need to
+                  save approximately:
+                </p>
+                <p className="mt-2 text-2xl font-bold text-purple-600">
+                  {formatCurrency(monthlyRequired)} <span className="text-base font-medium text-gray-500">per month</span>
+                </p>
+
+                {effectiveMonthlyIncome > 0 && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Based on a monthly income of{' '}
+                    <span className="font-medium">{formatCurrency(effectiveMonthlyIncome)}</span>
+                    {incomeStats.monthsOfHistory > 0 && monthlyIncomeInput === '' && (
+                      <>
+                        {' '} (average over {incomeStats.monthsOfHistory} month
+                        {incomeStats.monthsOfHistory === 1 ? '' : 's'})
+                      </>
+                    )}
+                    , this is about{' '}
+                    <span className="font-medium">{savingsPercentOfIncome.toFixed(1)}%</span> of your income.
+                  </p>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

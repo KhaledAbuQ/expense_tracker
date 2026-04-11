@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import {TrendingUp, TrendingDown, HandCoins } from 'lucide-react'
+import { TrendingUp, TrendingDown, HandCoins } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
-import { Income, Transfer } from '../types'
+import { useExpenses } from '../hooks/useExpenses'
+import { Income, Transfer, Expense } from '../types'
 import { formatCurrency } from '../lib/utils'
 import MonthlyBarChart from '../components/charts/MonthlyBarChart'
-import { format, parseISO, subMonths } from 'date-fns'
+import { format, parseISO, subMonths, addMonths } from 'date-fns'
 
 interface MonthlySavingsData {
   month: string
@@ -102,8 +103,9 @@ export default function SavingsPage() {
   // Fetch all income and transfers (no date filter for total balance)
   const { income: allIncome, loading: incomeLoading } = useIncome({})
   const { transfers: allTransfers, loading: transfersLoading } = useTransfers({})
+  const { expenses: allExpenses, loading: expensesLoading } = useExpenses({})
 
-  const loading = incomeLoading || transfersLoading
+  const loading = incomeLoading || transfersLoading || expensesLoading
 
   // Calculate total savings balance
   const totalSavings = useMemo(() => {
@@ -159,18 +161,42 @@ export default function SavingsPage() {
 
     return {
       averageMonthlyIncome: months > 0 ? total / months : 0,
-      monthsOfHistory: months,
+       monthsOfHistory: months,
     }
   }, [allIncome])
+
+  // Average monthly expenses across history (for goal calculator context)
+  const expenseStats = useMemo(() => {
+    const monthMap = new Map<string, number>()
+
+    allExpenses.forEach((e: Expense) => {
+      // Focus on money you personally spend when judging goal difficulty
+      if (e.paid_by !== 'me') return
+
+      const date = parseISO(e.date)
+      const monthKey = format(date, 'yyyy-MM')
+      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(e.amount))
+    })
+
+    const months = monthMap.size
+    const total = Array.from(monthMap.values()).reduce((sum, value) => sum + value, 0)
+
+    return {
+      averageMonthlyExpenses: months > 0 ? total / months : 0,
+      monthsOfHistory: months,
+    }
+  }, [allExpenses])
 
   // Savings goal calculator state
   const [goalAmountInput, setGoalAmountInput] = useState('')
   const [monthsInput, setMonthsInput] = useState('')
   const [currentSavingsInput, setCurrentSavingsInput] = useState('')
   const [monthlyIncomeInput, setMonthlyIncomeInput] = useState('')
+  const [willingMonthlyInput, setWillingMonthlyInput] = useState('')
 
   const goalAmount = parseFloat(goalAmountInput) || 0
   const monthsToGoal = parseInt(monthsInput, 10) || 0
+  const willingMonthly = parseFloat(willingMonthlyInput) || 0
   const effectiveCurrentSavings =
     currentSavingsInput !== '' ? parseFloat(currentSavingsInput) || 0 : totalSavings
 
@@ -187,6 +213,40 @@ export default function SavingsPage() {
     effectiveMonthlyIncome > 0 && monthlyRequired > 0
       ? (monthlyRequired / effectiveMonthlyIncome) * 100
       : 0
+
+  const averageMonthlyExpenses = expenseStats.averageMonthlyExpenses
+  const discretionaryMonthly = Math.max(effectiveMonthlyIncome - averageMonthlyExpenses, 0)
+
+  const savingsPercentOfDiscretionary =
+    discretionaryMonthly > 0 && monthlyRequired > 0
+      ? (monthlyRequired / discretionaryMonthly) * 100
+      : 0
+
+  let savingsDoabilityLabel = ''
+  let savingsDoabilityColor = 'text-gray-600'
+
+  if (monthlyRequired > 0 && discretionaryMonthly > 0) {
+    if (savingsPercentOfDiscretionary <= 40) {
+      savingsDoabilityLabel = 'This goal looks very doable based on your usual spending.'
+      savingsDoabilityColor = 'text-green-600'
+    } else if (savingsPercentOfDiscretionary <= 70) {
+      savingsDoabilityLabel = 'This goal is doable but will require some discipline.'
+      savingsDoabilityColor = 'text-emerald-600'
+    } else if (savingsPercentOfDiscretionary <= 100) {
+      savingsDoabilityLabel = 'This goal is aggressive and may feel tight.'
+      savingsDoabilityColor = 'text-amber-600'
+    } else {
+      savingsDoabilityLabel = 'This goal is very aggressive vs what you usually have left after expenses.'
+      savingsDoabilityColor = 'text-red-600'
+    }
+  }
+
+  const monthsRequiredFromWilling =
+    willingMonthly > 0 && remainingToGoal > 0 ? remainingToGoal / willingMonthly : 0
+  const monthsRequiredRounded =
+    monthsRequiredFromWilling > 0 ? Math.ceil(monthsRequiredFromWilling) : 0
+  const targetDateFromWilling =
+    monthsRequiredRounded > 0 ? addMonths(new Date(), monthsRequiredRounded) : null
 
   return (
     <div className="space-y-6">
@@ -423,9 +483,24 @@ export default function SavingsPage() {
               Leave blank to use your average monthly income.
             </p>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Monthly amount you can save</label>
+            <input
+              type="number"
+              min="0"
+              value={willingMonthlyInput}
+              onChange={(e) => setWillingMonthlyInput(e.target.value)}
+              placeholder="e.g. 150"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Optional: enter what you&apos;re comfortable saving each month to see how long it would take.
+            </p>
+          </div>
         </div>
 
-        {goalAmount > 0 && monthsToGoal > 0 && (
+        {goalAmount > 0 && (monthsToGoal > 0 || (willingMonthly > 0 && remainingToGoal > 0)) && (
           <div className="mt-6 border-t border-gray-100 pt-4">
             {remainingToGoal <= 0 ? (
               <p className="text-sm font-medium text-green-600">
@@ -433,29 +508,84 @@ export default function SavingsPage() {
               </p>
             ) : (
               <>
-                <p className="text-sm text-gray-700">
-                  To reach a goal of <span className="font-semibold">{formatCurrency(goalAmount)}</span> in{' '}
-                  <span className="font-semibold">{monthsToGoal}</span> months, starting from{' '}
-                  <span className="font-semibold">{formatCurrency(effectiveCurrentSavings)}</span>, you need to
-                  save approximately:
-                </p>
-                <p className="mt-2 text-2xl font-bold text-purple-600">
-                  {formatCurrency(monthlyRequired)} <span className="text-base font-medium text-gray-500">per month</span>
-                </p>
+                {monthsToGoal > 0 && (
+                  <>
+                    <p className="text-sm text-gray-700">
+                      To reach a goal of <span className="font-semibold">{formatCurrency(goalAmount)}</span> in{' '}
+                      <span className="font-semibold">{monthsToGoal}</span> months, starting from{' '}
+                      <span className="font-semibold">{formatCurrency(effectiveCurrentSavings)}</span>, you need to
+                      save approximately:
+                    </p>
+                    <p className="mt-2 text-2xl font-bold text-purple-600">
+                      {formatCurrency(monthlyRequired)} <span className="text-base font-medium text-gray-500">per month</span>
+                    </p>
 
-                {effectiveMonthlyIncome > 0 && (
-                  <p className="mt-2 text-sm text-gray-600">
-                    Based on a monthly income of{' '}
-                    <span className="font-medium">{formatCurrency(effectiveMonthlyIncome)}</span>
-                    {incomeStats.monthsOfHistory > 0 && monthlyIncomeInput === '' && (
-                      <>
-                        {' '} (average over {incomeStats.monthsOfHistory} month
-                        {incomeStats.monthsOfHistory === 1 ? '' : 's'})
-                      </>
+                    {effectiveMonthlyIncome > 0 && (
+                      <p className="mt-2 text-sm text-gray-600">
+                        Based on a monthly income of{' '}
+                        <span className="font-medium">{formatCurrency(effectiveMonthlyIncome)}</span>
+                        {incomeStats.monthsOfHistory > 0 && monthlyIncomeInput === '' && (
+                          <>
+                            {' '} (average over {incomeStats.monthsOfHistory} month
+                            {incomeStats.monthsOfHistory === 1 ? '' : 's'})
+                          </>
+                        )}
+                        , this is about{' '}
+                        <span className="font-medium">{savingsPercentOfIncome.toFixed(1)}%</span> of your income.
+                      </p>
                     )}
-                    , this is about{' '}
-                    <span className="font-medium">{savingsPercentOfIncome.toFixed(1)}%</span> of your income.
-                  </p>
+
+                    {expenseStats.monthsOfHistory > 0 && (
+                      <p className="mt-2 text-sm text-gray-600">
+                        Your average monthly expenses are{' '}
+                        <span className="font-medium">{formatCurrency(averageMonthlyExpenses)}</span>
+                        {' '} (based on {expenseStats.monthsOfHistory} month
+                        {expenseStats.monthsOfHistory === 1 ? '' : 's'}). That typically leaves about{' '}
+                        <span className="font-medium">{formatCurrency(discretionaryMonthly)}</span> per month after expenses.
+                      </p>
+                    )}
+
+                    {savingsDoabilityLabel && (
+                      <p className={`mt-3 text-sm font-medium ${savingsDoabilityColor}`}>
+                        {savingsDoabilityLabel}{' '}
+                        {discretionaryMonthly > 0 && monthlyRequired > 0 && (
+                          <>
+                            You're aiming to save about{' '}
+                            <span className="font-semibold">
+                              {savingsPercentOfDiscretionary.toFixed(1)}%
+                            </span>{' '}
+                            of what you usually have left after expenses.
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {willingMonthly > 0 && remainingToGoal > 0 && (
+                  <>
+                    <p className="mt-4 text-sm text-gray-700">
+                      If you save <span className="font-semibold">{formatCurrency(willingMonthly)}</span> per month toward
+                      this goal, starting from{' '}
+                      <span className="font-semibold">{formatCurrency(effectiveCurrentSavings)}</span>, it will take
+                      approximately{' '}
+                      <span className="font-semibold">{monthsRequiredFromWilling.toFixed(1)}</span> months
+                      {monthsRequiredRounded > 0 && targetDateFromWilling && (
+                        <>
+                          {' '} (about{' '}
+                          <span className="font-semibold">
+                            {monthsRequiredRounded} month{monthsRequiredRounded === 1 ? '' : 's'}
+                          </span>
+                          , around{' '}
+                          <span className="font-semibold">
+                            {format(targetDateFromWilling, 'MMM yyyy')}
+                          </span>
+                          ).
+                        </>
+                      )}
+                      .
+                    </p>
+                  </>
                 )}
               </>
             )}

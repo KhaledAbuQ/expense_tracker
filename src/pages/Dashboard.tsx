@@ -39,10 +39,10 @@ function calculateIncomeByAccount(income: Income[], accountType: IncomeAccountTy
     .reduce((sum, item) => sum + Number(item.amount), 0)
 }
 
-// Calculate expenses by account type (only expenses paid by 'me')
+// Calculate expenses by account type (for all scoped expenses)
 function calculateExpensesByAccount(expenses: Expense[], accountType: AccountType): number {
   return expenses
-    .filter(e => e.visibility === 'private' && e.account_type === accountType)
+    .filter(e => e.account_type === accountType)
     .reduce((sum, e) => sum + Number(e.amount), 0)
 }
 

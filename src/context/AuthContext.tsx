@@ -125,11 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let householdId = onboarding.mode === 'join' ? onboarding.householdId : null
 
     if (onboarding.mode === 'create') {
-      const { data: household, error: householdError } = await supabase
+      const createdHouseholdId = crypto.randomUUID()
+      const { error: householdError } = await supabase
         .from('households')
-        .insert({ name: onboarding.householdName })
-        .select('id')
-        .single()
+        .insert({ id: createdHouseholdId, name: onboarding.householdName })
 
       if (householdError) {
         console.error('Failed to create household during provisioning', householdError)
@@ -137,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
-      householdId = household.id as string
+      householdId = createdHouseholdId
     }
 
     if (!householdId) return null

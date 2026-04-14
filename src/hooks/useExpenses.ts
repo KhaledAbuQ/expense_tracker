@@ -24,6 +24,8 @@ export function useExpenses(options?: UseExpensesOptions) {
 
   const fetchExpenses = useCallback(async () => {
     if (!isSupabaseConfigured || !member) {
+      setExpenses([])
+      setError(null)
       setLoading(false)
       return
     }
@@ -31,6 +33,21 @@ export function useExpenses(options?: UseExpensesOptions) {
     try {
       setLoading(true)
       setError(null)
+
+      const { data: householdMembers, error: householdMembersError } = await supabase
+        .from('members')
+        .select('id')
+        .eq('household_id', member.household_id)
+
+      if (householdMembersError) throw householdMembersError
+
+      const householdMemberIds = Array.from(
+        new Set([
+          ...(householdMembers || []).map(m => m.id),
+          member.id,
+        ])
+      )
+
       let query = supabase
         .from('expenses')
         .select(`
@@ -51,15 +68,24 @@ export function useExpenses(options?: UseExpensesOptions) {
         query = query.eq('category_id', options.categoryId)
       }
 
-      if (options?.visibility) {
-        query = query.eq('visibility', options.visibility)
+      if (options?.visibility === 'private') {
+        query = query
+          .eq('visibility', 'private')
+          .eq('member_id', member.id)
+      } else if (options?.visibility === 'household') {
+        query = query
+          .eq('visibility', 'household')
+          .in('member_id', householdMemberIds)
+      } else {
+        query = query.or(`member_id.eq.${member.id},and(visibility.eq.household,member_id.in.(${householdMemberIds.join(',')}))`)
       }
 
       const { data, error } = await query
 
       if (error) throw error
       const scopedExpenses = (data || []).filter(expense =>
-        expense.visibility === 'household' || expense.member_id === member.id
+        expense.member_id === member.id
+        || (expense.visibility === 'household' && householdMemberIds.includes(expense.member_id))
       )
       setExpenses(scopedExpenses)
       hasShownError.current = false

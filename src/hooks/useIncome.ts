@@ -24,6 +24,8 @@ export function useIncome(options?: UseIncomeOptions) {
 
   const fetchIncome = useCallback(async () => {
     if (!isSupabaseConfigured || !member) {
+      setIncome([])
+      setError(null)
       setLoading(false)
       return
     }
@@ -31,6 +33,21 @@ export function useIncome(options?: UseIncomeOptions) {
     try {
       setLoading(true)
       setError(null)
+
+      const { data: householdMembers, error: householdMembersError } = await supabase
+        .from('members')
+        .select('id')
+        .eq('household_id', member.household_id)
+
+      if (householdMembersError) throw householdMembersError
+
+      const householdMemberIds = Array.from(
+        new Set([
+          ...(householdMembers || []).map(m => m.id),
+          member.id,
+        ])
+      )
+
       let query = supabase
         .from('income')
         .select(`
@@ -51,15 +68,24 @@ export function useIncome(options?: UseIncomeOptions) {
         query = query.eq('category_id', options.categoryId)
       }
 
-      if (options?.visibility) {
-        query = query.eq('visibility', options.visibility)
+      if (options?.visibility === 'private') {
+        query = query
+          .eq('visibility', 'private')
+          .eq('member_id', member.id)
+      } else if (options?.visibility === 'household') {
+        query = query
+          .eq('visibility', 'household')
+          .in('member_id', householdMemberIds)
+      } else {
+        query = query.or(`member_id.eq.${member.id},and(visibility.eq.household,member_id.in.(${householdMemberIds.join(',')}))`)
       }
 
       const { data, error } = await query
 
       if (error) throw error
       const scopedIncome = (data || []).filter(entry =>
-        entry.visibility === 'household' || entry.member_id === member.id
+        entry.member_id === member.id
+        || (entry.visibility === 'household' && householdMemberIds.includes(entry.member_id))
       )
       setIncome(scopedIncome)
       hasShownError.current = false

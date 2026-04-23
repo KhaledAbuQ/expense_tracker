@@ -127,7 +127,7 @@ export default function SavingsPage() {
         .sort((a, b) => a.month.localeCompare(b.month))
         .map((m) => ({
           name: m.monthLabel,
-          value: Number(m.netChange.toFixed(2)),
+          value: Number(m.netChange.toFixed(3)),
         })),
     [monthlyData]
   )
@@ -457,7 +457,7 @@ export default function SavingsPage() {
               min="0"
               value={currentSavingsInput}
               onChange={(e) => setCurrentSavingsInput(e.target.value)}
-              placeholder={loading ? 'Detecting current savings...' : String(totalSavings.toFixed(2))}
+              placeholder={loading ? 'Detecting current savings...' : String(totalSavings.toFixed(3))}
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
             <p className="mt-1 text-xs text-gray-500">
@@ -474,7 +474,7 @@ export default function SavingsPage() {
               onChange={(e) => setMonthlyIncomeInput(e.target.value)}
               placeholder={
                 incomeStats.averageMonthlyIncome > 0
-                  ? String(incomeStats.averageMonthlyIncome.toFixed(2))
+                  ? String(incomeStats.averageMonthlyIncome.toFixed(3))
                   : 'e.g. 1000'
               }
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"

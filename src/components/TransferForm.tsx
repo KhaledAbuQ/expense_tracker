@@ -83,13 +83,13 @@ export default function TransferForm({
           <input
             type="number"
             id="amount"
-            step="0.01"
-            min="0.01"
+            step="0.001"
+            min="0.001"
             required
             value={formData.amount || ''}
             onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
             className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="0.00"
+            placeholder="0.000"
           />
         </div>
       </div>

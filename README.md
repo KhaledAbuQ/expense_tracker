@@ -233,7 +233,7 @@ The project uses Tailwind CSS. Customize styles in:
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| amount | DECIMAL(10,2) | Expense amount (positive) |
+| amount | DECIMAL(10,3) | Expense amount (positive) |
 | description | TEXT | Optional description |
 | category_id | UUID | Foreign key to categories |
 | date | DATE | Expense date |
@@ -245,7 +245,7 @@ The project uses Tailwind CSS. Customize styles in:
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| amount | DECIMAL(10,2) | Income amount (positive) |
+| amount | DECIMAL(10,3) | Income amount (positive) |
 | description | TEXT | Optional description |
 | category_id | UUID | Foreign key to categories |
 | date | DATE | Income date |

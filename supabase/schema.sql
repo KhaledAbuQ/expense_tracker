@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS categories (
 -- Expenses table
 CREATE TABLE IF NOT EXISTS expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  amount DECIMAL(10,3) NOT NULL CHECK (amount > 0),
   description TEXT,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 -- Income table (account_type includes 'savings' for direct deposits to savings)
 CREATE TABLE IF NOT EXISTS income (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  amount DECIMAL(10,3) NOT NULL CHECK (amount > 0),
   description TEXT,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS income (
 -- Transfers table (for moving money between accounts: bank, cash, savings)
 CREATE TABLE IF NOT EXISTS transfers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  amount DECIMAL(10,3) NOT NULL CHECK (amount > 0),
   from_account VARCHAR(20) NOT NULL CHECK (from_account IN ('bank', 'cash', 'savings')),
   to_account VARCHAR(20) NOT NULL CHECK (to_account IN ('bank', 'cash', 'savings')),
   description TEXT,
@@ -91,6 +91,15 @@ ALTER TABLE IF EXISTS income
 
 ALTER TABLE IF EXISTS transfers
   ADD COLUMN IF NOT EXISTS member_id UUID;
+
+ALTER TABLE IF EXISTS expenses
+  ALTER COLUMN amount TYPE DECIMAL(10,3);
+
+ALTER TABLE IF EXISTS income
+  ALTER COLUMN amount TYPE DECIMAL(10,3);
+
+ALTER TABLE IF EXISTS transfers
+  ALTER COLUMN amount TYPE DECIMAL(10,3);
 
 DO $$
 BEGIN

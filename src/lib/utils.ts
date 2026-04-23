@@ -5,6 +5,8 @@ export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-JO', {
     style: 'currency',
     currency: 'JOD',
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
   }).format(amount)
 }
 
@@ -80,7 +82,7 @@ export function groupExpensesByCategory(
     const category = categories.find(c => c.id === categoryId)
     return {
       name: category?.name || 'Uncategorized',
-      value: Number(value.toFixed(2)),
+      value: Number(value.toFixed(3)),
       color: category?.color || '#6b7280',
     }
   }).sort((a, b) => b.value - a.value)
@@ -118,7 +120,7 @@ export function groupExpensesByDate(expenses: Expense[]): ChartDataPoint[] {
 		const value = grouped[key] ?? 0
 		result.push({
 			name: formatDateShort(key),
-			value: Number(value.toFixed(2)),
+			value: Number(value.toFixed(3)),
 		})
 	}
 
@@ -142,7 +144,7 @@ export function groupExpensesByMonth(expenses: Expense[]): ChartDataPoint[] {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([, { displayName, value }]) => ({
       name: displayName,
-      value: Number(value.toFixed(2)),
+      value: Number(value.toFixed(3)),
     }))
 }
 

@@ -125,17 +125,22 @@ export default function Dashboard() {
                   currentIncomeLoading || lastIncomeLoading || allExpensesLoading || allIncomeLoading || 
                   allTransfersLoading
 
+  const memberPaidExpenses = useMemo(() => {
+    if (!member) return []
+    return allExpenses.filter((expense) => expense.member_id === member.id)
+  }, [allExpenses, member])
+
   // Calculate balances by account type
   const balances = useMemo(() => {
-    // Bank balance: bank income - bank expenses + transfers to bank - transfers from bank
+    // Bank balance: bank income - my paid bank expenses + transfers to bank - transfers from bank
     const bankIncome = calculateIncomeByAccount(allIncome, 'bank')
-    const bankExpenses = calculateExpensesByAccount(allExpenses, 'bank')
+    const bankExpenses = calculateExpensesByAccount(memberPaidExpenses, 'bank')
     const bankTransferImpact = calculateTransferImpact(allTransfers, 'bank')
     const bankBalance = bankIncome - bankExpenses + bankTransferImpact
 
-    // Cash balance: cash income - cash expenses + transfers to cash - transfers from cash
+    // Cash balance: cash income - my paid cash expenses + transfers to cash - transfers from cash
     const cashIncome = calculateIncomeByAccount(allIncome, 'cash')
-    const cashExpenses = calculateExpensesByAccount(allExpenses, 'cash')
+    const cashExpenses = calculateExpensesByAccount(memberPaidExpenses, 'cash')
     const cashTransferImpact = calculateTransferImpact(allTransfers, 'cash')
     const cashBalance = cashIncome - cashExpenses + cashTransferImpact
 
@@ -147,7 +152,7 @@ export default function Dashboard() {
       cash: cashBalance,
       total: totalBalance,
     }
-  }, [allIncome, allExpenses, allTransfers])
+  }, [allIncome, memberPaidExpenses, allTransfers])
 
   // Expense view toggle state: 0 = My Expenses, 1 = Household, 2 = All
   const [expenseView, setExpenseView] = useState(0)

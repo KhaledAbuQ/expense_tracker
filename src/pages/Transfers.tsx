@@ -9,6 +9,7 @@ import {
   HandCoins,
   BarChart3,
   GitCompareArrows,
+  Coins,
 } from 'lucide-react'
 import { endOfMonth, format, parse, startOfMonth, subMonths } from 'date-fns'
 import { useTransfers } from '../hooks/useTransfers'
@@ -30,24 +31,44 @@ import {
   groupExpensesByCategory,
   groupExpensesByDate,
 } from '../lib/utils'
+import { GOLD_ITEM_LABELS } from '../lib/gold'
 import { useAuth } from '../context/AuthContext'
 
 const accountIcons: Record<TransferAccountType, typeof Building2> = {
   bank: Building2,
   cash: Banknote,
   savings: HandCoins,
+  gold: Coins,
 }
 
 const accountLabels: Record<TransferAccountType, string> = {
   bank: 'Bank',
   cash: 'Cash',
   savings: 'Savings',
+  gold: 'Gold',
 }
 
 const accountColors: Record<TransferAccountType, string> = {
   bank: 'text-blue-600 bg-blue-50',
   cash: 'text-green-600 bg-green-50',
   savings: 'text-purple-600 bg-purple-50',
+  gold: 'text-amber-600 bg-amber-50',
+}
+
+/** One-line summary of the metal a gold transfer moved, e.g. "2 x English lira (22k, 15.98 g)". */
+function describeGold(transfer: Transfer): string | null {
+  if (!transfer.gold_item_type || !transfer.gold_grams) return null
+
+  const grams = `${Number(transfer.gold_grams).toFixed(2)} g`
+  const karat = transfer.gold_karat ? `${transfer.gold_karat}k` : ''
+
+  if (transfer.gold_item_type === 'bullion') {
+    return `${grams} of ${karat} gold`
+  }
+
+  const count = Number(transfer.gold_quantity ?? 0)
+  const name = GOLD_ITEM_LABELS[transfer.gold_item_type]
+  return `${count} x ${name} (${karat}, ${grams})`
 }
 
 type TransfersTab = 'activity' | 'history'
@@ -372,6 +393,11 @@ export default function TransfersPage() {
                               {formatDate(transfer.date)}
                               {transfer.description && ` • ${transfer.description}`}
                             </p>
+                            {describeGold(transfer) && (
+                              <p className="text-xs text-amber-700 mt-0.5">
+                                {describeGold(transfer)}
+                              </p>
+                            )}
                           </div>
                         </div>
 

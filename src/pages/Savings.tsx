@@ -1,10 +1,20 @@
 import { useMemo, useState } from 'react'
-import { TrendingUp, TrendingDown, HandCoins } from 'lucide-react'
+import { TrendingUp, TrendingDown, HandCoins, Coins, RefreshCw } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
 import { useExpenses } from '../hooks/useExpenses'
+import { useGoldPrice } from '../hooks/useGoldPrice'
 import { Income, Transfer, Expense } from '../types'
-import { formatCurrency, parseDateOnly } from '../lib/utils'
+import { formatCurrency, parseDateOnly, formatDate } from '../lib/utils'
+import {
+  calculateGoldFineGrams,
+  countGoldItems,
+  describeHolding,
+  formatGrams,
+  isPriceStale,
+  summarizeGoldHoldings,
+  valueOfFineGrams,
+} from '../lib/gold'
 import { useAuth } from '../context/AuthContext'
 import MonthlyBarChart from '../components/charts/MonthlyBarChart'
 import { format, subMonths, addMonths } from 'date-fns'
@@ -115,12 +125,28 @@ export default function SavingsPage() {
     [allExpenses, member]
   )
 
-  // Calculate total savings balance
-  const totalSavings = useMemo(() => {
+  const { price: goldPrice, loading: goldLoading, refreshing: goldRefreshing, refresh: refreshGold } =
+    useGoldPrice()
+
+  // Cash sitting in the savings account, separate from metal.
+  const cashSavings = useMemo(() => {
     const deposits = calculateSavingsDeposits(myIncome)
     const transferImpact = calculateSavingsTransferImpact(allTransfers)
     return deposits + transferImpact
   }, [myIncome, allTransfers])
+
+  // Gold is held as weight but reported as money: holdings come from the
+  // transfer ledger in fine grams, then get valued at today's rate.
+  const goldFineGrams = useMemo(() => calculateGoldFineGrams(allTransfers), [allTransfers])
+  const goldItemCount = useMemo(() => countGoldItems(allTransfers), [allTransfers])
+  const goldHoldings = useMemo(() => summarizeGoldHoldings(allTransfers), [allTransfers])
+  const goldValue = useMemo(
+    () => valueOfFineGrams(goldFineGrams, goldPrice),
+    [goldFineGrams, goldPrice]
+  )
+  const holdsGold = goldFineGrams > 0.0001
+
+  const totalSavings = cashSavings + goldValue
 
   // Calculate monthly breakdown
   const monthlyData = useMemo(() => {
@@ -264,7 +290,7 @@ export default function SavingsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${holdsGold ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3'}`}>
         {/* Total Savings - Featured */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl p-5 shadow-lg text-white">
           <div className="flex items-center justify-between">
@@ -273,13 +299,70 @@ export default function SavingsPage() {
               <p className="text-2xl font-bold mt-1">
                 {loading ? '...' : formatCurrency(totalSavings)}
               </p>
-              <p className="text-purple-200 text-xs mt-1">All-time balance</p>
+              {holdsGold ? (
+                <p className="text-purple-200 text-xs mt-1">
+                  {formatCurrency(cashSavings)} cash + {formatCurrency(goldValue)} gold
+                </p>
+              ) : (
+                <p className="text-purple-200 text-xs mt-1">All-time balance</p>
+              )}
             </div>
             <div className="p-3 bg-white/10 rounded-xl">
               <HandCoins className="w-6 h-6" />
             </div>
           </div>
         </div>
+
+        {/* Gold Holdings, valued at today's rate */}
+        {holdsGold && (
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-amber-200">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-gray-500 text-sm font-medium">Gold</p>
+                <p className="text-xl font-bold text-amber-700 mt-1">
+                  {goldLoading && !goldPrice ? '...' : formatCurrency(goldValue)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formatGrams(goldFineGrams)} pure
+                  {goldItemCount > 0 && ` · ${goldItemCount} coin${goldItemCount === 1 ? '' : 's'}`}
+                </p>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-xl">
+                <Coins className="w-6 h-6 text-amber-600" />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-2">
+              <p className="text-xs text-gray-400 truncate">
+                {goldPrice ? (
+                  <>
+                    {formatCurrency(Number(goldPrice.price_24k))}/g
+                    {goldPrice.source === 'spot_peg' && ' (world spot)'}
+                    {' · '}
+                    {formatDate(goldPrice.fetched_at.slice(0, 10))}
+                  </>
+                ) : (
+                  'No price recorded yet'
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => refreshGold()}
+                disabled={goldRefreshing}
+                className="shrink-0 p-1 text-gray-400 hover:text-amber-600 rounded disabled:opacity-50"
+                title="Refresh gold price"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${goldRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+
+            {isPriceStale(goldPrice) && (
+              <p className="mt-2 text-xs text-red-600">
+                This price is over a day old, so the value above may be off.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* This Month */}
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
@@ -320,11 +403,85 @@ export default function SavingsPage() {
         </div>
       </div>
 
+      {/* Gold holdings: what you physically own, and what it is worth today */}
+      {holdsGold && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Gold Holdings</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                What you hold, and what it is worth at today&apos;s price
+              </p>
+            </div>
+            <Coins className="w-5 h-5 text-amber-600 shrink-0" />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Count
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Weight
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pure gold
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Value
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {goldHoldings.map((holding) => (
+                  <tr key={`${holding.itemType}-${holding.karat}`} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                      {describeHolding(holding)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600">
+                      {holding.itemType === 'bullion' ? '—' : holding.count}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600">
+                      {formatGrams(holding.grams)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600">
+                      {formatGrams(holding.fineGrams)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-amber-700">
+                      {goldPrice ? formatCurrency(valueOfFineGrams(holding.fineGrams, goldPrice)) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td className="px-4 py-3 font-semibold text-gray-900" colSpan={3}>
+                    Total
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+                    {formatGrams(goldFineGrams)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-amber-700 whitespace-nowrap">
+                    {goldPrice ? formatCurrency(goldValue) : '—'}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Savings Overview Chart */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <h2 className="text-lg font-semibold text-gray-900">Savings Over Time</h2>
         <p className="text-sm text-gray-500 mt-1">
-          See how your savings are changing month by month
+          Cash moving in and out of savings, month by month. Gold is valued at today&apos;s
+          price rather than tracked as a monthly change.
         </p>
         <div className="mt-4">
           {loading ? (
@@ -340,9 +497,9 @@ export default function SavingsPage() {
       {/* Monthly Breakdown */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Monthly Savings History</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Monthly Cash Savings</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Track how much you've saved each month
+            Deposits and transfers into your savings account each month
           </p>
         </div>
         

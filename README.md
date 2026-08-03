@@ -289,6 +289,59 @@ Invite codes are 8 characters from an unambiguous alphabet (no `O`/`0`, no
 `I`/`1`). Codes from before this change were the raw household UUID; those are
 still accepted so existing invitations keep working until they are rotated.
 
+## Gold
+
+Gold is an account you transfer money into and out of, alongside bank, cash and
+savings. Buying gold deducts from the source account and records what you
+physically received; the Savings page then values those holdings in dinars at
+the current rate and folds them into your total.
+
+Holdings are derived from the transfer ledger in **fine grams** (24k-equivalent
+weight), so there is no stored balance that can drift. Supported items:
+
+| Item | Weight | Carat | Fine gold |
+|------|--------|-------|-----------|
+| English lira | 8 g | 21k | 7.000 g |
+| Rashadi lira | 7 g | 21k | 6.125 g |
+| Other, by weight and carat | you enter | 24/22/21/18/14k | derived |
+
+Coin weights and carat follow how gold is actually traded in Jordan, which
+differs slightly from the original mint standards (a British sovereign is struck
+at 7.98805 g / 22k). Local convention is what the money changes hands on.
+
+Purity is `karat / 24`, with 24k treated as 1.0 rather than 0.999, because the
+price source derives its per-carat rates the same way — its 21k quote is exactly
+0.875 of its 24k quote. Valuing an 8 g English lira through fine grams gives
+647.22 JD against 647.20 JD from the dealer-style `8 g × 21k rate`, a 0.003%
+difference that is just the source rounding its quote to two decimals.
+
+The Savings page shows both sides: a per-item breakdown with counts and weights,
+and the dinar value of each line. The transfer amount stays editable after the
+market estimate is prefilled, because what you actually pay includes workmanship
+(`أجرة`) and haggling.
+
+### Price source
+
+`supabase/functions/gold-price` fetches prices server-side, which is necessary
+because no free gold API quotes JOD and the sources send no CORS headers. It
+tries the Jordanian per-carat table first, then falls back to international spot
+converted through the fixed 0.709 JOD/USD peg. Results are validated before
+being stored — implausible values, inverted carat ordering and misaligned
+columns are all rejected, so a broken page cannot overwrite a good price. If
+both sources fail the last good price is kept and flagged as stale in the UI.
+
+Deploy it once:
+
+```bash
+supabase login
+supabase link --project-ref ijycfxuhtnkpnxymbmja
+supabase functions deploy gold-price
+```
+
+Prices land in `gold_prices`, which every signed-in user can read and no client
+can write — the function uses the service role key, which bypasses RLS. That
+matters because these values price your holdings.
+
 ### Applying the schema
 
 `supabase/schema.sql` is idempotent -- run it on a fresh project or over an

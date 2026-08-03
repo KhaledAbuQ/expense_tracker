@@ -65,17 +65,47 @@ CREATE TABLE IF NOT EXISTS income (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Transfers table (for moving money between accounts: bank, cash, savings)
+-- Transfers table (moving money between accounts: bank, cash, savings, gold)
+--
+-- Gold is an account you can move money into and out of. Buying gold is a
+-- transfer from bank or cash to 'gold': `amount` is the dinars that actually
+-- left the account (including any workmanship premium), while the gold_* columns
+-- record what you physically received. Holdings are derived from this ledger --
+-- there is no separate balance to keep in sync.
 CREATE TABLE IF NOT EXISTS transfers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   amount DECIMAL(10,3) NOT NULL CHECK (amount > 0),
-  from_account VARCHAR(20) NOT NULL CHECK (from_account IN ('bank', 'cash', 'savings')),
-  to_account VARCHAR(20) NOT NULL CHECK (to_account IN ('bank', 'cash', 'savings')),
+  from_account VARCHAR(20) NOT NULL CHECK (from_account IN ('bank', 'cash', 'savings', 'gold')),
+  to_account VARCHAR(20) NOT NULL CHECK (to_account IN ('bank', 'cash', 'savings', 'gold')),
   description TEXT,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   member_id UUID REFERENCES members(id) ON DELETE CASCADE,
+  gold_item_type VARCHAR(20) CHECK (gold_item_type IN ('english_lira', 'rashadi_lira', 'bullion')),
+  -- Coin count for liras, gram weight for bullion/jewellery.
+  gold_quantity DECIMAL(12,4) CHECK (gold_quantity > 0),
+  gold_karat SMALLINT CHECK (gold_karat BETWEEN 1 AND 24),
+  -- Gross weight of the item(s), and the pure-gold equivalent that gets summed.
+  gold_grams DECIMAL(12,4) CHECK (gold_grams > 0),
+  gold_fine_grams DECIMAL(12,4) CHECK (gold_fine_grams > 0),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT different_accounts CHECK (from_account != to_account)
+);
+
+-- Live gold prices in JOD per gram, one row per successful fetch.
+-- This is public market data, not household data: every signed-in user reads the
+-- same rows, and only the Edge Function (service role) writes them.
+CREATE TABLE IF NOT EXISTS gold_prices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  price_24k DECIMAL(12,4) NOT NULL CHECK (price_24k > 0),
+  price_22k DECIMAL(12,4) NOT NULL CHECK (price_22k > 0),
+  price_21k DECIMAL(12,4) NOT NULL CHECK (price_21k > 0),
+  price_18k DECIMAL(12,4) NOT NULL CHECK (price_18k > 0),
+  price_14k DECIMAL(12,4) NOT NULL CHECK (price_14k > 0),
+  -- 'jordan_scrape' when local rates were read directly, 'spot_peg' when derived
+  -- from international spot through the fixed USD/JOD peg.
+  source VARCHAR(30) NOT NULL,
+  source_detail TEXT,
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================
@@ -102,6 +132,88 @@ ALTER TABLE IF EXISTS income
 
 ALTER TABLE IF EXISTS transfers
   ADD COLUMN IF NOT EXISTS member_id UUID;
+
+ALTER TABLE IF EXISTS transfers
+  ADD COLUMN IF NOT EXISTS gold_item_type VARCHAR(20);
+ALTER TABLE IF EXISTS transfers
+  ADD COLUMN IF NOT EXISTS gold_quantity DECIMAL(12,4);
+ALTER TABLE IF EXISTS transfers
+  ADD COLUMN IF NOT EXISTS gold_karat SMALLINT;
+ALTER TABLE IF EXISTS transfers
+  ADD COLUMN IF NOT EXISTS gold_grams DECIMAL(12,4);
+ALTER TABLE IF EXISTS transfers
+  ADD COLUMN IF NOT EXISTS gold_fine_grams DECIMAL(12,4);
+
+-- Widen the account CHECK constraints to admit 'gold'. The original names are
+-- whatever Postgres generated, so match on the constraint body instead.
+--
+-- The `%bank%` test is load-bearing: `different_accounts` is defined as
+-- CHECK (from_account <> to_account) and so also mentions both column names.
+-- Matching on the column alone would drop it and leave a transfer able to move
+-- money from an account to itself.
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT c.conname, pg_get_constraintdef(c.oid) AS def
+    FROM pg_constraint c
+    WHERE c.conrelid = 'transfers'::regclass
+      AND c.contype = 'c'
+  LOOP
+    IF (r.def ILIKE '%from_account%' OR r.def ILIKE '%to_account%')
+       AND r.def ILIKE '%bank%' THEN
+      EXECUTE format('ALTER TABLE transfers DROP CONSTRAINT %I', r.conname);
+    END IF;
+  END LOOP;
+
+  ALTER TABLE transfers
+    ADD CONSTRAINT transfers_from_account_check
+    CHECK (from_account IN ('bank', 'cash', 'savings', 'gold'));
+  ALTER TABLE transfers
+    ADD CONSTRAINT transfers_to_account_check
+    CHECK (to_account IN ('bank', 'cash', 'savings', 'gold'));
+END $$;
+
+-- Re-assert the self-transfer guard in case an older database never had it.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'transfers'::regclass AND conname = 'different_accounts'
+  ) THEN
+    ALTER TABLE transfers
+      ADD CONSTRAINT different_accounts CHECK (from_account != to_account);
+  END IF;
+END $$;
+
+-- A transfer touching 'gold' must say what the gold actually was; one that
+-- doesn't must not carry gold columns.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'transfers'::regclass AND conname = 'transfers_gold_detail_check'
+  ) THEN
+    ALTER TABLE transfers DROP CONSTRAINT transfers_gold_detail_check;
+  END IF;
+
+  ALTER TABLE transfers ADD CONSTRAINT transfers_gold_detail_check CHECK (
+    CASE WHEN from_account = 'gold' OR to_account = 'gold'
+      THEN gold_item_type IS NOT NULL
+           AND gold_quantity IS NOT NULL
+           AND gold_karat IS NOT NULL
+           AND gold_grams IS NOT NULL
+           AND gold_fine_grams IS NOT NULL
+           AND gold_fine_grams <= gold_grams
+      ELSE gold_item_type IS NULL
+           AND gold_quantity IS NULL
+           AND gold_karat IS NULL
+           AND gold_grams IS NULL
+           AND gold_fine_grams IS NULL
+    END
+  );
+END $$;
 
 ALTER TABLE IF EXISTS expenses
   ALTER COLUMN amount TYPE DECIMAL(10,3);
@@ -357,6 +469,7 @@ CREATE INDEX IF NOT EXISTS idx_transfers_to ON transfers(to_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_member ON transfers(member_id);
 CREATE INDEX IF NOT EXISTS idx_members_household ON members(household_id);
 CREATE INDEX IF NOT EXISTS idx_categories_household ON categories(household_id);
+CREATE INDEX IF NOT EXISTS idx_gold_prices_fetched ON gold_prices(fetched_at DESC);
 
 -- ============================================
 -- DEFAULT CATEGORIES (household_id IS NULL = shared, read-only)
@@ -582,6 +695,7 @@ ALTER TABLE members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE income ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gold_prices ENABLE ROW LEVEL SECURITY;
 
 -- Drop superseded policies so this file can be re-run over an older schema.
 DROP POLICY IF EXISTS "Allow all categories" ON categories;
@@ -612,6 +726,7 @@ DROP POLICY IF EXISTS "Allow transfers read" ON transfers;
 DROP POLICY IF EXISTS "Allow transfers insert" ON transfers;
 DROP POLICY IF EXISTS "Allow transfers update" ON transfers;
 DROP POLICY IF EXISTS "Allow transfers delete" ON transfers;
+DROP POLICY IF EXISTS "Gold prices are readable" ON gold_prices;
 
 -- --- Categories -------------------------------------------------------------
 -- Built-in defaults (household_id IS NULL) are world-readable and immutable.
@@ -771,3 +886,12 @@ CREATE POLICY "Allow transfers update" ON transfers FOR UPDATE
 CREATE POLICY "Allow transfers delete" ON transfers FOR DELETE
   TO authenticated
   USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+-- --- Gold prices (public market data, read-only to clients) -----------------
+-- Deliberately no INSERT/UPDATE/DELETE policy: the Edge Function writes with the
+-- service role key, which bypasses RLS. A signed-in client can read prices but
+-- cannot forge one, which matters because these values price your holdings.
+
+CREATE POLICY "Gold prices are readable" ON gold_prices FOR SELECT
+  TO authenticated
+  USING (true);

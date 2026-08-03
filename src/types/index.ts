@@ -2,7 +2,37 @@ export type CategoryType = 'expense' | 'income' | 'both';
 export type Visibility = 'private' | 'household';
 export type AccountType = 'bank' | 'cash';
 export type IncomeAccountType = 'bank' | 'cash' | 'savings';
-export type TransferAccountType = 'bank' | 'cash' | 'savings';
+export type TransferAccountType = 'bank' | 'cash' | 'savings' | 'gold';
+
+/** Gold you can buy as a recognised coin, or as raw weight at a given carat. */
+export type GoldItemType = 'english_lira' | 'rashadi_lira' | 'bullion';
+
+export type Karat = 24 | 22 | 21 | 18 | 14;
+
+export interface GoldPrice {
+  id: string;
+  price_24k: number;
+  price_22k: number;
+  price_21k: number;
+  price_18k: number;
+  price_14k: number;
+  /** 'jordan_scrape' for local rates, 'spot_peg' when derived from world spot. */
+  source: 'jordan_scrape' | 'spot_peg';
+  source_detail: string | null;
+  fetched_at: string;
+}
+
+/** The gold columns a transfer carries when it moves into or out of gold. */
+export interface GoldDetail {
+  gold_item_type: GoldItemType;
+  /** Coin count for liras, gram weight for bullion. */
+  gold_quantity: number;
+  gold_karat: Karat;
+  /** Gross weight of the item(s). */
+  gold_grams: number;
+  /** Pure-gold equivalent, which is what holdings are summed in. */
+  gold_fine_grams: number;
+}
 
 export interface Household {
   id: string;
@@ -80,7 +110,7 @@ export interface IncomeFormData {
   account_type: IncomeAccountType;
 }
 
-export interface Transfer {
+export interface Transfer extends Partial<GoldDetail> {
   id: string;
   amount: number;
   from_account: TransferAccountType;
@@ -92,7 +122,7 @@ export interface Transfer {
   member?: Member;
 }
 
-export interface TransferFormData {
+export interface TransferFormData extends Partial<GoldDetail> {
   amount: number;
   from_account: TransferAccountType;
   to_account: TransferAccountType;

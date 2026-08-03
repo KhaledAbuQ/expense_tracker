@@ -8,11 +8,12 @@ import Modal from '../components/Modal'
 import DateRangePicker from '../components/DateRangePicker'
 import { Income, IncomeFormData, DateRange } from '../types'
 import { useAuth } from '../context/AuthContext'
-import { getDateRange, formatCurrency } from '../lib/utils'
-
-function calculateTotalIncome(income: Income[]): number {
-  return income.reduce((sum, item) => sum + Number(item.amount), 0)
-}
+import {
+  getDateRange,
+  formatCurrency,
+  calculateGrossIncome,
+  calculateIncomeByAccount,
+} from '../lib/utils'
 
 export default function IncomePage() {
   const [dateRange, setDateRange] = useState<DateRange>(getDateRange('month'))
@@ -37,15 +38,12 @@ export default function IncomePage() {
   const handleSubmit = async (data: IncomeFormData) => {
     if (!member) return
 
-    const payload = {
-      ...data,
-      member_id: member.id,
-    }
-
     if (editingIncome) {
-      await updateIncome(editingIncome.id, payload)
+      // Never re-stamp member_id on edit; it would reassign ownership.
+      const { member_id: _ignored, ...editable } = data
+      await updateIncome(editingIncome.id, editable)
     } else {
-      await addIncome(payload)
+      await addIncome({ ...data, member_id: member.id })
     }
     setIsModalOpen(false)
     setEditingIncome(null)
@@ -61,7 +59,12 @@ export default function IncomePage() {
     setEditingIncome(null)
   }
 
-  const total = calculateTotalIncome(income)
+  // This total covers every row in the list below, savings deposits included.
+  // The Dashboard's "Income This Month" excludes savings because that card
+  // tracks spendable balance, so show the savings portion here to make the two
+  // numbers reconcile instead of just looking inconsistent.
+  const total = calculateGrossIncome(income)
+  const savingsPortion = calculateIncomeByAccount(income, 'savings')
 
   return (
     <div className="space-y-6">
@@ -112,6 +115,11 @@ export default function IncomePage() {
             
             <div className="text-sm text-gray-500">
               Total: <span className="font-semibold text-green-600">+{formatCurrency(total)}</span>
+              {savingsPortion > 0 && (
+                <span className="block text-xs text-gray-400">
+                  incl. {formatCurrency(savingsPortion)} to savings
+                </span>
+              )}
             </div>
           </div>
         </div>

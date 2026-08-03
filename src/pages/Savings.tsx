@@ -4,9 +4,10 @@ import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
 import { useExpenses } from '../hooks/useExpenses'
 import { Income, Transfer, Expense } from '../types'
-import { formatCurrency } from '../lib/utils'
+import { formatCurrency, parseDateOnly } from '../lib/utils'
+import { useAuth } from '../context/AuthContext'
 import MonthlyBarChart from '../components/charts/MonthlyBarChart'
-import { format, parseISO, subMonths, addMonths } from 'date-fns'
+import { format, subMonths, addMonths } from 'date-fns'
 
 interface MonthlySavingsData {
   month: string
@@ -41,65 +42,59 @@ function calculateSavingsTransferImpact(transfers: Transfer[]): number {
 // Group savings activity by month
 function groupSavingsByMonth(income: Income[], transfers: Transfer[]): MonthlySavingsData[] {
   const monthMap = new Map<string, MonthlySavingsData>()
-  
-  // Process savings deposits from income
-  income
-    .filter(i => i.account_type === 'savings')
-    .forEach(i => {
-      const date = parseISO(i.date)
-      const monthKey = format(date, 'yyyy-MM')
-      const monthLabel = format(date, 'MMM yyyy')
-      
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, {
-          month: monthKey,
-          monthLabel,
-          deposits: 0,
-          transfersIn: 0,
-          transfersOut: 0,
-          netChange: 0,
-        })
-      }
-      
-      const data = monthMap.get(monthKey)!
-      data.deposits += Number(i.amount)
-      data.netChange += Number(i.amount)
-    })
-  
-  // Process transfers to/from savings
-  transfers.forEach(t => {
-    const date = parseISO(t.date)
-    const monthKey = format(date, 'yyyy-MM')
-    const monthLabel = format(date, 'MMM yyyy')
-    
+
+  const bucketFor = (date: string): MonthlySavingsData => {
+    const parsed = parseDateOnly(date)
+    const monthKey = format(parsed, 'yyyy-MM')
+
     if (!monthMap.has(monthKey)) {
       monthMap.set(monthKey, {
         month: monthKey,
-        monthLabel,
+        monthLabel: format(parsed, 'MMM yyyy'),
         deposits: 0,
         transfersIn: 0,
         transfersOut: 0,
         netChange: 0,
       })
     }
-    
-    const data = monthMap.get(monthKey)!
-    
-    if (t.to_account === 'savings') {
-      data.transfersIn += Number(t.amount)
-      data.netChange += Number(t.amount)
-    }
-    if (t.from_account === 'savings') {
-      data.transfersOut += Number(t.amount)
-      data.netChange -= Number(t.amount)
-    }
-  })
-  
+
+    return monthMap.get(monthKey)!
+  }
+
+  // Process savings deposits from income
+  income
+    .filter(i => i.account_type === 'savings')
+    .forEach(i => {
+      const data = bucketFor(i.date)
+      data.deposits += Number(i.amount)
+      data.netChange += Number(i.amount)
+    })
+
+  // Process transfers to/from savings. Skip transfers that don't touch savings
+  // at all -- a bank-to-cash move used to create an all-zero month here, which
+  // showed up as an empty row in the history table and a flat bar in the chart.
+  transfers
+    .filter(t => t.to_account === 'savings' || t.from_account === 'savings')
+    .forEach(t => {
+      const data = bucketFor(t.date)
+
+      if (t.to_account === 'savings') {
+        data.transfersIn += Number(t.amount)
+        data.netChange += Number(t.amount)
+      }
+      if (t.from_account === 'savings') {
+        data.transfersOut += Number(t.amount)
+        data.netChange -= Number(t.amount)
+      }
+    })
+
   // Sort by month (most recent first)
   return Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month))
 }
 
 export default function SavingsPage() {
+  const { member } = useAuth()
+
   // Fetch all income and transfers (no date filter for total balance)
   const { income: allIncome, loading: incomeLoading } = useIncome({})
   const { transfers: allTransfers, loading: transfersLoading } = useTransfers({})
@@ -107,17 +102,30 @@ export default function SavingsPage() {
 
   const loading = incomeLoading || transfersLoading || expensesLoading
 
+  // These feeds include housemates' household-visible rows, but transfers are
+  // always private. Mixing the two produced a savings balance that counted a
+  // housemate's deposits without their withdrawals -- scope everything to you.
+  const myIncome = useMemo(
+    () => (member ? allIncome.filter(i => i.member_id === member.id) : []),
+    [allIncome, member]
+  )
+
+  const myExpenses = useMemo(
+    () => (member ? allExpenses.filter((e: Expense) => e.member_id === member.id) : []),
+    [allExpenses, member]
+  )
+
   // Calculate total savings balance
   const totalSavings = useMemo(() => {
-    const deposits = calculateSavingsDeposits(allIncome)
+    const deposits = calculateSavingsDeposits(myIncome)
     const transferImpact = calculateSavingsTransferImpact(allTransfers)
     return deposits + transferImpact
-  }, [allIncome, allTransfers])
+  }, [myIncome, allTransfers])
 
   // Calculate monthly breakdown
   const monthlyData = useMemo(() => {
-    return groupSavingsByMonth(allIncome, allTransfers)
-  }, [allIncome, allTransfers])
+    return groupSavingsByMonth(myIncome, allTransfers)
+  }, [myIncome, allTransfers])
 
   // Prepare chart data for savings over time
   const monthlyChartData = useMemo(
@@ -150,9 +158,8 @@ export default function SavingsPage() {
   const incomeStats = useMemo(() => {
     const monthMap = new Map<string, number>()
 
-    allIncome.forEach((i) => {
-      const date = parseISO(i.date)
-      const monthKey = format(date, 'yyyy-MM')
+    myIncome.forEach((i) => {
+      const monthKey = format(parseDateOnly(i.date), 'yyyy-MM')
       monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(i.amount))
     })
 
@@ -161,20 +168,19 @@ export default function SavingsPage() {
 
     return {
       averageMonthlyIncome: months > 0 ? total / months : 0,
-       monthsOfHistory: months,
+      monthsOfHistory: months,
     }
-  }, [allIncome])
+  }, [myIncome])
 
-  // Average monthly expenses across history (for goal calculator context)
+  // Average monthly expenses across history (for goal calculator context).
+  // Every expense you paid counts, shared or not. Restricting this to private
+  // expenses hid your own household spending, which inflated the "left over
+  // each month" figure and made goals look more achievable than they are.
   const expenseStats = useMemo(() => {
     const monthMap = new Map<string, number>()
 
-    allExpenses.forEach((e: Expense) => {
-      // Focus on money you personally spend when judging goal difficulty
-      if (e.visibility !== 'private') return
-
-      const date = parseISO(e.date)
-      const monthKey = format(date, 'yyyy-MM')
+    myExpenses.forEach((e: Expense) => {
+      const monthKey = format(parseDateOnly(e.date), 'yyyy-MM')
       monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(e.amount))
     })
 
@@ -185,7 +191,7 @@ export default function SavingsPage() {
       averageMonthlyExpenses: months > 0 ? total / months : 0,
       monthsOfHistory: months,
     }
-  }, [allExpenses])
+  }, [myExpenses])
 
   // Savings goal calculator state
   const [goalAmountInput, setGoalAmountInput] = useState('')

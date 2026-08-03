@@ -105,7 +105,10 @@ function buildCategoryComparison(periodAData: ChartDataPoint[], periodBData: Cha
       periodA: item.value,
       periodB: 0,
       difference: item.value,
-      percentChange: 0,
+      // Spent in the primary period, nothing in the comparison period. This was
+      // hardcoded to 0, so a brand-new category displayed "+0.0%" beside a large
+      // positive difference. The mirrored branch below already did this right.
+      percentChange: calculatePercentChange(item.value, 0),
     })
   })
 

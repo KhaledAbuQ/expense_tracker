@@ -1,6 +1,7 @@
 import { Pencil, Trash2, Building2, Banknote, PiggyBank, Users } from 'lucide-react'
 import { Income, IncomeAccountType } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
+import { useAuth } from '../context/AuthContext'
 import CategoryBadge from './CategoryBadge'
 
 interface IncomeRowProps {
@@ -16,6 +17,8 @@ const accountConfig: Record<IncomeAccountType, { icon: typeof Building2; label: 
 }
 
 export default function IncomeRow({ income, onEdit, onDelete }: IncomeRowProps) {
+  const { member } = useAuth()
+
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this income?')) {
       onDelete(income.id)
@@ -25,6 +28,8 @@ export default function IncomeRow({ income, onEdit, onDelete }: IncomeRowProps) 
   const accountType = (income.account_type || 'bank') as IncomeAccountType
   const config = accountConfig[accountType]
   const Icon = config.icon
+  // Shared income is visible to the household but only its owner may change it.
+  const isOwn = !!member && income.member_id === member.id
 
   return (
     <tr className="hover:bg-gray-50 transition-colors">
@@ -61,20 +66,28 @@ export default function IncomeRow({ income, onEdit, onDelete }: IncomeRowProps) 
       </td>
       <td className="px-6 py-4 text-right">
         <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => onEdit(income)}
-            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-            title="Edit"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleDelete}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {isOwn ? (
+            <>
+              <button
+                onClick={() => onEdit(income)}
+                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                title="Edit"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <span className="text-xs text-gray-400 pr-2">
+              {income.member?.name ? `${income.member.name}'s` : 'Shared'}
+            </span>
+          )}
         </div>
       </td>
     </tr>

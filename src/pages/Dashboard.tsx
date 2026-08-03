@@ -14,6 +14,8 @@ import {
   calculateTotalExpenses,
   calculateAverageDaily,
   calculatePercentChange,
+  calculateSpendableIncome,
+  calculateIncomeByAccount,
   groupExpensesByCategory,
   groupExpensesByDate,
   groupExpensesByMonth,
@@ -22,22 +24,8 @@ import {
   getElapsedDaysInMonth,
 } from '../lib/utils'
 import { subMonths } from 'date-fns'
-import { Income, Expense, Transfer, AccountType, TransferAccountType, IncomeAccountType } from '../types'
+import { Expense, Transfer, AccountType, TransferAccountType } from '../types'
 import { useAuth } from '../context/AuthContext'
-
-// Calculate total income (excluding savings)
-function calculateTotalIncome(income: Income[]): number {
-  return income
-    .filter(i => i.account_type !== 'savings')
-    .reduce((sum, item) => sum + Number(item.amount), 0)
-}
-
-// Calculate income by account type
-function calculateIncomeByAccount(income: Income[], accountType: IncomeAccountType): number {
-  return income
-    .filter(i => i.account_type === accountType)
-    .reduce((sum, item) => sum + Number(item.amount), 0)
-}
 
 // Calculate expenses by account type (for all scoped expenses)
 function calculateExpensesByAccount(expenses: Expense[], accountType: AccountType): number {
@@ -99,48 +87,34 @@ export default function Dashboard() {
 
   const { categories, loading: categoriesLoading } = useCategories()
 
-  console.log({
-  currentLoading,
-  lastLoading,
-  yearLoading,
-  categoriesLoading,
-  currentIncomeLoading,
-  lastIncomeLoading,
-  allExpensesLoading,
-  allIncomeLoading,
-  allTransfersLoading,
-
-  currentExpenses,
-  lastMonthExpenses,
-  yearExpenses,
-  currentIncome,
-  lastMonthIncome,
-  allExpenses,
-  allIncome,
-  allTransfers,
-  categories,
-})
-
-  const loading = currentLoading || lastLoading || yearLoading || categoriesLoading || 
-                  currentIncomeLoading || lastIncomeLoading || allExpensesLoading || allIncomeLoading || 
+  const loading = currentLoading || lastLoading || yearLoading || categoriesLoading ||
+                  currentIncomeLoading || lastIncomeLoading || allExpensesLoading || allIncomeLoading ||
                   allTransfersLoading
 
-  const memberPaidExpenses = useMemo(() => {
+  // Your balance is built only from rows you own. A housemate marking something
+  // "household" makes it visible to you, not yours to account for -- that has to
+  // hold for income and expenses alike, or the balance drifts in one direction.
+  const myExpenses = useMemo(() => {
     if (!member) return []
     return allExpenses.filter((expense) => expense.member_id === member.id)
   }, [allExpenses, member])
 
+  const myIncome = useMemo(() => {
+    if (!member) return []
+    return allIncome.filter((entry) => entry.member_id === member.id)
+  }, [allIncome, member])
+
   // Calculate balances by account type
   const balances = useMemo(() => {
-    // Bank balance: bank income - my paid bank expenses + transfers to bank - transfers from bank
-    const bankIncome = calculateIncomeByAccount(allIncome, 'bank')
-    const bankExpenses = calculateExpensesByAccount(memberPaidExpenses, 'bank')
+    // Bank balance: my bank income - my bank expenses + net transfers into bank
+    const bankIncome = calculateIncomeByAccount(myIncome, 'bank')
+    const bankExpenses = calculateExpensesByAccount(myExpenses, 'bank')
     const bankTransferImpact = calculateTransferImpact(allTransfers, 'bank')
     const bankBalance = bankIncome - bankExpenses + bankTransferImpact
 
-    // Cash balance: cash income - my paid cash expenses + transfers to cash - transfers from cash
-    const cashIncome = calculateIncomeByAccount(allIncome, 'cash')
-    const cashExpenses = calculateExpensesByAccount(memberPaidExpenses, 'cash')
+    // Cash balance: my cash income - my cash expenses + net transfers into cash
+    const cashIncome = calculateIncomeByAccount(myIncome, 'cash')
+    const cashExpenses = calculateExpensesByAccount(myExpenses, 'cash')
     const cashTransferImpact = calculateTransferImpact(allTransfers, 'cash')
     const cashBalance = cashIncome - cashExpenses + cashTransferImpact
 
@@ -152,7 +126,7 @@ export default function Dashboard() {
       cash: cashBalance,
       total: totalBalance,
     }
-  }, [allIncome, memberPaidExpenses, allTransfers])
+  }, [myIncome, myExpenses, allTransfers])
 
   // Expense view toggle state: 0 = My Expenses, 1 = Household, 2 = All
   const [expenseView, setExpenseView] = useState(0)
@@ -161,8 +135,11 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const currentTotal = calculateTotalExpenses(currentExpenses)
     const lastTotal = calculateTotalExpenses(lastMonthExpenses)
-    const currentIncomeTotal = calculateTotalIncome(currentIncome)
-    const lastIncomeTotal = calculateTotalIncome(lastMonthIncome)
+    // Own income only, to match the balance cards above.
+    const myCurrentIncome = member ? currentIncome.filter(i => i.member_id === member.id) : []
+    const myLastMonthIncome = member ? lastMonthIncome.filter(i => i.member_id === member.id) : []
+    const currentIncomeTotal = calculateSpendableIncome(myCurrentIncome)
+    const lastIncomeTotal = calculateSpendableIncome(myLastMonthIncome)
     const elapsedDays = getElapsedDaysInMonth()
     const lastMonthDays = getDaysInRange(lastMonthRange)
     const avgDailyCurrent = calculateAverageDaily(currentExpenses, elapsedDays)
@@ -171,19 +148,21 @@ export default function Dashboard() {
     const incomePercentChange = calculatePercentChange(currentIncomeTotal, lastIncomeTotal)
     const topCategory = getTopCategory(currentExpenses, categories)
 
-    // Expenses paid by me this month
+    // Expenses paid by me this month -- every expense I own, shared or not.
+    // Filtering to `visibility === 'private'` used to drop my own household
+    // spending from "Paid by me" even though it still comes out of my balance.
     const myExpensesThisMonth = member
-      ? currentExpenses.filter(e => e.member_id === member.id && e.visibility === 'private')
+      ? currentExpenses.filter(e => e.member_id === member.id)
       : []
     const myExpensesTotal = calculateTotalExpenses(myExpensesThisMonth)
-    
-    // Household expenses this month
+
+    // Household expenses this month (everyone's shared spending, mine included)
     const householdExpensesThisMonth = currentExpenses.filter(e => e.visibility === 'household')
     const householdExpensesTotal = calculateTotalExpenses(householdExpensesThisMonth)
 
     // Last month values for comparison
     const lastMyExpenses = member
-      ? calculateTotalExpenses(lastMonthExpenses.filter(e => e.member_id === member.id && e.visibility === 'private'))
+      ? calculateTotalExpenses(lastMonthExpenses.filter(e => e.member_id === member.id))
       : 0
     const lastHouseholdExpenses = calculateTotalExpenses(lastMonthExpenses.filter(e => e.visibility === 'household'))
     

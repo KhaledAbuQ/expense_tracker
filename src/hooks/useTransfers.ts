@@ -14,17 +14,31 @@ export function useTransfers(options?: UseTransfersOptions) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
+  // Monotonic counter so a slow early response can't overwrite a newer one.
+  const requestId = useRef(0)
   const { member } = useAuth()
 
   // Convert Date objects to stable string format for dependency comparison
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
 
+  /** Does a row belong in the currently displayed, filtered list? */
+  const matchesFilters = useCallback((transfer: Transfer) => {
+    if (!member || transfer.member_id !== member.id) return false
+    if (startDateStr && transfer.date < startDateStr) return false
+    if (endDateStr && transfer.date > endDateStr) return false
+    return true
+  }, [member, startDateStr, endDateStr])
+
   const fetchTransfers = useCallback(async () => {
     if (!isSupabaseConfigured || !member) {
+      setTransfers([])
+      setError(null)
       setLoading(false)
       return
     }
+
+    const currentRequest = ++requestId.current
 
     try {
       setLoading(true)
@@ -47,10 +61,13 @@ export function useTransfers(options?: UseTransfersOptions) {
       const { data, error } = await query
 
       if (error) throw error
+      if (currentRequest !== requestId.current) return
+
       const scopedTransfers = (data || []).filter(transfer => transfer.member_id === member.id)
       setTransfers(scopedTransfers)
       hasShownError.current = false
     } catch (err) {
+      if (currentRequest !== requestId.current) return
       const message = err instanceof Error ? err.message : 'Failed to fetch transfers'
       setError(message)
       // Only show toast once per error
@@ -59,7 +76,9 @@ export function useTransfers(options?: UseTransfersOptions) {
         toast.error(message)
       }
     } finally {
-      setLoading(false)
+      if (currentRequest === requestId.current) {
+        setLoading(false)
+      }
     }
   }, [startDateStr, endDateStr, member])
 
@@ -89,7 +108,10 @@ export function useTransfers(options?: UseTransfersOptions) {
         .single()
 
       if (error) throw error
-      setTransfers(prev => [data, ...prev])
+      // Only show it here if it actually belongs in the current view.
+      if (matchesFilters(data)) {
+        setTransfers(prev => [data, ...prev])
+      }
       toast.success('Transfer completed successfully')
       return data
     } catch (err) {
@@ -117,7 +139,12 @@ export function useTransfers(options?: UseTransfersOptions) {
         .single()
 
       if (error) throw error
-      setTransfers(prev => prev.map(t => (t.id === id ? data : t)))
+      // An edit can move a row out of the active date filter.
+      setTransfers(prev =>
+        matchesFilters(data)
+          ? prev.map(t => (t.id === id ? data : t))
+          : prev.filter(t => t.id !== id)
+      )
       toast.success('Transfer updated successfully')
       return data
     } catch (err) {

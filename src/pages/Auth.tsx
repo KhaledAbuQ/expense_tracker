@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 type Mode = 'sign-in' | 'sign-up'
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const PENDING_ONBOARDING_KEY = 'expense_tracker_pending_onboarding'
 
 export default function AuthPage() {
@@ -18,6 +18,12 @@ export default function AuthPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [joinMode, setJoinMode] = useState<'create' | 'join'>('create')
   const navigate = useNavigate()
+  const { session } = useAuth()
+
+  // Don't show a login form to someone who is already signed in.
+  useEffect(() => {
+    if (session) navigate('/', { replace: true })
+  }, [session, navigate])
 
   const title = useMemo(
     () => (mode === 'sign-in' ? 'Welcome back' : 'Create your household'),
@@ -74,7 +80,7 @@ export default function AuthPage() {
         : {
             onboarding_mode: 'join',
             display_name: displayName.trim(),
-            household_id: joinHouseholdByInvite(inviteCode.trim()),
+            invite_code: inviteCode.trim().toUpperCase(),
           }
 
       const { data, error } = await supabase.auth.signUp({
@@ -122,15 +128,6 @@ export default function AuthPage() {
     }
 
     return err instanceof Error ? err.message : 'Authentication failed'
-  }
-
-  const joinHouseholdByInvite = (code: string) => {
-    const normalizedCode = code.trim()
-    if (!UUID_REGEX.test(normalizedCode)) {
-      throw new Error('Please enter a valid household ID')
-    }
-
-    return normalizedCode
   }
 
   return (
@@ -247,11 +244,13 @@ export default function AuthPage() {
                       <input
                         type="text"
                         value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value)}
-                        className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 focus:border-emerald-400 focus:ring-emerald-400"
-                        placeholder="Household ID"
+                        onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                        className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 font-mono tracking-widest uppercase focus:border-emerald-400 focus:ring-emerald-400"
+                        placeholder="ABCD2345"
+                        autoComplete="off"
+                        spellCheck={false}
                       />
-                      <p className="text-xs text-slate-400 mt-2">Ask your admin for the household ID.</p>
+                      <p className="text-xs text-slate-400 mt-2">Ask a household admin for the invite code.</p>
                     </div>
                   )}
                 </div>

@@ -16,37 +16,52 @@ export function useExpenses(options?: UseExpensesOptions) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
-  const { member } = useAuth()
+  // Monotonic counter so a slow early response can't overwrite a newer one.
+  const requestId = useRef(0)
+  const { member, householdMemberIds } = useAuth()
 
   // Convert Date objects to stable string format for dependency comparison
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
+  const categoryId = options?.categoryId
+  const visibility = options?.visibility
+  const memberIdsKey = householdMemberIds.join(',')
+
+  /** Does a row belong in the currently displayed, filtered list? */
+  const matchesFilters = useCallback((expense: Expense) => {
+    if (!member) return false
+
+    const visibleToMe =
+      expense.member_id === member.id
+      || (expense.visibility === 'household' && householdMemberIds.includes(expense.member_id))
+    if (!visibleToMe) return false
+
+    if (startDateStr && expense.date < startDateStr) return false
+    if (endDateStr && expense.date > endDateStr) return false
+    if (categoryId && expense.category_id !== categoryId) return false
+
+    if (visibility === 'private') {
+      return expense.visibility === 'private' && expense.member_id === member.id
+    }
+    if (visibility === 'household') {
+      return expense.visibility === 'household'
+    }
+    return true
+  }, [member, householdMemberIds, startDateStr, endDateStr, categoryId, visibility])
 
   const fetchExpenses = useCallback(async () => {
-    if (!isSupabaseConfigured || !member) {
+    if (!isSupabaseConfigured || !member || householdMemberIds.length === 0) {
       setExpenses([])
       setError(null)
       setLoading(false)
       return
     }
 
+    const currentRequest = ++requestId.current
+
     try {
       setLoading(true)
       setError(null)
-
-      const { data: householdMembers, error: householdMembersError } = await supabase
-        .from('members')
-        .select('id')
-        .eq('household_id', member.household_id)
-
-      if (householdMembersError) throw householdMembersError
-
-      const householdMemberIds = Array.from(
-        new Set([
-          ...(householdMembers || []).map(m => m.id),
-          member.id,
-        ])
-      )
 
       let query = supabase
         .from('expenses')
@@ -64,15 +79,15 @@ export function useExpenses(options?: UseExpensesOptions) {
           .lte('date', endDateStr)
       }
 
-      if (options?.categoryId) {
-        query = query.eq('category_id', options.categoryId)
+      if (categoryId) {
+        query = query.eq('category_id', categoryId)
       }
 
-      if (options?.visibility === 'private') {
+      if (visibility === 'private') {
         query = query
           .eq('visibility', 'private')
           .eq('member_id', member.id)
-      } else if (options?.visibility === 'household') {
+      } else if (visibility === 'household') {
         query = query
           .eq('visibility', 'household')
           .in('member_id', householdMemberIds)
@@ -83,6 +98,8 @@ export function useExpenses(options?: UseExpensesOptions) {
       const { data, error } = await query
 
       if (error) throw error
+      if (currentRequest !== requestId.current) return
+
       const scopedExpenses = (data || []).filter(expense =>
         expense.member_id === member.id
         || (expense.visibility === 'household' && householdMemberIds.includes(expense.member_id))
@@ -90,6 +107,7 @@ export function useExpenses(options?: UseExpensesOptions) {
       setExpenses(scopedExpenses)
       hasShownError.current = false
     } catch (err) {
+      if (currentRequest !== requestId.current) return
       const message = err instanceof Error ? err.message : 'Failed to fetch expenses'
       setError(message)
       // Only show toast once per error
@@ -98,9 +116,12 @@ export function useExpenses(options?: UseExpensesOptions) {
         toast.error(message)
       }
     } finally {
-      setLoading(false)
+      if (currentRequest === requestId.current) {
+        setLoading(false)
+      }
     }
-  }, [startDateStr, endDateStr, options?.categoryId, options?.visibility, member])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDateStr, endDateStr, categoryId, visibility, member, memberIdsKey])
 
   useEffect(() => {
     fetchExpenses()
@@ -129,7 +150,12 @@ export function useExpenses(options?: UseExpensesOptions) {
         .single()
 
       if (error) throw error
-      setExpenses(prev => [data, ...prev])
+      // Only show it here if it actually belongs in the current view. Otherwise
+      // an expense dated outside the selected range would appear in the list and
+      // in the total until the next refresh.
+      if (matchesFilters(data)) {
+        setExpenses(prev => [data, ...prev])
+      }
       toast.success('Expense added successfully')
       return data
     } catch (err) {
@@ -158,7 +184,13 @@ export function useExpenses(options?: UseExpensesOptions) {
         .single()
 
       if (error) throw error
-      setExpenses(prev => prev.map(e => (e.id === id ? data : e)))
+      // An edit can move a row out of the active filter (new date, new category,
+      // new visibility), in which case it should drop out of the list.
+      setExpenses(prev =>
+        matchesFilters(data)
+          ? prev.map(e => (e.id === id ? data : e))
+          : prev.filter(e => e.id !== id)
+      )
       toast.success('Expense updated successfully')
       return data
     } catch (err) {

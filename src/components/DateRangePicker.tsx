@@ -1,5 +1,5 @@
 import { DateRange } from '../types'
-import { getDateRange } from '../lib/utils'
+import { getDateRange, parseDateOnly } from '../lib/utils'
 import { format } from 'date-fns'
 
 interface DateRangePickerProps {
@@ -19,7 +19,10 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
   }
 
   const handleCustomChange = (field: 'start' | 'end', dateStr: string) => {
-    const date = new Date(dateStr)
+    if (!dateStr) return
+    // Parse as local midnight; a bare `new Date('2026-08-02')` is UTC and would
+    // render back into this same input as the previous day west of UTC.
+    const date = parseDateOnly(dateStr)
     if (!isNaN(date.getTime())) {
       onChange({
         ...value,

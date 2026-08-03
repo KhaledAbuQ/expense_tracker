@@ -16,37 +16,52 @@ export function useIncome(options?: UseIncomeOptions) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
-  const { member } = useAuth()
+  // Monotonic counter so a slow early response can't overwrite a newer one.
+  const requestId = useRef(0)
+  const { member, householdMemberIds } = useAuth()
 
   // Convert Date objects to stable string format for dependency comparison
   const startDateStr = options?.dateRange?.start ? format(options.dateRange.start, 'yyyy-MM-dd') : null
   const endDateStr = options?.dateRange?.end ? format(options.dateRange.end, 'yyyy-MM-dd') : null
+  const categoryId = options?.categoryId
+  const visibility = options?.visibility
+  const memberIdsKey = householdMemberIds.join(',')
+
+  /** Does a row belong in the currently displayed, filtered list? */
+  const matchesFilters = useCallback((entry: Income) => {
+    if (!member) return false
+
+    const visibleToMe =
+      entry.member_id === member.id
+      || (entry.visibility === 'household' && householdMemberIds.includes(entry.member_id))
+    if (!visibleToMe) return false
+
+    if (startDateStr && entry.date < startDateStr) return false
+    if (endDateStr && entry.date > endDateStr) return false
+    if (categoryId && entry.category_id !== categoryId) return false
+
+    if (visibility === 'private') {
+      return entry.visibility === 'private' && entry.member_id === member.id
+    }
+    if (visibility === 'household') {
+      return entry.visibility === 'household'
+    }
+    return true
+  }, [member, householdMemberIds, startDateStr, endDateStr, categoryId, visibility])
 
   const fetchIncome = useCallback(async () => {
-    if (!isSupabaseConfigured || !member) {
+    if (!isSupabaseConfigured || !member || householdMemberIds.length === 0) {
       setIncome([])
       setError(null)
       setLoading(false)
       return
     }
 
+    const currentRequest = ++requestId.current
+
     try {
       setLoading(true)
       setError(null)
-
-      const { data: householdMembers, error: householdMembersError } = await supabase
-        .from('members')
-        .select('id')
-        .eq('household_id', member.household_id)
-
-      if (householdMembersError) throw householdMembersError
-
-      const householdMemberIds = Array.from(
-        new Set([
-          ...(householdMembers || []).map(m => m.id),
-          member.id,
-        ])
-      )
 
       let query = supabase
         .from('income')
@@ -64,15 +79,15 @@ export function useIncome(options?: UseIncomeOptions) {
           .lte('date', endDateStr)
       }
 
-      if (options?.categoryId) {
-        query = query.eq('category_id', options.categoryId)
+      if (categoryId) {
+        query = query.eq('category_id', categoryId)
       }
 
-      if (options?.visibility === 'private') {
+      if (visibility === 'private') {
         query = query
           .eq('visibility', 'private')
           .eq('member_id', member.id)
-      } else if (options?.visibility === 'household') {
+      } else if (visibility === 'household') {
         query = query
           .eq('visibility', 'household')
           .in('member_id', householdMemberIds)
@@ -83,6 +98,8 @@ export function useIncome(options?: UseIncomeOptions) {
       const { data, error } = await query
 
       if (error) throw error
+      if (currentRequest !== requestId.current) return
+
       const scopedIncome = (data || []).filter(entry =>
         entry.member_id === member.id
         || (entry.visibility === 'household' && householdMemberIds.includes(entry.member_id))
@@ -90,6 +107,7 @@ export function useIncome(options?: UseIncomeOptions) {
       setIncome(scopedIncome)
       hasShownError.current = false
     } catch (err) {
+      if (currentRequest !== requestId.current) return
       const message = err instanceof Error ? err.message : 'Failed to fetch income'
       setError(message)
       // Only show toast once per error
@@ -98,9 +116,12 @@ export function useIncome(options?: UseIncomeOptions) {
         toast.error(message)
       }
     } finally {
-      setLoading(false)
+      if (currentRequest === requestId.current) {
+        setLoading(false)
+      }
     }
-  }, [startDateStr, endDateStr, options?.categoryId, options?.visibility, member])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDateStr, endDateStr, categoryId, visibility, member, memberIdsKey])
 
   useEffect(() => {
     fetchIncome()
@@ -129,7 +150,10 @@ export function useIncome(options?: UseIncomeOptions) {
         .single()
 
       if (error) throw error
-      setIncome(prev => [data, ...prev])
+      // Only show it here if it actually belongs in the current view.
+      if (matchesFilters(data)) {
+        setIncome(prev => [data, ...prev])
+      }
       toast.success('Income added successfully')
       return data
     } catch (err) {
@@ -158,7 +182,12 @@ export function useIncome(options?: UseIncomeOptions) {
         .single()
 
       if (error) throw error
-      setIncome(prev => prev.map(i => (i.id === id ? data : i)))
+      // An edit can move a row out of the active filter.
+      setIncome(prev =>
+        matchesFilters(data)
+          ? prev.map(i => (i.id === id ? data : i))
+          : prev.filter(i => i.id !== id)
+      )
       toast.success('Income updated successfully')
       return data
     } catch (err) {

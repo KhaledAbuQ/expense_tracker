@@ -28,15 +28,14 @@ export default function Expenses() {
   const handleSubmit = async (data: ExpenseFormData) => {
     if (!member) return
 
-    const payload = {
-      ...data,
-      member_id: member.id,
-    }
-
     if (editingExpense) {
-      await updateExpense(editingExpense.id, payload)
+      // Never re-stamp member_id on edit. Doing so silently transferred a
+      // housemate's shared expense to whoever opened it, moving the charge onto
+      // the editor's balance.
+      const { member_id: _ignored, ...editable } = data
+      await updateExpense(editingExpense.id, editable)
     } else {
-      await addExpense(payload)
+      await addExpense({ ...data, member_id: member.id })
     }
     setIsModalOpen(false)
     setEditingExpense(null)

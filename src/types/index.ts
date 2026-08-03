@@ -7,6 +7,7 @@ export type TransferAccountType = 'bank' | 'cash' | 'savings';
 export interface Household {
   id: string;
   name: string;
+  invite_code: string;
   created_at: string;
 }
 
@@ -26,6 +27,8 @@ export interface Category {
   color: string;
   is_default: boolean;
   category_type: CategoryType;
+  /** null for the built-in defaults, which are shared and read-only. */
+  household_id: string | null;
   created_at: string;
 }
 

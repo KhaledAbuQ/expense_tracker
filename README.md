@@ -206,17 +206,24 @@ The project uses Tailwind CSS. Customize styles in:
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| name | VARCHAR(100) | Category name (unique) |
+| name | VARCHAR(100) | Category name (unique per household) |
 | icon | VARCHAR(50) | Lucide icon name |
 | color | VARCHAR(7) | Hex color code |
 | is_default | BOOLEAN | Whether it's a default category |
+| household_id | UUID | Owning household; `NULL` for the shared read-only defaults |
+| category_type | VARCHAR(20) | expense, income, or both |
 | created_at | TIMESTAMPTZ | Creation timestamp |
+
+Custom categories belong to one household and are invisible to others. The 14
+built-in defaults have `household_id IS NULL`, are readable by everyone, and
+cannot be edited or deleted by anyone.
 
 **households**
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
 | name | VARCHAR(150) | Household name |
+| invite_code | TEXT | Unique 8-character join code; rotatable by an admin |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 
 **members**
@@ -252,6 +259,45 @@ The project uses Tailwind CSS. Customize styles in:
 | member_id | UUID | Foreign key to members |
 | visibility | VARCHAR(20) | private or household |
 | created_at | TIMESTAMPTZ | Creation timestamp |
+
+### Access rules
+
+Row Level Security is enforced on every table, and the policies are the only
+thing standing between the publishable anon key and your data.
+
+- **Private rows** are visible only to the member who created them.
+- **Household rows** are visible to everyone in the household, but only the
+  owner can edit or delete them. Sharing an expense shares the *view*, not
+  control of the record.
+- **Transfers** are always private.
+- **Categories** are per-household; the built-in defaults are read-only.
+- **Anonymous (signed-out) requests can read and write nothing.**
+
+### Joining a household
+
+Membership is created through two `SECURITY DEFINER` functions rather than
+direct inserts, so the client cannot choose its own role or join a household
+without a valid code:
+
+| Function | Purpose |
+|----------|---------|
+| `create_household_with_member(p_household_name, p_display_name)` | Creates a household and its first member (admin) in one transaction |
+| `join_household_with_code(p_invite_code, p_display_name)` | Joins an existing household as a plain member |
+| `rotate_household_invite()` | Admin-only; issues a fresh code and invalidates the old one |
+
+Invite codes are 8 characters from an unambiguous alphabet (no `O`/`0`, no
+`I`/`1`). Codes from before this change were the raw household UUID; those are
+still accepted so existing invitations keep working until they are rotated.
+
+### Applying the schema
+
+`supabase/schema.sql` is idempotent -- run it on a fresh project or over an
+existing one. When upgrading an existing database it also migrates data:
+backfills invite codes and attributes each pre-existing custom category to
+whichever household actually used it. A custom category no expense or income
+row references cannot be attributed; if you have more than one household those
+are hidden rather than shared, and the script prints a `NOTICE` telling you how
+to find and reassign them.
 
 ## License
 

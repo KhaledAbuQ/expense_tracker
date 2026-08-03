@@ -7,14 +7,16 @@ import { Member } from '../types'
 const PENDING_ONBOARDING_KEY = 'expense_tracker_pending_onboarding'
 
 type OnboardingMetadata =
-  | { mode: 'join'; displayName: string; householdId: string; role: 'member' }
-  | { mode: 'create'; displayName: string; householdName: string; role: 'admin' }
+  | { mode: 'join'; displayName: string; inviteCode: string }
+  | { mode: 'create'; displayName: string; householdName: string }
 
 interface AuthContextValue {
   session: Session | null
   user: User | null
   member: Member | null
   householdId: string | null
+  /** Every member id in the current household, including your own. */
+  householdMemberIds: string[]
   loading: boolean
   refreshMember: () => Promise<Member | null>
   signOut: () => Promise<void>
@@ -25,25 +27,37 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [member, setMember] = useState<Member | null>(null)
+  const [householdMemberIds, setHouseholdMemberIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [authReady, setAuthReady] = useState(false)
   const provisioningAttemptedUserId = useRef<string | null>(null)
 
   const getOnboardingMetadata = useCallback((user: User): OnboardingMetadata | null => {
-    const metadata = user.user_metadata as Record<string, unknown> | undefined
-    const mode = metadata?.onboarding_mode
-    const displayName = typeof metadata?.display_name === 'string' ? metadata.display_name.trim() : ''
-    const householdId = typeof metadata?.household_id === 'string' ? metadata.household_id.trim() : ''
-    const householdName = typeof metadata?.household_name === 'string' ? metadata.household_name.trim() : ''
+    const readMetadata = (source: Record<string, unknown> | undefined): OnboardingMetadata | null => {
+      const mode = source?.onboarding_mode
+      const displayName = typeof source?.display_name === 'string' ? source.display_name.trim() : ''
+      // `household_id` is the legacy key from when the invite code was the raw
+      // household UUID; the join RPC still accepts those.
+      const inviteCode =
+        typeof source?.invite_code === 'string'
+          ? source.invite_code.trim()
+          : typeof source?.household_id === 'string'
+            ? source.household_id.trim()
+            : ''
+      const householdName = typeof source?.household_name === 'string' ? source.household_name.trim() : ''
 
-    if (displayName) {
-      if (mode === 'join' && householdId) {
-        return { mode: 'join', displayName, householdId, role: 'member' }
+      if (!displayName) return null
+      if (mode === 'join' && inviteCode) {
+        return { mode: 'join', displayName, inviteCode }
       }
       if (mode === 'create' && householdName) {
-        return { mode: 'create', displayName, householdName, role: 'admin' }
+        return { mode: 'create', displayName, householdName }
       }
+      return null
     }
+
+    const fromUserMetadata = readMetadata(user.user_metadata as Record<string, unknown> | undefined)
+    if (fromUserMetadata) return fromUserMetadata
 
     try {
       const raw = localStorage.getItem(PENDING_ONBOARDING_KEY)
@@ -55,23 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
-      const pendingMode = parsed.onboarding_mode
-      const pendingDisplayName = typeof parsed.display_name === 'string' ? parsed.display_name.trim() : ''
-      const pendingHouseholdId = typeof parsed.household_id === 'string' ? parsed.household_id.trim() : ''
-      const pendingHouseholdName = typeof parsed.household_name === 'string' ? parsed.household_name.trim() : ''
-
-      if (!pendingDisplayName) return null
-      if (pendingMode === 'join' && pendingHouseholdId) {
-        return { mode: 'join', displayName: pendingDisplayName, householdId: pendingHouseholdId, role: 'member' }
-      }
-      if (pendingMode === 'create' && pendingHouseholdName) {
-        return { mode: 'create', displayName: pendingDisplayName, householdName: pendingHouseholdName, role: 'admin' }
-      }
+      return readMetadata(parsed)
     } catch {
       return null
     }
-
-    return null
   }, [])
 
   const getMemberByUserId = useCallback(async (userId: string) => {
@@ -122,54 +123,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const onboarding = getOnboardingMetadata(user)
     if (!onboarding) return null
 
-    let householdId = onboarding.mode === 'join' ? onboarding.householdId : null
-
-    if (onboarding.mode === 'create') {
-      const createdHouseholdId = crypto.randomUUID()
-      const { error: householdError } = await supabase
-        .from('households')
-        .insert({ id: createdHouseholdId, name: onboarding.householdName })
-
-      if (householdError) {
-        console.error('Failed to create household during provisioning', householdError)
-        toast.error('Failed to complete profile setup')
-        return null
-      }
-
-      householdId = createdHouseholdId
-    }
-
-    if (!householdId) return null
-
-    const { data, error } = await supabase
-      .from('members')
-      .insert({
-        household_id: householdId,
-        user_id: user.id,
-        name: onboarding.displayName,
-        role: onboarding.role,
-      })
-      .select('*')
-      .single()
+    // Both RPCs are atomic and decide `role` server-side, so a half-created
+    // household can't be left behind and a client can't make itself admin.
+    const { data, error } =
+      onboarding.mode === 'create'
+        ? await supabase.rpc('create_household_with_member', {
+            p_household_name: onboarding.householdName,
+            p_display_name: onboarding.displayName,
+          })
+        : await supabase.rpc('join_household_with_code', {
+            p_invite_code: onboarding.inviteCode,
+            p_display_name: onboarding.displayName,
+          })
 
     if (error) {
-      const errorCode = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+      const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
 
-      if (errorCode === '23505') {
+      if (code === '23505') {
+        // Already provisioned by a concurrent tab.
         return fetchMember(user.id, 0)
       }
 
-      if (errorCode === '23503') {
-        toast.error('Household ID was not found. Please check the invite code.')
+      if (code === '23503') {
+        toast.error('That invite code was not found. Please check it and try again.')
         return null
       }
 
-      console.error('Failed to provision member from metadata', error)
-      toast.error('Failed to complete profile setup')
+      console.error('Failed to provision member', error)
+      toast.error(error.message || 'Failed to complete profile setup')
       return null
     }
 
-    setMember(data)
+    const provisioned = (data ?? null) as Member | null
+    if (!provisioned) return null
+
+    setMember(provisioned)
 
     try {
       localStorage.removeItem(PENDING_ONBOARDING_KEY)
@@ -177,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ignore storage errors
     }
 
-    return data
+    return provisioned
   }, [fetchMember, getOnboardingMetadata])
 
   const refreshMember = useCallback(async () => {
@@ -204,7 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!isMounted) return
-      setSession(newSession)
+      // Ignore token refreshes that don't change identity: the session object is
+      // new on every refresh, and propagating it would restart every data hook.
+      setSession(prev => (prev?.user?.id === newSession?.user?.id ? prev : newSession))
     })
 
     const init = async () => {
@@ -255,6 +245,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authReady, fetchMember, provisionMemberFromMetadata, session])
 
+  // Fetched once here rather than inside every data hook. Each of
+  // useExpenses/useIncome used to run its own `members` query before its real
+  // one, which meant a dozen redundant round trips on the dashboard alone.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !member) {
+      setHouseholdMemberIds([])
+      return
+    }
+
+    let isMounted = true
+
+    const loadHouseholdMemberIds = async () => {
+      const { data, error } = await supabase
+        .from('members')
+        .select('id')
+        .eq('household_id', member.household_id)
+
+      if (!isMounted) return
+
+      if (error) {
+        console.error('Failed to load household members', error)
+        setHouseholdMemberIds([member.id])
+        return
+      }
+
+      setHouseholdMemberIds(
+        Array.from(new Set([...(data || []).map(m => m.id as string), member.id]))
+      )
+    }
+
+    loadHouseholdMemberIds()
+
+    return () => {
+      isMounted = false
+    }
+  }, [member])
+
   const signOut = useCallback(async () => {
     if (!isSupabaseConfigured) return
     const { error } = await supabase.auth.signOut()
@@ -264,6 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provisioningAttemptedUserId.current = null
     setSession(null)
     setMember(null)
+    setHouseholdMemberIds([])
   }, [])
 
   const value = useMemo(
@@ -272,11 +300,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: session?.user ?? null,
       member,
       householdId: member?.household_id ?? null,
+      householdMemberIds,
       loading,
       refreshMember,
       signOut,
     }),
-    [session, member, loading, refreshMember, signOut]
+    [session, member, householdMemberIds, loading, refreshMember, signOut]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

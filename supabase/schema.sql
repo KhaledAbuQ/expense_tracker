@@ -1,5 +1,6 @@
 -- Expense Tracker Database Schema
--- Run this single file in your Supabase SQL Editor to set up the complete database
+-- Run this single file in your Supabase SQL Editor to set up the complete database.
+-- It is idempotent: safe to re-run on an existing database.
 
 -- ============================================
 -- TABLES
@@ -9,6 +10,7 @@
 CREATE TABLE IF NOT EXISTS households (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(150) NOT NULL,
+  invite_code TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -24,13 +26,16 @@ CREATE TABLE IF NOT EXISTS members (
 );
 
 -- Categories table (supports both expense and income categories)
+-- household_id NULL  => built-in default category, readable by everyone, writable by no one
+-- household_id SET   => custom category owned by that household
 CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(100) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
   icon VARCHAR(50) DEFAULT 'tag',
   color VARCHAR(7) DEFAULT '#6b7280',
   is_default BOOLEAN DEFAULT false,
   category_type VARCHAR(20) DEFAULT 'expense' CHECK (category_type IN ('expense', 'income', 'both')),
+  household_id UUID REFERENCES households(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -76,6 +81,12 @@ CREATE TABLE IF NOT EXISTS transfers (
 -- ============================================
 -- MIGRATIONS FOR EXISTING TABLES
 -- ============================================
+
+ALTER TABLE IF EXISTS households
+  ADD COLUMN IF NOT EXISTS invite_code TEXT;
+
+ALTER TABLE IF EXISTS categories
+  ADD COLUMN IF NOT EXISTS household_id UUID;
 
 ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS member_id UUID;
@@ -144,6 +155,15 @@ BEGIN
         FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE;
     END IF;
   END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name = 'categories' AND constraint_name = 'categories_household_id_fkey'
+  ) THEN
+    ALTER TABLE categories
+      ADD CONSTRAINT categories_household_id_fkey
+      FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 DO $$
@@ -166,6 +186,158 @@ BEGIN
 END $$;
 
 -- ============================================
+-- HELPER FUNCTIONS
+-- ============================================
+-- These are SECURITY DEFINER on purpose. They read `members`, and they are used
+-- inside the RLS policy for `members` itself. An invoker-rights function would
+-- re-enter that policy and recurse (Postgres raises "infinite recursion detected
+-- in policy" or blows the stack, depending on the plan). SECURITY DEFINER breaks
+-- the cycle. search_path is pinned so the definer context cannot be hijacked.
+
+CREATE OR REPLACE FUNCTION household_id_for_member(member_uuid UUID)
+RETURNS UUID
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT household_id FROM members WHERE id = member_uuid LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION is_household_member(user_uuid UUID, household_uuid UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM members m
+    WHERE m.user_id = user_uuid AND m.household_id = household_uuid
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION is_household_admin(user_uuid UUID, household_uuid UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM members m
+    WHERE m.user_id = user_uuid
+      AND m.household_id = household_uuid
+      AND m.role = 'admin'
+  );
+$$;
+
+-- Generates a short, unambiguous invite code (no O/0/I/1 confusion).
+CREATE OR REPLACE FUNCTION generate_invite_code()
+RETURNS TEXT
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  alphabet TEXT := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  candidate TEXT;
+  i INT;
+BEGIN
+  LOOP
+    candidate := '';
+    FOR i IN 1..8 LOOP
+      candidate := candidate || substr(alphabet, floor(random() * length(alphabet))::INT + 1, 1);
+    END LOOP;
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM households h WHERE h.invite_code = candidate);
+  END LOOP;
+  RETURN candidate;
+END;
+$$;
+
+-- Backfill invite codes for households created before this column existed.
+UPDATE households SET invite_code = generate_invite_code() WHERE invite_code IS NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'households_invite_code_key'
+  ) THEN
+    ALTER TABLE households ADD CONSTRAINT households_invite_code_key UNIQUE (invite_code);
+  END IF;
+END $$;
+
+ALTER TABLE households ALTER COLUMN invite_code SET NOT NULL;
+ALTER TABLE households ALTER COLUMN invite_code SET DEFAULT NULL;
+
+-- ============================================
+-- CATEGORY SCOPING MIGRATION
+-- ============================================
+-- Categories used to be global with a UNIQUE(name) constraint, which meant every
+-- household shared one list and could edit/delete each other's entries. Custom
+-- categories are now owned by a household. Attribute existing custom categories
+-- to whichever household actually used them.
+
+UPDATE categories c
+SET household_id = usage.household_id
+FROM (
+  SELECT DISTINCT ON (t.category_id) t.category_id, m.household_id
+  FROM (
+    SELECT category_id, member_id FROM expenses WHERE category_id IS NOT NULL
+    UNION ALL
+    SELECT category_id, member_id FROM income WHERE category_id IS NOT NULL
+  ) t
+  JOIN members m ON m.id = t.member_id
+  ORDER BY t.category_id, m.household_id
+) usage
+WHERE c.id = usage.category_id
+  AND c.is_default = false
+  AND c.household_id IS NULL;
+
+-- Any remaining unused custom categories can't be attributed by usage. If there
+-- is exactly one household, they belong to it. Otherwise they stay orphaned --
+-- retained in the table but invisible, because the read policy below only
+-- exposes NULL-household rows when they are built-in defaults. Assign one
+-- manually with:
+--   UPDATE categories SET household_id = '<household-uuid>' WHERE id = '<id>';
+DO $$
+DECLARE
+  only_household UUID;
+  orphan_count INT;
+BEGIN
+  IF (SELECT count(*) FROM households) = 1 THEN
+    SELECT id INTO only_household FROM households;
+    UPDATE categories
+    SET household_id = only_household
+    WHERE is_default = false AND household_id IS NULL;
+  END IF;
+
+  SELECT count(*) INTO orphan_count
+  FROM categories WHERE is_default = false AND household_id IS NULL;
+
+  IF orphan_count > 0 THEN
+    RAISE NOTICE
+      '% custom category/categories could not be attributed to a household and are now hidden. Query: SELECT id, name FROM categories WHERE is_default = false AND household_id IS NULL;',
+      orphan_count;
+  END IF;
+END $$;
+
+-- Replace the old global UNIQUE(name) with per-scope uniqueness.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'categories_name_key') THEN
+    ALTER TABLE categories DROP CONSTRAINT categories_name_key;
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_default_name_key
+  ON categories (lower(name)) WHERE household_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_household_name_key
+  ON categories (household_id, lower(name)) WHERE household_id IS NOT NULL;
+
+-- ============================================
 -- INDEXES
 -- ============================================
 
@@ -183,38 +355,227 @@ CREATE INDEX IF NOT EXISTS idx_transfers_date ON transfers(date DESC);
 CREATE INDEX IF NOT EXISTS idx_transfers_from ON transfers(from_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_to ON transfers(to_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_member ON transfers(member_id);
+CREATE INDEX IF NOT EXISTS idx_members_household ON members(household_id);
+CREATE INDEX IF NOT EXISTS idx_categories_household ON categories(household_id);
 
 -- ============================================
--- DEFAULT CATEGORIES
+-- DEFAULT CATEGORIES (household_id IS NULL = shared, read-only)
 -- ============================================
 
--- Expense categories
-INSERT INTO categories (name, icon, color, is_default, category_type) VALUES
-  ('Utilities', 'zap', '#eab308', true, 'expense'),
-  ('Groceries', 'shopping-cart', '#22c55e', true, 'expense'),
-  ('Rent/Mortgage', 'home', '#3b82f6', true, 'expense'),
-  ('Entertainment', 'tv', '#a855f7', true, 'expense'),
-  ('Transportation', 'car', '#f97316', true, 'expense'),
-  ('Healthcare', 'heart-pulse', '#ef4444', true, 'expense'),
-  ('Dining Out', 'utensils', '#ec4899', true, 'expense'),
-  ('Shopping', 'shopping-bag', '#14b8a6', true, 'expense'),
-  ('Other', 'more-horizontal', '#6b7280', true, 'both')
-ON CONFLICT (name) DO NOTHING;
+INSERT INTO categories (name, icon, color, is_default, category_type, household_id)
+SELECT v.name, v.icon, v.color, true, v.category_type, NULL
+FROM (VALUES
+  ('Utilities', 'zap', '#eab308', 'expense'),
+  ('Groceries', 'shopping-cart', '#22c55e', 'expense'),
+  ('Rent/Mortgage', 'home', '#3b82f6', 'expense'),
+  ('Entertainment', 'tv', '#a855f7', 'expense'),
+  ('Transportation', 'car', '#f97316', 'expense'),
+  ('Healthcare', 'heart-pulse', '#ef4444', 'expense'),
+  ('Dining Out', 'utensils', '#ec4899', 'expense'),
+  ('Shopping', 'shopping-bag', '#14b8a6', 'expense'),
+  ('Other', 'more-horizontal', '#6b7280', 'both'),
+  ('Salary', 'briefcase', '#22c55e', 'income'),
+  ('Freelance', 'laptop', '#3b82f6', 'income'),
+  ('Investments', 'trending-up', '#eab308', 'income'),
+  ('Gifts', 'gift', '#ec4899', 'income'),
+  ('Other Income', 'plus-circle', '#6b7280', 'income')
+) AS v(name, icon, color, category_type)
+WHERE NOT EXISTS (
+  SELECT 1 FROM categories c
+  WHERE c.household_id IS NULL AND lower(c.name) = lower(v.name)
+);
 
--- Income categories
-INSERT INTO categories (name, icon, color, is_default, category_type) VALUES
-  ('Salary', 'briefcase', '#22c55e', true, 'income'),
-  ('Freelance', 'laptop', '#3b82f6', true, 'income'),
-  ('Investments', 'trending-up', '#eab308', true, 'income'),
-  ('Gifts', 'gift', '#ec4899', true, 'income'),
-  ('Other Income', 'plus-circle', '#6b7280', true, 'income')
-ON CONFLICT (name) DO NOTHING;
+-- ============================================
+-- ONBOARDING RPCs
+-- ============================================
+-- Household creation and joining go through these instead of direct INSERTs.
+-- Reasons:
+--   * atomic  -- a failed member insert rolls back the household, so no orphans
+--   * role is decided server-side, so a client cannot make itself admin
+--   * joining requires a real invite code that the household can rotate
+
+CREATE OR REPLACE FUNCTION create_household_with_member(
+  p_household_name TEXT,
+  p_display_name TEXT
+)
+RETURNS members
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  uid UUID := auth.uid();
+  new_household households;
+  new_member members;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'You must be signed in.' USING ERRCODE = '28000';
+  END IF;
+
+  IF coalesce(btrim(p_household_name), '') = '' THEN
+    RAISE EXCEPTION 'Household name is required.' USING ERRCODE = '22023';
+  END IF;
+
+  IF coalesce(btrim(p_display_name), '') = '' THEN
+    RAISE EXCEPTION 'Your name is required.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Idempotent: re-running onboarding returns the existing profile.
+  SELECT * INTO new_member FROM members WHERE user_id = uid;
+  IF FOUND THEN
+    RETURN new_member;
+  END IF;
+
+  INSERT INTO households (name, invite_code)
+  VALUES (btrim(p_household_name), generate_invite_code())
+  RETURNING * INTO new_household;
+
+  INSERT INTO members (household_id, user_id, name, role)
+  VALUES (new_household.id, uid, btrim(p_display_name), 'admin')
+  RETURNING * INTO new_member;
+
+  RETURN new_member;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION join_household_with_code(
+  p_invite_code TEXT,
+  p_display_name TEXT
+)
+RETURNS members
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  uid UUID := auth.uid();
+  normalized TEXT := upper(btrim(coalesce(p_invite_code, '')));
+  target_household UUID;
+  new_member members;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'You must be signed in.' USING ERRCODE = '28000';
+  END IF;
+
+  IF coalesce(btrim(p_display_name), '') = '' THEN
+    RAISE EXCEPTION 'Your name is required.' USING ERRCODE = '22023';
+  END IF;
+
+  IF normalized = '' THEN
+    RAISE EXCEPTION 'An invite code is required.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO new_member FROM members WHERE user_id = uid;
+  IF FOUND THEN
+    RETURN new_member;
+  END IF;
+
+  SELECT h.id INTO target_household
+  FROM households h
+  WHERE upper(h.invite_code) = normalized;
+
+  -- Backwards compatibility: invite codes used to be the raw household UUID.
+  IF target_household IS NULL THEN
+    BEGIN
+      SELECT h.id INTO target_household
+      FROM households h
+      WHERE h.id = normalized::UUID;
+    EXCEPTION WHEN invalid_text_representation THEN
+      target_household := NULL;
+    END;
+  END IF;
+
+  IF target_household IS NULL THEN
+    RAISE EXCEPTION 'That invite code was not found.' USING ERRCODE = '23503';
+  END IF;
+
+  INSERT INTO members (household_id, user_id, name, role)
+  VALUES (target_household, uid, btrim(p_display_name), 'member')
+  RETURNING * INTO new_member;
+
+  RETURN new_member;
+END;
+$$;
+
+-- Admins can invalidate an invite code that has been shared too widely.
+CREATE OR REPLACE FUNCTION rotate_household_invite()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  uid UUID := auth.uid();
+  target_household UUID;
+  fresh_code TEXT;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'You must be signed in.' USING ERRCODE = '28000';
+  END IF;
+
+  SELECT household_id INTO target_household
+  FROM members
+  WHERE user_id = uid AND role = 'admin';
+
+  IF target_household IS NULL THEN
+    RAISE EXCEPTION 'Only a household admin can rotate the invite code.' USING ERRCODE = '42501';
+  END IF;
+
+  fresh_code := generate_invite_code();
+  UPDATE households SET invite_code = fresh_code WHERE id = target_household;
+
+  RETURN fresh_code;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION create_household_with_member(TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION join_household_with_code(TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION rotate_household_invite() FROM PUBLIC;
+REVOKE ALL ON FUNCTION generate_invite_code() FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION create_household_with_member(TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION join_household_with_code(TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION rotate_household_invite() TO authenticated;
+
+-- ============================================
+-- MEMBER UPDATE GUARD
+-- ============================================
+-- Members may rename themselves. They may not move households, take over another
+-- auth user, or promote themselves to admin.
+
+CREATE OR REPLACE FUNCTION members_guard_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.household_id IS DISTINCT FROM OLD.household_id THEN
+    RAISE EXCEPTION 'A member cannot be moved between households.' USING ERRCODE = '42501';
+  END IF;
+
+  IF NEW.user_id IS DISTINCT FROM OLD.user_id THEN
+    RAISE EXCEPTION 'A member cannot be reassigned to another user.' USING ERRCODE = '42501';
+  END IF;
+
+  IF NEW.role IS DISTINCT FROM OLD.role
+     AND NOT is_household_admin(auth.uid(), OLD.household_id) THEN
+    RAISE EXCEPTION 'Only a household admin can change roles.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS members_guard_update_trigger ON members;
+CREATE TRIGGER members_guard_update_trigger
+  BEFORE UPDATE ON members
+  FOR EACH ROW EXECUTE FUNCTION members_guard_update();
 
 -- ============================================
 -- ROW LEVEL SECURITY
 -- ============================================
 
--- Enable RLS on all tables
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE households ENABLE ROW LEVEL SECURITY;
 ALTER TABLE members ENABLE ROW LEVEL SECURITY;
@@ -222,129 +583,191 @@ ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE income ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
 
--- Helper function to get household for a member
-CREATE OR REPLACE FUNCTION household_id_for_member(member_uuid UUID)
-RETURNS UUID
-LANGUAGE SQL
-STABLE
-AS $$
-  SELECT household_id FROM members WHERE id = member_uuid LIMIT 1;
-$$;
+-- Drop superseded policies so this file can be re-run over an older schema.
+DROP POLICY IF EXISTS "Allow all categories" ON categories;
+DROP POLICY IF EXISTS "Allow household create" ON households;
+DROP POLICY IF EXISTS "Allow member create" ON members;
+DROP POLICY IF EXISTS "Allow expense write" ON expenses;
+DROP POLICY IF EXISTS "Allow income write" ON income;
+DROP POLICY IF EXISTS "Allow transfers write" ON transfers;
 
--- Helper function to check household membership
-CREATE OR REPLACE FUNCTION is_household_member(user_uuid UUID, household_uuid UUID)
-RETURNS BOOLEAN
-LANGUAGE SQL
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM members m
-    WHERE m.user_id = user_uuid AND m.household_id = household_uuid
+DROP POLICY IF EXISTS "Categories are readable by owner household" ON categories;
+DROP POLICY IF EXISTS "Categories insert own household" ON categories;
+DROP POLICY IF EXISTS "Categories update own household" ON categories;
+DROP POLICY IF EXISTS "Categories delete own household" ON categories;
+DROP POLICY IF EXISTS "Allow household read" ON households;
+DROP POLICY IF EXISTS "Allow household rename by admin" ON households;
+DROP POLICY IF EXISTS "Allow members read" ON members;
+DROP POLICY IF EXISTS "Allow member rename" ON members;
+DROP POLICY IF EXISTS "Allow member removal" ON members;
+DROP POLICY IF EXISTS "Allow expense read" ON expenses;
+DROP POLICY IF EXISTS "Allow expense insert" ON expenses;
+DROP POLICY IF EXISTS "Allow expense update" ON expenses;
+DROP POLICY IF EXISTS "Allow expense delete" ON expenses;
+DROP POLICY IF EXISTS "Allow income read" ON income;
+DROP POLICY IF EXISTS "Allow income insert" ON income;
+DROP POLICY IF EXISTS "Allow income update" ON income;
+DROP POLICY IF EXISTS "Allow income delete" ON income;
+DROP POLICY IF EXISTS "Allow transfers read" ON transfers;
+DROP POLICY IF EXISTS "Allow transfers insert" ON transfers;
+DROP POLICY IF EXISTS "Allow transfers update" ON transfers;
+DROP POLICY IF EXISTS "Allow transfers delete" ON transfers;
+
+-- --- Categories -------------------------------------------------------------
+-- Built-in defaults (household_id IS NULL) are world-readable and immutable.
+-- Custom categories are visible and editable only within their own household.
+
+-- The global branch is restricted to `is_default`. Without that, any category
+-- left with a NULL household_id -- e.g. a pre-migration custom category that
+-- could not be attributed to anyone -- would read as a shared default and leak
+-- into every household's list.
+CREATE POLICY "Categories are readable by owner household" ON categories FOR SELECT
+  TO authenticated
+  USING (
+    (household_id IS NULL AND is_default = true)
+    OR is_household_member(auth.uid(), household_id)
   );
-$$;
 
--- Allow all operations on categories (shared across households)
-DO $$
-BEGIN
-  -- Categories policy
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'categories' AND policyname = 'Allow all categories') THEN
-    CREATE POLICY "Allow all categories" ON categories FOR ALL USING (true) WITH CHECK (true);
-  END IF;
+CREATE POLICY "Categories insert own household" ON categories FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    household_id IS NOT NULL
+    AND is_household_member(auth.uid(), household_id)
+    AND is_default = false
+  );
 
-  -- Households policies
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'households' AND policyname = 'Allow household create') THEN
-    CREATE POLICY "Allow household create" ON households FOR INSERT
-      WITH CHECK (auth.uid() IS NOT NULL);
-  END IF;
+CREATE POLICY "Categories update own household" ON categories FOR UPDATE
+  TO authenticated
+  USING (
+    household_id IS NOT NULL
+    AND is_household_member(auth.uid(), household_id)
+    AND is_default = false
+  )
+  WITH CHECK (
+    household_id IS NOT NULL
+    AND is_household_member(auth.uid(), household_id)
+    AND is_default = false
+  );
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'households' AND policyname = 'Allow household read') THEN
-    CREATE POLICY "Allow household read" ON households FOR SELECT
-      USING (is_household_member(auth.uid(), id));
-  END IF;
+CREATE POLICY "Categories delete own household" ON categories FOR DELETE
+  TO authenticated
+  USING (
+    household_id IS NOT NULL
+    AND is_household_member(auth.uid(), household_id)
+    AND is_default = false
+  );
 
-  -- Members policies
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'members' AND policyname = 'Allow members read') THEN
-    CREATE POLICY "Allow members read" ON members FOR SELECT
-      USING (
-        user_id = auth.uid()
-        OR is_household_member(auth.uid(), household_id)
-      );
-  END IF;
+-- --- Households -------------------------------------------------------------
+-- Creation happens through create_household_with_member(), so there is no
+-- direct INSERT policy.
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'members' AND policyname = 'Allow member create') THEN
-    CREATE POLICY "Allow member create" ON members FOR INSERT
-      WITH CHECK (user_id = auth.uid());
-  END IF;
-  
-  -- Expenses policies (private + household shared)
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'expenses' AND policyname = 'Allow expense read') THEN
-    CREATE POLICY "Allow expense read" ON expenses FOR SELECT
-      USING (
-        member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-        OR (
-          visibility = 'household'
-          AND is_household_member(auth.uid(), household_id_for_member(member_id))
-        )
-      );
-  END IF;
+CREATE POLICY "Allow household read" ON households FOR SELECT
+  TO authenticated
+  USING (is_household_member(auth.uid(), id));
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'expenses' AND policyname = 'Allow expense write') THEN
-    CREATE POLICY "Allow expense write" ON expenses FOR ALL
-      USING (
-        member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-        OR (
-          visibility = 'household'
-          AND is_household_member(auth.uid(), household_id_for_member(member_id))
-        )
-      )
-      WITH CHECK (
-        member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-        OR (
-          visibility = 'household'
-          AND is_household_member(auth.uid(), household_id_for_member(member_id))
-        )
-      );
-  END IF;
+CREATE POLICY "Allow household rename by admin" ON households FOR UPDATE
+  TO authenticated
+  USING (is_household_admin(auth.uid(), id))
+  WITH CHECK (is_household_admin(auth.uid(), id));
 
-  -- Income policies (private + household shared)
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'income' AND policyname = 'Allow income read') THEN
-    CREATE POLICY "Allow income read" ON income FOR SELECT
-      USING (
-        member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-        OR (
-          visibility = 'household'
-          AND is_household_member(auth.uid(), household_id_for_member(member_id))
-        )
-      );
-  END IF;
+-- --- Members ----------------------------------------------------------------
+-- Creation happens through the onboarding RPCs, so there is no INSERT policy;
+-- that is what stops a client from picking its own role or joining a household
+-- without a valid invite code.
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'income' AND policyname = 'Allow income write') THEN
-    CREATE POLICY "Allow income write" ON income FOR ALL
-      USING (
-        member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-        OR (
-          visibility = 'household'
-          AND is_household_member(auth.uid(), household_id_for_member(member_id))
-        )
-      )
-      WITH CHECK (
-        member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
-        OR (
-          visibility = 'household'
-          AND is_household_member(auth.uid(), household_id_for_member(member_id))
-        )
-      );
-  END IF;
+CREATE POLICY "Allow members read" ON members FOR SELECT
+  TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR is_household_member(auth.uid(), household_id)
+  );
 
-  -- Transfers policies (private only)
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'transfers' AND policyname = 'Allow transfers read') THEN
-    CREATE POLICY "Allow transfers read" ON transfers FOR SELECT
-      USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
-  END IF;
+CREATE POLICY "Allow member rename" ON members FOR UPDATE
+  TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR is_household_admin(auth.uid(), household_id)
+  )
+  WITH CHECK (
+    user_id = auth.uid()
+    OR is_household_admin(auth.uid(), household_id)
+  );
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'transfers' AND policyname = 'Allow transfers write') THEN
-    CREATE POLICY "Allow transfers write" ON transfers FOR ALL
-      USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()))
-      WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
-  END IF;
-END $$;
+CREATE POLICY "Allow member removal" ON members FOR DELETE
+  TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR is_household_admin(auth.uid(), household_id)
+  );
+
+-- --- Expenses ---------------------------------------------------------------
+-- Read: your own rows, plus household-visible rows from housemates.
+-- Write: your own rows only. Sharing an expense with the household makes it
+-- visible to them, not editable or deletable by them.
+
+CREATE POLICY "Allow expense read" ON expenses FOR SELECT
+  TO authenticated
+  USING (
+    member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
+    OR (
+      visibility = 'household'
+      AND is_household_member(auth.uid(), household_id_for_member(member_id))
+    )
+  );
+
+CREATE POLICY "Allow expense insert" ON expenses FOR INSERT
+  TO authenticated
+  WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow expense update" ON expenses FOR UPDATE
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()))
+  WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow expense delete" ON expenses FOR DELETE
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+-- --- Income -----------------------------------------------------------------
+
+CREATE POLICY "Allow income read" ON income FOR SELECT
+  TO authenticated
+  USING (
+    member_id IN (SELECT id FROM members WHERE user_id = auth.uid())
+    OR (
+      visibility = 'household'
+      AND is_household_member(auth.uid(), household_id_for_member(member_id))
+    )
+  );
+
+CREATE POLICY "Allow income insert" ON income FOR INSERT
+  TO authenticated
+  WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow income update" ON income FOR UPDATE
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()))
+  WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow income delete" ON income FOR DELETE
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+-- --- Transfers (always private) ---------------------------------------------
+
+CREATE POLICY "Allow transfers read" ON transfers FOR SELECT
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow transfers insert" ON transfers FOR INSERT
+  TO authenticated
+  WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow transfers update" ON transfers FOR UPDATE
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()))
+  WITH CHECK (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));
+
+CREATE POLICY "Allow transfers delete" ON transfers FOR DELETE
+  TO authenticated
+  USING (member_id IN (SELECT id FROM members WHERE user_id = auth.uid()));

@@ -1,13 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Category, CategoryFormData } from '../types'
+import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+
+/** Pull the most useful message out of a Supabase/Postgrest error. */
+function describeError(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object') {
+    const candidate = err as { message?: unknown; details?: unknown; hint?: unknown }
+    if (typeof candidate.message === 'string' && candidate.message) return candidate.message
+    if (typeof candidate.details === 'string' && candidate.details) return candidate.details
+    if (typeof candidate.hint === 'string' && candidate.hint) return candidate.hint
+  }
+  return fallback
+}
 
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
+  const requestId = useRef(0)
+  const { member } = useAuth()
 
   const fetchCategories = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -15,9 +29,12 @@ export function useCategories() {
       return
     }
 
+    const currentRequest = ++requestId.current
+
     try {
       setLoading(true)
       setError(null)
+      // RLS returns the shared defaults plus this household's own categories.
       const { data, error } = await supabase
         .from('categories')
         .select('*')
@@ -25,10 +42,13 @@ export function useCategories() {
         .order('name')
 
       if (error) throw error
+      if (currentRequest !== requestId.current) return
+
       setCategories(data || [])
       hasShownError.current = false
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch categories'
+      if (currentRequest !== requestId.current) return
+      const message = describeError(err, 'Failed to fetch categories')
       setError(message)
       // Only show toast once per error
       if (!hasShownError.current) {
@@ -36,7 +56,9 @@ export function useCategories() {
         toast.error(message)
       }
     } finally {
-      setLoading(false)
+      if (currentRequest === requestId.current) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -50,10 +72,15 @@ export function useCategories() {
       throw new Error('Supabase not configured')
     }
 
+    if (!member) {
+      toast.error('Your household profile is still loading')
+      throw new Error('No member profile')
+    }
+
     try {
       const { data, error } = await supabase
         .from('categories')
-        .insert([{ ...formData, is_default: false }])
+        .insert([{ ...formData, is_default: false, household_id: member.household_id }])
         .select()
         .single()
 
@@ -61,18 +88,10 @@ export function useCategories() {
       setCategories(prev => [...prev, data])
       toast.success('Category added successfully')
       return data
-    } catch (err: any) {
-      console.error('Full ERROR:', err)
-      
-      const message = 
-        err?.message || 
-        err?.details || 
-        err?.hint || 
-        JSON.stringify(error) ||
-        'Failed to add category'
-
+    } catch (err) {
+      const message = describeError(err, 'Failed to add category')
       toast.error(message)
-      throw(err)
+      throw err
     }
   }
 
@@ -95,7 +114,7 @@ export function useCategories() {
       toast.success('Category updated successfully')
       return data
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update category'
+      const message = describeError(err, 'Failed to update category')
       toast.error(message)
       throw err
     }
@@ -108,6 +127,7 @@ export function useCategories() {
     }
 
     try {
+      // Also enforced by RLS; this just avoids a pointless round trip.
       const category = categories.find(c => c.id === id)
       if (category?.is_default) {
         toast.error('Cannot delete default categories')
@@ -122,9 +142,9 @@ export function useCategories() {
       if (error) throw error
       setCategories(prev => prev.filter(c => c.id !== id))
       toast.success('Category deleted successfully')
-    } catch (err: any) {
-      const message = err instanceof Error ? err.message : 'Failed to delete category' 
-      toast.error(message) 
+    } catch (err) {
+      const message = describeError(err, 'Failed to delete category')
+      toast.error(message)
       throw err
     }
   }

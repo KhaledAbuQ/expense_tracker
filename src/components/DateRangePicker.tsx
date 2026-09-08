@@ -32,32 +32,32 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         {presets.map((preset) => (
           <button
             key={preset.value}
             onClick={() => handlePresetClick(preset.value)}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+            className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
           >
             {preset.label}
           </button>
         ))}
       </div>
       
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto">
         <input
           type="date"
           value={format(value.start, 'yyyy-MM-dd')}
           onChange={(e) => handleCustomChange('start', e.target.value)}
-          className="px-3 py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="flex-1 sm:flex-none px-2.5 py-1 sm:px-3 sm:py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
         />
-        <span className="text-gray-400">to</span>
+        <span className="text-gray-400 shrink-0">to</span>
         <input
           type="date"
           value={format(value.end, 'yyyy-MM-dd')}
           onChange={(e) => handleCustomChange('end', e.target.value)}
-          className="px-3 py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="flex-1 sm:flex-none px-2.5 py-1 sm:px-3 sm:py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
         />
       </div>
     </div>

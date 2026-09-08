@@ -13,24 +13,25 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
         <div 
-          className="fixed inset-0 bg-black/50 transition-opacity"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
         
-        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md transform transition-all">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[calc(100dvh-2rem)] flex flex-col my-auto transform transition-all overflow-hidden">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Close dialog"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
           
-          <div className="p-6">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1">
             {children}
           </div>
         </div>

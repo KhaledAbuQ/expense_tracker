@@ -87,7 +87,7 @@ export default function Dashboard() {
           <span className="sr-only">Dashboard filters</span>
           <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" aria-hidden="true" />
         </summary>
-        <div className="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-3rem)] rounded-xl border border-gray-200 bg-white p-4 shadow-xl max-h-[70vh] overflow-y-auto">
+        <div className="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 bg-white p-4 shadow-xl max-h-[70vh] overflow-y-auto">
           <p className="text-sm font-semibold text-gray-900 mb-4">Dashboard filters</p>
           <div className="space-y-4">
             <label className="flex flex-col gap-1.5 text-xs font-medium text-gray-500">Time period<select className={input} value={horizon} onChange={e => setHorizon(e.target.value as Horizon)}>{horizons.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
@@ -124,8 +124,8 @@ export default function Dashboard() {
         {horizon !== 'all' && <p className="text-xs text-gray-500 mt-3">Comparison: {format(previous.start, 'MMM d, yyyy')} – {format(previous.end, 'MMM d, yyyy')} (same number of calendar days).</p>}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className={panel}><h2 className="text-lg font-semibold mb-4">Expenses by category</h2><CategoryPieChart data={categoryData} /></div>
-        <div className={panel}><h2 className="text-lg font-semibold mb-4">Spending by {interval}</h2><ExpenseLineChart data={spending} /></div>
+        <div className={`${panel} min-w-0`}><h2 className="text-lg font-semibold mb-4">Expenses by category</h2><CategoryPieChart data={categoryData} /></div>
+        <div className={`${panel} min-w-0`}><h2 className="text-lg font-semibold mb-4">Spending by {interval}</h2><ExpenseLineChart data={spending} /></div>
       </div>
       <div><h2 className="text-lg font-semibold">Your income and spending</h2><p className="text-sm text-gray-500 mt-1 mb-4">{label} · Your entries only. Income includes savings deposits. Transfers between accounts are excluded.</p><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {card('Total income', money(grossIncome), `Bank + cash: ${money(grossIncome - calculateIncomeByAccount(personalIncome, 'savings'))}`)}

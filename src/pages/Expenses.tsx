@@ -77,7 +77,7 @@ export default function Expenses() {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors w-full sm:w-auto"
         >
           <Plus className="w-5 h-5" />
           Add Expense
@@ -89,31 +89,33 @@ export default function Expenses() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
           
-          <div className="flex items-center gap-4">
-            <select
-              value={visibilityFilter}
-              onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'private' | 'household')}
-              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="all">All visibility</option>
-              <option value="private">Personal</option>
-              <option value="household">Household</option>
-            </select>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+              <select
+                value={visibilityFilter}
+                onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'private' | 'household')}
+                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[130px]"
+              >
+                <option value="all">All visibility</option>
+                <option value="private">Personal</option>
+                <option value="household">Household</option>
+              </select>
 
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">All Categories</option>
-              {filterCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[130px]"
+              >
+                <option value="">All Categories</option>
+                {filterCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 w-full sm:w-auto text-right sm:text-left font-medium">
               Total: <span className="font-semibold text-gray-900">{formatCurrency(total)}</span>
             </div>
           </div>

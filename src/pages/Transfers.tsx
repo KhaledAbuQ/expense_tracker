@@ -313,7 +313,7 @@ export default function TransfersPage() {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto"
         >
           <ArrowRightLeft className="w-5 h-5" />
           New Transfer
@@ -373,23 +373,25 @@ export default function TransfersPage() {
                       key={transfer.id}
                       className="p-4 hover:bg-gray-50 transition-colors"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`p-2 rounded-lg ${accountColors[transfer.from_account]}`}>
-                            <FromIcon className="w-5 h-5" />
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className={`p-2 rounded-lg ${accountColors[transfer.from_account]}`}>
+                              <FromIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </div>
+
+                            <ArrowRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+
+                            <div className={`p-2 rounded-lg ${accountColors[transfer.to_account]}`}>
+                              <ToIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </div>
                           </div>
 
-                          <ArrowRight className="w-4 h-4 text-gray-400" />
-
-                          <div className={`p-2 rounded-lg ${accountColors[transfer.to_account]}`}>
-                            <ToIcon className="w-5 h-5" />
-                          </div>
-
-                          <div>
-                            <p className="font-medium text-gray-900">
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 text-sm sm:text-base">
                               {accountLabels[transfer.from_account]} → {accountLabels[transfer.to_account]}
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-xs sm:text-sm text-gray-500">
                               {formatDate(transfer.date)}
                               {transfer.description && ` • ${transfer.description}`}
                             </p>
@@ -401,8 +403,8 @@ export default function TransfersPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                          <span className="font-semibold text-gray-900">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                          <span className="font-semibold text-gray-900 text-base sm:text-sm">
                             {formatCurrency(transfer.amount)}
                           </span>
 

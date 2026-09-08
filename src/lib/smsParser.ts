@@ -24,6 +24,7 @@ export interface ParsedBankTransaction {
   confidence: 'high' | 'medium' | 'low'
   isFinancial: boolean
   accountEnding?: string
+  availableBalance?: number
 }
 
 // Common Bank & Financial Keywords in English and Arabic
@@ -73,6 +74,7 @@ const CATEGORY_RULES: { category: string; keywords: string[] }[] = [
     keywords: [
       'restaurant', 'cafe', 'coffee', 'mcdonald', 'starbucks', 'burger', 'pizza',
       'shawarma', 'grill', 'sushi', 'diner', 'kfc', 'subway', 'talabat', 'careem food',
+      'uncle osaka', 'osaka', 'cheesecake', 'sweets', 'dessert',
       'مطعم', 'كافيه', 'مقهى', 'شاورما', 'برجر', 'وجبات', 'بيتزا', 'قهوة', 'حلويات', 'طلبات'
     ],
   },
@@ -115,6 +117,13 @@ const CATEGORY_RULES: { category: string; keywords: string[] }[] = [
       'steam', 'game', 'سينما', 'ترفيه', 'العاب'
     ],
   },
+  {
+    category: 'Salary & Income',
+    keywords: [
+      'salary', 'cliq', 'transfer from', 'inward', 'payroll', 'dividend', 'interest',
+      'راتب', 'حوالة كليك', 'إيداع', 'دفعة', 'مكافأة'
+    ],
+  },
 ]
 
 /**
@@ -126,34 +135,59 @@ export function normalizeDigits(text: string): string {
 }
 
 /**
- * Extracts transaction amount and currency from SMS text.
+ * Extracts available balance if present in the message.
  */
-export function extractAmountAndCurrency(text: string): { amount: number; currency: string } | null {
+export function extractAvailableBalance(text: string): { balance: number; currency: string } | null {
+  const clean = normalizeDigits(text)
+  const balanceRegex = /(?:available\s*balance|avail\s*bal|balance|الرصيد\s*المتاح|الرصيد)[\s:]*(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)|\$|€|£|د\.?\s*أ|دينار)?\s*([0-9]+(?:[.,][0-9]{1,3})?)\s*(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)|\$|€|£|د\.?\s*أ|دينار)?/i
+  const match = clean.match(balanceRegex)
+  if (match && match[1]) {
+    const val = parseFloat(match[1].replace(/,/g, ''))
+    if (!isNaN(val)) {
+      return { balance: val, currency: 'JOD' }
+    }
+  }
+  return null
+}
+
+/**
+ * Extracts transaction amount and currency from SMS text.
+ * Strips the balance clause first so balance amounts are never mistakenly parsed.
+ */
+export function extractAmountAndCurrency(text: string): { amount: number; currency: string; balance?: number } | null {
   const clean = normalizeDigits(text)
 
-  // Patterns for Amounts + Currency:
-  // e.g. "JOD 15.500", "15.500 JOD", "JD 15.50", "15.50 JD", "15.50 د.أ", "د.أ 15.50", "15 دينار", "$25.00", "USD 25.00"
+  // 1. Check and separate the balance portion
+  const balanceInfo = extractAvailableBalance(clean)
+  const balanceRegex = /(?:available\s*balance|avail\s*bal|balance|الرصيد\s*المتاح|الرصيد)[\s:].*$/i
+  const balanceIndex = clean.search(balanceRegex)
+  
+  // Isolate the text before the balance clause to prevent picking up balance amount
+  const textWithoutBalance = balanceIndex !== -1 ? clean.substring(0, balanceIndex) : clean
+
+  // Patterns for Amounts + Currency in transaction context:
+  // e.g. "JOD6.200", "JOD 15.500", "30.000 JOD", "4.000 JOD", "15.50 د.أ", "د.أ 15.50", "15 دينار", "$25.00"
   const patterns = [
-    // Currency followed by amount: JOD 15.500 or USD 25.00 or SAR 50
-    /(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)\b|\$|€|£)\s*([0-9]+(?:[.,][0-9]{1,3})?)/i,
+    // Explicit transaction prefix: "A purchase transaction of 4.000 JOD" or "amount of 15.50" or "بقيمة 15.50"
+    /(?:purchase(?:\s*transaction)?\s*of|payment\s*of|transaction\s*of|sum\s*of|amount(?:\s*is|\s*of)?|بقيمة|بمبلغ|مبلغ)\s*:?\s*(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)|\$|€|£|د\.?\s*أ|دينار)?\s*([0-9]+(?:[.,][0-9]{1,3})?)\s*(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)|\$|€|£|د\.?\s*أ|دينار)?/i,
+    // Currency followed directly or with space by amount: JOD6.200 or JOD 15.500 or $25.00
+    /(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)|\$|€|£)\s*([0-9]+(?:[.,][0-9]{1,3})?)/i,
     // Arabic currency prefix: د.أ 15.500 or دينار 15.500 or درهم 50 or ريال 20
     /(?:د\.?\s*أ|دينار|ريال|درهم|جنيه)\s*([0-9]+(?:[.,][0-9]{1,3})?)/i,
-    // Amount followed by currency: 15.500 JOD or 25.00 USD
-    /([0-9]+(?:[.,][0-9]{1,3})?)\s*(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)\b/i,
+    // Amount followed directly or with space by currency: 30.000 JOD or 4.000 JOD or 25.00USD
+    /([0-9]+(?:[.,][0-9]{1,3})?)\s*(?:(?:JOD|JD|USD|EUR|GBP|SAR|AED|KWD|QAR|BHD|EGP)|\$|€|£)/i,
     // Amount followed by Arabic currency: 15.500 د.أ or 15.50 دينار
     /([0-9]+(?:[.,][0-9]{1,3})?)\s*(?:د\.?\s*أ|دينار|ريال|درهم|جنيه)/i,
-    // "amount: 15.50" or "amount of 15.50" or "بقيمة 15.50" or "مبلغ 15.50"
-    /(?:amount(?:\s*is|\s*of)?|sum\s*of|بقيمة|بمبلغ|مبلغ)\s*:?\s*([0-9]+(?:[.,][0-9]{1,3})?)/i,
+    // Amount followed by "has been credited" / "has been debited"
+    /([0-9]+(?:[.,][0-9]{1,3})?)\s*(?:has\s+been\s+credited|has\s+been\s+debited|credited|debited)/i,
   ]
 
   for (const regex of patterns) {
-    const match = clean.match(regex)
+    const match = textWithoutBalance.match(regex)
     if (match && match[1]) {
-      // Normalize number
       const numStr = match[1].replace(/,/g, '')
       const amount = parseFloat(numStr)
       if (!isNaN(amount) && amount > 0) {
-        // Detect currency
         let currency = 'JOD' // Default for this app
         if (/USD|\$/i.test(text)) currency = 'USD'
         else if (/EUR|€/i.test(text)) currency = 'EUR'
@@ -164,17 +198,25 @@ export function extractAmountAndCurrency(text: string): { amount: number; curren
         else if (/KWD/i.test(text)) currency = 'KWD'
         else if (/JOD|JD|د\.?\s*أ|دينار/i.test(text)) currency = 'JOD'
 
-        return { amount, currency }
+        return {
+          amount,
+          currency,
+          balance: balanceInfo?.balance,
+        }
       }
     }
   }
 
-  // Fallback: look for general decimal numbers in financial context (e.g. "Debited 25.50")
-  const generalMatch = clean.match(/(?:spent|debited|purchase|خصم|شراء|دفعت?)\s*([0-9]+(?:[.,][0-9]{1,3})?)/i)
-  if (generalMatch && generalMatch[1]) {
-    const amount = parseFloat(generalMatch[1].replace(/,/g, ''))
+  // Fallback on general text without balance
+  const fallbackMatch = textWithoutBalance.match(/(?:spent|debited|purchase|credited|خصم|شراء|قيد|دفعت?)\s*([0-9]+(?:[.,][0-9]{1,3})?)/i)
+  if (fallbackMatch && fallbackMatch[1]) {
+    const amount = parseFloat(fallbackMatch[1].replace(/,/g, ''))
     if (!isNaN(amount) && amount > 0) {
-      return { amount, currency: 'JOD' }
+      return {
+        amount,
+        currency: 'JOD',
+        balance: balanceInfo?.balance,
+      }
     }
   }
 
@@ -182,66 +224,110 @@ export function extractAmountAndCurrency(text: string): { amount: number; curren
 }
 
 /**
- * Extracts merchant, store, or recipient name from SMS text.
+ * Extracts merchant, store, or party name from SMS text.
  */
-export function extractMerchant(text: string, sender: string): string {
-  // Common patterns for merchant names:
-  // "at STARBUCKS on 08/09"
-  // "لدى STARBUCKS بتاريخ"
-  // "من STARBUCKS"
-  // "to MOHAMMAD via CliQ"
-  // "إلى محمد"
-  // "at [Merchant] with card"
-  const merchantPatterns = [
-    /(?:at|@)\s+([A-Za-z0-9\s&'-]{2,30}?)(?:\s+(?:on|with|using|card|ref|avl|avail|bal|date|\.)|$)/i,
-    /(?:لدى|من)\s+([A-Za-z0-9\u0600-\u06FF\s&'-]{2,30}?)(?:\s+(?:بتاريخ|بواسطة|عبر|بطاقة|الرصيد|\.)|$)/i,
-    /(?:to|paid\s+to|transferred\s+to)\s+([A-Za-z0-9\s&'-]{2,30}?)(?:\s+(?:on|via|ref|bal|\.)|$)/i,
-    /(?:إلى|الى|حوالة\s+إلى)\s+([A-Za-z0-9\u0600-\u06FF\s&'-]{2,30}?)(?:\s+(?:بتاريخ|عبر|رصيد|\.)|$)/i,
-    /(?:merchant|store|vendor)\s*:?\s*([A-Za-z0-9\u0600-\u06FF\s&'-]{2,30})/i,
+export function extractMerchant(text: string, sender: string, type: TransactionType = 'expense'): string {
+  // 1. "from [MERCHANT] has been debited" / "from [PARTY] as CliQ transfer"
+  const fromPatterns = [
+    /from\s+([A-Za-z0-9\s&'-]{2,35}?)(?:\s+(?:has\s+been|was|as\s+CliQ|via\s+CliQ|as\s+transfer|Balance\b|on\b|using|with)|$)/i,
+    /(?:لدى|من)\s+([A-Za-z0-9\u0600-\u06FF\s&'-]{2,35}?)(?:\s+(?:بتاريخ|بواسطة|عبر|بطاقة|الرصيد|كحوالة|\.)|$)/i,
   ]
 
-  for (const regex of merchantPatterns) {
+  for (const regex of fromPatterns) {
     const match = text.match(regex)
     if (match && match[1]) {
       const candidate = match[1].trim()
-      // Skip if it accidentally captured common stopwords or dates
-      if (!/^(the|card|bank|account|date|ref|atm)$/i.test(candidate) && candidate.length > 2) {
+      if (!/^(the|card|bank|account|date|ref|atm|your\s+card|your\s+account)$/i.test(candidate) && candidate.length > 2) {
         return candidate
       }
     }
   }
 
-  // If no merchant found, fall back to sender or a descriptive fallback
+  // 2. "at [MERCHANT] on [DATE]"
+  const atMatch = text.match(/(?:at|@)\s+([A-Za-z0-9\s&'-]{2,35}?)(?:\s+(?:on|with|using|card|ref|avl|avail|bal|date|\.)|$)/i)
+  if (atMatch && atMatch[1]) {
+    const candidate = atMatch[1].trim()
+    if (!/^(the|card|bank|account|date|ref|atm)$/i.test(candidate) && candidate.length > 2) {
+      return candidate
+    }
+  }
+
+  // 3. "to [RECIPIENT] on [DATE]" / "paid to [RECIPIENT]"
+  const toMatch = text.match(/(?:paid\s+to|transferred\s+to|to)\s+([A-Za-z0-9\s&'-]{2,35}?)(?:\s+(?:on|via|ref|bal|\.)|$)/i)
+  if (toMatch && toMatch[1]) {
+    const candidate = toMatch[1].trim()
+    if (!/^(the|card|bank|account|your\s+account|your\s+card|date|ref|atm)$/i.test(candidate) && candidate.length > 2) {
+      return candidate
+    }
+  }
+
+  // 4. Check for CliQ transfer indication
+  if (/cliq/i.test(text)) {
+    return type === 'income' ? 'CliQ Received' : 'CliQ Transfer'
+  }
+
+  // 5. If credited to account without specific merchant
+  if (type === 'income') {
+    if (/salary|payroll|راتب/i.test(text)) return 'Salary Deposit'
+    if (/refund|استرداد/i.test(text)) return 'Refund'
+    return 'Bank Deposit'
+  }
+
+  // Fallback to sender or general title
   const cleanSender = sender.replace(/[^A-Za-z0-9\u0600-\u06FF]/g, ' ').trim()
   return cleanSender ? cleanSender : 'Bank Transaction'
 }
 
 /**
- * Extracts card or account ending (e.g. Card **1234 or Acct XX5678).
+ * Extracts card or account ending (e.g. XXXX5061, Card ending 1234, to 0145*500).
  */
 export function extractAccountEnding(text: string): string | undefined {
-  const match = text.match(/(?:card|acct|account|حساب|بطاقة)[^\d]*([0-9]{4})\b/i)
-  return match ? match[1] : undefined
+  // e.g. 0145*500from or *500
+  const starMatch = text.match(/\*([0-9]{3,4})/i)
+  if (starMatch) return starMatch[1]
+
+  // e.g. card XXXX5061 or card 5061
+  const cardMatch = text.match(/(?:card|بطاقة)[^\d]*([0-9]{4})\b/i) || text.match(/(?:XXXX|\*{3,4})([0-9]{4})\b/i)
+  if (cardMatch) return cardMatch[1]
+
+  // e.g. account ending 1234
+  const acctMatch = text.match(/(?:acct|account|حساب)[^\d]*([0-9]{3,4})\b/i)
+  if (acctMatch) return acctMatch[1]
+
+  return undefined
 }
 
 /**
- * Extracts transaction date from SMS text, or falls back to SMS timestamp.
+ * Extracts transaction date from SMS text, supporting:
+ * - DD-MM-YYYY (e.g. 06-09-2026)
+ * - DD/MM/YYYY (e.g. 06/09/2026)
+ * - YYYY-MM-DD (e.g. 2026-09-06)
+ * - DD/MM (e.g. 08/09 or 08/09 01:22)
+ * Falls back to SMS timestamp if no date is in the SMS text.
  */
 export function extractDate(text: string, timestamp: number | string): string {
-  // Look for date patterns in SMS body:
-  // e.g. 2026-09-08 or 08/09/2026 or 08-09-2026
+  // 1. ISO format: 2026-09-08 or 2026/09/08
   const isoMatch = text.match(/\b(20\d{2}[-/](?:0[1-9]|1[0-2])[-/](?:0[1-9]|[12]\d|3[01]))\b/)
   if (isoMatch) {
     return isoMatch[1].replace(/\//g, '-')
   }
 
+  // 2. DD-MM-YYYY or DD/MM/YYYY: 06-09-2026 or 06/09/2026
   const dmyMatch = text.match(/\b((?:0[1-9]|[12]\d|3[01])[-/](?:0[1-9]|1[0-2])[-/](20\d{2}))\b/)
   if (dmyMatch) {
     const parts = dmyMatch[1].split(/[-/]/)
     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
   }
 
-  // Fallback to the SMS received timestamp
+  // 3. DD/MM with optional time: 08/09 01:22
+  const dmMatch = text.match(/\b((?:0[1-9]|[12]\d|3[01])[-/](0[1-9]|1[0-2]))(?:\s+[0-2]?\d:[0-5]\d)?\b/)
+  if (dmMatch) {
+    const parts = dmMatch[1].split(/[-/]/)
+    const year = new Date().getFullYear()
+    return `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+  }
+
+  // 4. Fallback to the SMS received timestamp
   try {
     const dateObj = new Date(typeof timestamp === 'string' ? parseInt(timestamp, 10) || timestamp : timestamp)
     if (!isNaN(dateObj.getTime())) {
@@ -260,18 +346,18 @@ export function extractDate(text: string, timestamp: number | string): string {
 export function matchCategory(
   merchant: string,
   rawText: string,
+  type: TransactionType,
   categories: Category[] = []
 ): { categoryGuess: string; categoryId?: string } {
   const combined = `${merchant} ${rawText}`.toLowerCase()
 
-  // First try rules
+  // First try rules matching the transaction type
   for (const rule of CATEGORY_RULES) {
     for (const kw of rule.keywords) {
       if (combined.includes(kw.toLowerCase())) {
-        // Find if user already has a category matching this name or type
         const matchingCategory = categories.find(
-          c => c.name.toLowerCase().includes(rule.category.toLowerCase()) ||
-               rule.category.toLowerCase().includes(c.name.toLowerCase())
+          c => (type === 'income' ? c.category_type === 'income' || c.category_type === 'both' : c.category_type !== 'income') &&
+               (c.name.toLowerCase().includes(rule.category.toLowerCase()) || rule.category.toLowerCase().includes(c.name.toLowerCase()))
         )
         return {
           categoryGuess: rule.category,
@@ -283,7 +369,8 @@ export function matchCategory(
 
   // Second try matching directly against user category names
   for (const cat of categories) {
-    if (combined.includes(cat.name.toLowerCase())) {
+    if ((type === 'income' ? cat.category_type !== 'expense' : cat.category_type !== 'income') &&
+        combined.includes(cat.name.toLowerCase())) {
       return {
         categoryGuess: cat.name,
         categoryId: cat.id,
@@ -292,15 +379,18 @@ export function matchCategory(
   }
 
   // Default fallback
-  const firstExpenseCategory = categories.find(c => c.category_type === 'expense' || c.category_type === 'both')
+  const fallbackCategory = categories.find(c =>
+    type === 'income' ? c.category_type === 'income' || c.category_type === 'both' : c.category_type === 'expense' || c.category_type === 'both'
+  )
+
   return {
-    categoryGuess: firstExpenseCategory?.name || 'General',
-    categoryId: firstExpenseCategory?.id,
+    categoryGuess: fallbackCategory?.name || (type === 'income' ? 'Income' : 'General'),
+    categoryId: fallbackCategory?.id,
   }
 }
 
 /**
- * Main parser function: parses a raw SMS into a structured bank transaction.
+ * Main parser function: parses a raw SMS into a structured bank transaction (expense or income).
  */
 export function parseBankSms(
   sms: RawSms,
@@ -312,7 +402,7 @@ export function parseBankSms(
   // 1. Check if it's an OTP or non-financial alert to ignore
   const isOtp = IGNORE_PATTERNS.some(regex => regex.test(body))
 
-  // 2. Extract amount and currency
+  // 2. Extract amount, currency and balance
   const financialData = extractAmountAndCurrency(body)
 
   // 3. Determine transaction type (expense vs income vs other)
@@ -324,23 +414,26 @@ export function parseBankSms(
 
   let type: TransactionType = 'other'
   if (!isOtp && financialData) {
-    if (isExpenseKeyword) {
+    if (isIncomeKeyword && !isExpenseKeyword) {
+      type = 'income'
+    } else if (isExpenseKeyword && !isIncomeKeyword) {
       type = 'expense'
     } else if (isIncomeKeyword) {
+      // e.g. "credited"
       type = 'income'
     } else {
-      // Default to expense if financial amount is present in a bank-like context
+      // Default to expense if financial amount is present
       type = 'expense'
     }
   }
 
-  // 4. Extract Merchant / Description
-  const merchant = extractMerchant(body, sender)
+  // 4. Extract Merchant / Party, Date, and Account ending
+  const merchant = extractMerchant(body, sender, type)
   const date = extractDate(body, sms.date)
   const accountEnding = extractAccountEnding(body)
 
   // 5. Category matching
-  const { categoryGuess, categoryId } = matchCategory(merchant, body, categories)
+  const { categoryGuess, categoryId } = matchCategory(merchant, body, type, categories)
 
   // 6. Confidence scoring
   let confidence: 'high' | 'medium' | 'low' = 'low'
@@ -369,5 +462,6 @@ export function parseBankSms(
     confidence,
     isFinancial,
     accountEnding,
+    availableBalance: financialData?.balance,
   }
 }

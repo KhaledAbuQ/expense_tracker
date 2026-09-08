@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
-  "name": "Pocket Expenses - Bank SMS Auto-Tracking Knowledge Graph",
-  "description": "Knowledge graph tracking the architecture, components, flows, and Android native bridge for auto-tracking expenses from bank SMS messages.",
-  "generatedAt": "2026-09-08T18:40:00Z",
+  "version": "1.1.0",
+  "name": "Pocket Expenses - Bank SMS Auto-Tracking & Biometrics Knowledge Graph",
+  "description": "Knowledge graph tracking the architecture, components, flows, and Android native bridge for auto-tracking expenses & income from bank SMS messages, organized by date.",
+  "generatedAt": "2026-09-08T19:40:00Z",
   "generator": "graphify-ai-agent-v1",
   "stats": {
-    "nodeCount": 13,
-    "edgeCount": 15,
+    "nodeCount": 16,
+    "edgeCount": 19,
     "communityCount": 4
   },
   "communities": [
@@ -18,7 +18,7 @@
     {
       "id": "c2_sms_engine",
       "name": "SMS Engine & Parsing",
-      "description": "Bilingual (AR/EN) SMS normalization, amount/currency extraction, and category categorization."
+      "description": "Bilingual (AR/EN) SMS normalization, amount/currency extraction, balance separation, and date grouping."
     },
     {
       "id": "c3_android_native",
@@ -38,7 +38,7 @@
       "type": "page",
       "community": "c1_mobile_ui",
       "path": "src/pages/Mobile.tsx",
-      "description": "Primary mobile view for standalone APK. Listens to incoming SMS, fetches background queued SMS, shows alerts, and manages expenses.",
+      "description": "Primary mobile view for standalone APK. Listens to incoming SMS, fetches background queued SMS, shows alerts, and manages expenses and income.",
       "tags": ["ui", "capacitor", "lifecycle", "mobile"]
     },
     {
@@ -47,8 +47,8 @@
       "type": "component",
       "community": "c1_mobile_ui",
       "path": "src/components/BankSmsTrackerModal.tsx",
-      "description": "Modal interface for reviewing pending bank transactions, scanning device inbox, toggling auto-save vs review, and testing SMS parser.",
-      "tags": ["ui", "modal", "settings", "testing"]
+      "description": "Modal interface for reviewing pending bank transactions grouped by date, scanning all device SMS messages, toggling auto-save vs review, and testing SMS parser.",
+      "tags": ["ui", "modal", "settings", "testing", "date-grouping"]
     },
     {
       "id": "src/lib/smsParser.ts",
@@ -56,8 +56,8 @@
       "type": "utility",
       "community": "c2_sms_engine",
       "path": "src/lib/smsParser.ts",
-      "description": "Parses English and Arabic bank SMS. Normalizes numerals, extracts amounts, currencies, merchants, dates, and matches categories.",
-      "tags": ["parser", "regex", "arabic", "english", "ml-rules"]
+      "description": "Parses English and Arabic bank SMS. Normalizes numerals, extracts amounts without balance interference, currencies, merchants, DD/MM dates, and matches categories.",
+      "tags": ["parser", "regex", "arabic", "english", "balance-separation", "cliq"]
     },
     {
       "id": "src/lib/bankSms.ts",
@@ -65,7 +65,7 @@
       "type": "service",
       "community": "c2_sms_engine",
       "path": "src/lib/bankSms.ts",
-      "description": "TypeScript client bridge to Capacitor BankSms plugin, managing user preferences, deduplication storage, and background queues.",
+      "description": "TypeScript client bridge to Capacitor BankSms plugin, managing user preferences, deduplication storage, date-sorted transactions, and background queues.",
       "tags": ["bridge", "storage", "capacitor", "events"]
     },
     {
@@ -74,7 +74,7 @@
       "type": "test",
       "community": "c2_sms_engine",
       "path": "tests/smsParser.test.mjs",
-      "description": "Automated node:test suite verifying bank SMS formats (Etihad, Arab Bank, Manaseer, CliQ, OTP filtering).",
+      "description": "Automated node:test suite verifying bank SMS formats (Jordanian CliQ, Uncle Osaka card debit, account credits, Etihad, Arab Bank, Manaseer, OTP filtering).",
       "tags": ["test", "verification"]
     },
     {
@@ -83,7 +83,7 @@
       "type": "config",
       "community": "c3_android_native",
       "path": "android/app/src/main/AndroidManifest.xml",
-      "description": "Declares RECEIVE_SMS and READ_SMS permissions and registers SmsBroadcastReceiver.",
+      "description": "Declares RECEIVE_SMS, READ_SMS, USE_BIOMETRIC permissions, widget receivers, and SmsBroadcastReceiver.",
       "tags": ["android", "permissions", "manifest"]
     },
     {
@@ -101,7 +101,7 @@
       "type": "android_native",
       "community": "c3_android_native",
       "path": "android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java",
-      "description": "Capacitor Plugin handling permission requests, content://sms/inbox scanning, and dispatching real-time smsReceived events.",
+      "description": "Capacitor Plugin handling permission requests, content://sms/inbox scanning (all messages or date-filtered), and dispatching real-time smsReceived events.",
       "tags": ["android", "capacitor_plugin", "permissions"]
     },
     {
@@ -110,7 +110,7 @@
       "type": "android_native",
       "community": "c3_android_native",
       "path": "android/app/src/main/java/com/householdledger/expenses/MainActivity.java",
-      "description": "Native Android entrypoint registering BankSmsPlugin with the Capacitor bridge.",
+      "description": "Native Android entrypoint registering BankSmsPlugin, ExpenseWidgetPlugin, and BiometricAuthPlugin with the Capacitor bridge.",
       "tags": ["android", "activity"]
     },
     {
@@ -121,6 +121,15 @@
       "path": "src/hooks/useExpenses.ts",
       "description": "Data management hook querying and inserting expenses into Supabase with account_type bank.",
       "tags": ["database", "supabase", "crud"]
+    },
+    {
+      "id": "src/hooks/useIncome.ts",
+      "label": "useIncome Hook",
+      "type": "hook",
+      "community": "c4_core_data",
+      "path": "src/hooks/useIncome.ts",
+      "description": "Data management hook querying and inserting income/credits into Supabase with account_type bank.",
+      "tags": ["database", "supabase", "income"]
     },
     {
       "id": "src/hooks/useCategories.ts",
@@ -137,7 +146,7 @@
       "type": "types",
       "community": "c4_core_data",
       "path": "src/types/index.ts",
-      "description": "Core TypeScript interfaces: Expense, ExpenseFormData, Category, Visibility, AccountType.",
+      "description": "Core TypeScript interfaces: Expense, Income, Category, Visibility, AccountType.",
       "tags": ["types", "typescript"]
     },
     {
@@ -155,7 +164,7 @@
       "source": "src/pages/Mobile.tsx",
       "target": "src/components/BankSmsTrackerModal.tsx",
       "relationship": "renders",
-      "description": "Opens modal for SMS configuration, reviewing pending items, and scanning inbox."
+      "description": "Opens modal for SMS configuration, reviewing pending items by date, and scanning inbox."
     },
     {
       "source": "src/pages/Mobile.tsx",
@@ -167,7 +176,13 @@
       "source": "src/pages/Mobile.tsx",
       "target": "src/hooks/useExpenses.ts",
       "relationship": "calls",
-      "description": "Invokes addExpense to save confirmed or auto-logged bank transactions."
+      "description": "Invokes addExpense to save confirmed or auto-logged bank debit transactions."
+    },
+    {
+      "source": "src/pages/Mobile.tsx",
+      "target": "src/hooks/useIncome.ts",
+      "relationship": "calls",
+      "description": "Invokes addIncome to save confirmed or auto-logged bank credit/transfer transactions."
     },
     {
       "source": "src/pages/Mobile.tsx",
@@ -179,7 +194,7 @@
       "source": "src/components/BankSmsTrackerModal.tsx",
       "target": "src/lib/bankSms.ts",
       "relationship": "invokes",
-      "description": "Requests permissions, scans inbox, and updates tracking mode settings."
+      "description": "Requests permissions, scans all inbox messages, and updates tracking mode settings."
     },
     {
       "source": "src/components/BankSmsTrackerModal.tsx",
@@ -221,7 +236,7 @@
       "source": "tests/smsParser.test.mjs",
       "target": "src/lib/smsParser.ts",
       "relationship": "tests",
-      "description": "Validates regex parsing, Arabic digits, amounts, currencies, and OTP rejection."
+      "description": "Validates regex parsing, Arabic digits, Jordanian bank formats (CliQ, Uncle Osaka, account credits), and balance separation."
     },
     {
       "source": "src/lib/smsParser.ts",

@@ -1,9 +1,21 @@
-# Knowledge Graph Report: Bank SMS Expense Auto-Tracking
+# Knowledge Graph Report: Bank SMS Auto-Tracking by Date
 *Generated via Graphify knowledge graph tracking standard*
 
 ## 1. Executive Summary
 
-This knowledge graph report documents the architecture and implementation of the **Bank SMS Auto-Tracking** system for the **Pocket Expenses** Android APK. The system allows users to automatically track household and personal expenses directly from bank SMS transaction alerts (such as card purchases, POS terminals, ATM withdrawals, and CliQ transfers) received in English and Arabic.
+This report documents the **Bank SMS Auto-Tracking** architecture for **Pocket Expenses**, updated with:
+1. **Full Inbox Scanning**: Ability to scan all device SMS messages without time cutoff.
+2. **Reverse Chronological Date Grouping**: Scanned bank transactions are grouped and organized by date with daily totals for income and expenses.
+3. **Dual Expense & Income Support**:
+   - Debits / Purchases are saved to Supabase `expenses` via `onSaveExpense`.
+   - Credits / CliQ transfers / Deposits are saved to Supabase `income` via `onSaveIncome`.
+4. **Jordanian Bank SMS Format Specialization**:
+   - Support for `JOD6.200` without spaces.
+   - Isolation and extraction of `Available balance` / `Balance` so balance figures are never confused with transaction amounts.
+   - Extraction of party names from CliQ transfers (`from KHALED ISSA SABRI ABU QUTISH as CliQ transfer`).
+   - Extraction of merchant names (`from UNCLE OSAKA ALRABIEH has been debited`).
+   - Account and card ending extraction (`XXXX5061`, `0145*500` -> `5061`, `500`).
+   - Relative dates (`08/09 01:22` -> `2026-09-08`).
 
 ---
 
@@ -14,24 +26,25 @@ graph TD
     subgraph Android Native [Android Native & Telephony Bridge]
         Manifest["AndroidManifest.xml<br/>(RECEIVE_SMS, READ_SMS)"]
         Receiver["SmsBroadcastReceiver.java<br/>(Telephony.SMS_RECEIVED)"]
-        Plugin["BankSmsPlugin.java<br/>(Capacitor Plugin)"]
+        Plugin["BankSmsPlugin.java<br/>(Capacitor Plugin - All Messages Query)"]
         MainActivity["MainActivity.java<br/>(Plugin Registration)"]
         Prefs["SharedPreferences<br/>(Offline Pending Queue)"]
     end
 
     subgraph SMS Engine [SMS Engine & Parsing]
-        Parser["smsParser.ts<br/>(EN/AR Normalizer, Regex, Category Matcher)"]
-        Bridge["bankSms.ts<br/>(TypeScript Service & Deduplication)"]
-        Tests["smsParser.test.mjs<br/>(Automated Test Suite)"]
+        Parser["smsParser.ts<br/>(Balance Separation, Regex, CliQ & Date Extractor)"]
+        Bridge["bankSms.ts<br/>(TypeScript Service, Deduplication & Date Sorting)"]
+        Tests["smsParser.test.mjs<br/>(Automated Unit Tests)"]
     end
 
-    subgraph Mobile UI [Mobile UI & Review Flow]
-        Mobile["Mobile.tsx<br/>(Mobile View & Banner Alerts)"]
-        Modal["BankSmsTrackerModal.tsx<br/>(Review Queue, Inbox Scanner, Playground)"]
+    subgraph Mobile UI [Mobile UI & Date Grouping Flow]
+        Mobile["Mobile.tsx<br/>(Mobile View, Banner Alerts, Live Listener)"]
+        Modal["BankSmsTrackerModal.tsx<br/>(Date Groups, Income/Expense Pills, Scan All)"]
     end
 
-    subgraph Data Layer [Data Models & Storage]
+    subgraph Data Layer [Data Models & Supabase Storage]
         UseExpenses["useExpenses.ts<br/>(Supabase addExpense)"]
+        UseIncome["useIncome.ts<br/>(Supabase addIncome)"]
         UseCategories["useCategories.ts<br/>(Categories Fetcher)"]
         Types["types/index.ts<br/>(Domain Models)"]
     end
@@ -48,87 +61,44 @@ graph TD
     Mobile --> Modal
     Mobile --> Bridge
     Mobile --> UseExpenses
+    Mobile --> UseIncome
     Mobile --> UseCategories
     Modal --> Bridge
     Modal --> Parser
 ```
 
-### Community Breakdown:
-1. **`c1_mobile_ui` (Mobile UI & Review Flow)**:
-   - [`Mobile.tsx`](file:///C:/Users/User/Documents/expense_tracker/src/pages/Mobile.tsx): Standalone mobile dashboard entry point. Listens to incoming SMS events in real-time, queries background pending queues on resume, renders pending alert badges, and saves approved transactions.
-   - [`BankSmsTrackerModal.tsx`](file:///C:/Users/User/Documents/expense_tracker/src/components/BankSmsTrackerModal.tsx): Interactive drawer/modal providing 4 tabs:
-     - **Pending Review**: Edit merchant, amount, category, and visibility before saving. Bulk "Save All" action.
-     - **Inbox Scan**: Scans device SMS inbox for historical bank transactions (last 7, 14, or 30 days).
-     - **Settings**: Toggle between "Review Before Saving" and "Zero-Click Auto-Save", set default visibility.
-     - **Test Parser**: Live testing playground with sample SMS messages from Jordan/international banks.
+---
 
-2. **`c2_sms_engine` (SMS Engine & Parsing)**:
-   - [`smsParser.ts`](file:///C:/Users/User/Documents/expense_tracker/src/lib/smsParser.ts): Handles bilingual parsing (English + Arabic). Normalizes Eastern Arabic numerals (`٠-٩`), extracts amounts and currencies (`JOD`, `USD`, `EUR`, `SAR`, etc.), parses merchant and recipient names, filters OTP/security alerts, and matches categories.
-   - [`bankSms.ts`](file:///C:/Users/User/Documents/expense_tracker/src/lib/bankSms.ts): TypeScript wrapper for Capacitor's native bridge, managing `localStorage` settings, deduplication (`processed_sms_ids`), and lifecycle subscriptions.
-   - [`smsParser.test.mjs`](file:///C:/Users/User/Documents/expense_tracker/tests/smsParser.test.mjs): Unit tests covering Arab Bank, Etihad Bank, Jordan Kuwait Bank (Manaseer fuel), CliQ transfers, and OTP rejection.
+## 3. Jordanian Bank Message Formats Supported
 
-3. **`c3_android_native` (Android Native & Telephony Bridge)**:
-   - [`AndroidManifest.xml`](file:///C:/Users/User/Documents/expense_tracker/android/app/src/main/AndroidManifest.xml): Declares `RECEIVE_SMS` and `READ_SMS` permissions and registers `SmsBroadcastReceiver`.
-   - [`SmsBroadcastReceiver.java`](file:///C:/Users/User/Documents/expense_tracker/android/app/src/main/java/com/householdledger/expenses/SmsBroadcastReceiver.java): Catches `Telephony.Sms.Intents.SMS_RECEIVED_ACTION`. Queues messages in `SharedPreferences` if app is backgrounded and forwards to `BankSmsPlugin` if active.
-   - [`BankSmsPlugin.java`](file:///C:/Users/User/Documents/expense_tracker/android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java): Capacitor Plugin handling runtime permissions, `content://sms/inbox` queries, background queue flushing, and event dispatching.
-   - [`MainActivity.java`](file:///C:/Users/User/Documents/expense_tracker/android/app/src/main/java/com/householdledger/expenses/MainActivity.java): Registers the plugin in `onCreate()`.
-
-4. **`c4_core_data` (Data Models & Storage)**:
-   - [`useExpenses.ts`](file:///C:/Users/User/Documents/expense_tracker/src/hooks/useExpenses.ts): Inserts expenses into Supabase with `account_type: 'bank'`.
-   - [`useCategories.ts`](file:///C:/Users/User/Documents/expense_tracker/src/hooks/useCategories.ts): Supplies user categories for keyword-based matching.
+| Bank Message Example | Type | Extracted Amount | Extracted Merchant / Party | Date | Card / Acct | Balance |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `JOD6.200 has been credited to 0145*500from KHALED ISSA SABRI ABU QUTISH as CliQ transfer Balance 923.186JOD` | **Income** | **6.200 JOD** | KHALED ISSA SABRI ABU QUTISH (CliQ) | Today | •500 | 923.186 JOD |
+| `30.000 JOD has been credited to your account on 08/09 01:22. Available balance 47.744 JOD.` | **Income** | **30.000 JOD** | Account Deposit | 2026-09-08 | Account | 47.744 JOD |
+| `A purchase transaction of 4.000 JOD from UNCLE OSAKA ALRABIEH has been debited from your card XXXX5061 on 06-09-2026. Available balance 17.744 JOD.` | **Expense** | **4.000 JOD** | UNCLE OSAKA ALRABIEH | 2026-09-06 | •5061 | 17.744 JOD |
 
 ---
 
-## 3. Key God Nodes & Connectivity
+## 4. Date Grouping & Review Flow
 
-| Node | Type | Degree (In/Out) | Primary Role |
-| :--- | :--- | :---: | :--- |
-| [`src/pages/Mobile.tsx`](file:///C:/Users/User/Documents/expense_tracker/src/pages/Mobile.tsx) | Page | 5 | Central hub for mobile UX, event handling, and expense persistence. |
-| [`src/lib/bankSms.ts`](file:///C:/Users/User/Documents/expense_tracker/src/lib/bankSms.ts) | Service | 6 | Bridges JavaScript web runtime with Android Capacitor native code. |
-| [`src/lib/smsParser.ts`](file:///C:/Users/User/Documents/expense_tracker/src/lib/smsParser.ts) | Utility | 4 | Pure extraction engine for English & Arabic bank SMS alerts. |
-| [`BankSmsPlugin.java`](file:///C:/Users/User/Documents/expense_tracker/android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java) | Native Plugin | 4 | Native bridge for Android telephony, permissions, and background dispatch. |
-
----
-
-## 4. End-to-End Data Flow
-
-### A. Real-Time Incoming SMS:
-1. Bank sends SMS alert to the phone.
-2. Android OS fires `android.provider.Telephony.SMS_RECEIVED`.
-3. `SmsBroadcastReceiver` extracts originating address, message body, and timestamp.
-4. If the app is active, `BankSmsPlugin.notifyIncomingSms()` emits `smsReceived` to Capacitor webview.
-5. If the app is closed or backgrounded, the SMS is stored in `SharedPreferences` (`PocketExpensesSmsPrefs`).
-6. When the app resumes or mounts, `fetchPendingBackgroundTransactions()` reads and flushes the queue.
-7. Depending on user preference:
-   - **Auto Mode**: Automatically logs expense into Supabase via `addExpense` with toast feedback.
-   - **Review Mode**: Appends transaction to the review queue and displays a badge/banner on `Mobile.tsx`.
-
-### B. Historical Inbox Backfill:
-1. User clicks "Scan SMS Inbox" (e.g. Last 7, 14, or 30 days).
-2. `BankSmsPlugin.getRecentSms()` queries Android's `Telephony.Sms.Inbox` provider.
-3. Messages are cross-checked against `processed_sms_ids` in `localStorage` to prevent duplicate imports.
-4. Filtered transactions are presented in the Review tab for 1-click confirmation or bulk saving.
+1. **Inbox Scanning**:
+   - The user taps **Scan All Bank Messages**.
+   - `BankSmsPlugin.getRecentSms({ days: 0, limit: 500 })` fetches all device SMS messages.
+2. **Filtering & Deduplication**:
+   - Financial messages are matched and checked against `processed_sms_ids` in `localStorage` to avoid re-prompting already imported entries.
+3. **Date Organization**:
+   - Messages are sorted chronologically and grouped into date buckets (`Today — Tuesday, Sep 8, 2026`, `Sunday, Sep 6, 2026`, etc.).
+   - Each date group displays daily totals:
+     - `+36.200 JOD Income` (Green)
+     - `-4.000 JOD Expenses` (Red)
+4. **Interactive Action**:
+   - Users can filter by **All**, **Expenses**, or **Income**.
+   - Single tap **Save Expense** or **Save Income**, or **Save All** in one tap.
 
 ---
 
-## 5. Verification & Tests
+## 5. Verification & Test Suite
 
-- **Unit Tests**: `node --test tests/smsParser.test.mjs`
-  - Arabic numerals normalization (`١٢٣.٤٥` -> `123.45`): **PASSED**
-  - English bank SMS (Etihad / Arab Bank / Card ending / Balances): **PASSED**
-  - Arabic bank SMS (Arab Bank / Housing Bank / Jordan): **PASSED**
-  - Fuel & Transport SMS (Manaseer gas station): **PASSED**
-  - OTP & Security 2FA filtering: **PASSED**
-  - Salary & Inward credit filtering: **PASSED**
-- **TypeScript & Vite Build**: Passed cleanly with zero compilation errors.
-
----
-
-## 6. How Another Agent Can Extend This System
-
-1. **Adding Bank Templates**:
-   Update `CATEGORY_RULES` or merchant pattern matchers in [`src/lib/smsParser.ts`](file:///C:/Users/User/Documents/expense_tracker/src/lib/smsParser.ts). Add test cases in [`tests/smsParser.test.mjs`](file:///C:/Users/User/Documents/expense_tracker/tests/smsParser.test.mjs).
-2. **Income SMS Auto-Tracking**:
-   Currently, expense transactions are tracked by default (`type === 'expense'`). The parser already extracts `type === 'income'`. To auto-log income, extend `bankSms.ts` and `useIncome.ts` to call `addIncome`.
-3. **Compiling APK**:
-   Run `npm run android:apk` to sync assets and trigger `./gradlew assembleRelease` to generate the final signed APK in `artifacts/pocket-expenses.apk`.
+- Automated Unit Tests: `16/16` tests passed (`tests/analytics.test.mjs` and `tests/smsParser.test.mjs`).
+- Clean TypeScript & Vite build: `npm run build` passed with zero errors.
+- Standalone Release APK: `artifacts/pocket-expenses.apk` compiled and signed.

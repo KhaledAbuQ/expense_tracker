@@ -150,8 +150,8 @@ export async function requestSmsPermissions(): Promise<{ granted: boolean; recei
  */
 export async function scanRecentBankTransactions(
   categories: Category[] = [],
-  days: number = 14,
-  limit: number = 50
+  days: number = 0,
+  limit: number = 500
 ): Promise<ParsedBankTransaction[]> {
   try {
     const res = await BankSms.getRecentSms({ days, limit })
@@ -164,11 +164,13 @@ export async function scanRecentBankTransactions(
       if (processed.has(msg.id)) continue
 
       const parsed = parseBankSms(msg, categories)
-      if (parsed.isFinancial && parsed.type === 'expense') {
+      if (parsed.isFinancial && (parsed.type === 'expense' || parsed.type === 'income')) {
         transactions.push(parsed)
       }
     }
 
+    // Sort by date descending (newest date first)
+    transactions.sort((a, b) => b.date.localeCompare(a.date))
     return transactions
   } catch (err) {
     console.error('Error scanning SMS:', err)
@@ -193,7 +195,7 @@ export async function fetchPendingBackgroundTransactions(
       if (processed.has(msg.id)) continue
 
       const parsed = parseBankSms(msg, categories)
-      if (parsed.isFinancial && parsed.type === 'expense') {
+      if (parsed.isFinancial && (parsed.type === 'expense' || parsed.type === 'income')) {
         transactions.push(parsed)
       }
     }
@@ -201,6 +203,8 @@ export async function fetchPendingBackgroundTransactions(
     // Clear native queue once read
     await BankSms.clearPendingReceivedSms()
 
+    // Sort by date descending
+    transactions.sort((a, b) => b.date.localeCompare(a.date))
     return transactions
   } catch (err) {
     console.error('Error reading pending background SMS:', err)
@@ -221,7 +225,7 @@ export function subscribeToIncomingSms(
     if (isTransactionProcessed(data.id)) return
 
     const parsed = parseBankSms(data, categories)
-    if (parsed.isFinancial && parsed.type === 'expense') {
+    if (parsed.isFinancial && (parsed.type === 'expense' || parsed.type === 'income')) {
       onTransaction(parsed)
     }
   }).then(handle => {

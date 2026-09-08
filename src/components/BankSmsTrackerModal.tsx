@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   X,
   MessageSquare,
@@ -11,6 +11,9 @@ import {
   Zap,
   Eye,
   Trash2,
+  Calendar,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
 import {
   ParsedBankTransaction,
@@ -26,8 +29,8 @@ import {
   markTransactionProcessed,
   SmsTrackingSettings,
 } from '../lib/bankSms'
-import { Category, ExpenseFormData, Visibility } from '../types'
-import { formatCurrency, formatDateShort } from '../lib/utils'
+import { Category, ExpenseFormData, IncomeFormData, Visibility } from '../types'
+import { formatCurrency } from '../lib/utils'
 import toast from 'react-hot-toast'
 
 interface BankSmsTrackerModalProps {
@@ -35,9 +38,31 @@ interface BankSmsTrackerModalProps {
   onClose: () => void
   categories: Category[]
   onSaveExpense: (data: ExpenseFormData) => Promise<void>
+  onSaveIncome?: (data: IncomeFormData) => Promise<void>
   pendingTransactions: ParsedBankTransaction[]
   onRemoveTransaction: (id: string) => void
   onAddTransactions: (txs: ParsedBankTransaction[]) => void
+}
+
+function formatGroupDateHeader(dateStr: string): string {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0]
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+
+    const parsed = new Date(`${dateStr}T00:00:00`)
+    const formatted = parsed.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+
+    if (dateStr === todayStr) return `Today — ${formatted}`
+    if (dateStr === yesterday) return `Yesterday — ${formatted}`
+    return formatted
+  } catch {
+    return dateStr
+  }
 }
 
 export default function BankSmsTrackerModal({
@@ -45,11 +70,13 @@ export default function BankSmsTrackerModal({
   onClose,
   categories,
   onSaveExpense,
+  onSaveIncome,
   pendingTransactions,
   onRemoveTransaction,
   onAddTransactions,
 }: BankSmsTrackerModalProps) {
   const [activeTab, setActiveTab] = useState<'pending' | 'scan' | 'settings' | 'test'>('pending')
+  const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all')
   const [isNative, setIsNative] = useState(false)
   const [permissionsGranted, setPermissionsGranted] = useState(false)
   const [checkingPerms, setCheckingPerms] = useState(false)
@@ -70,9 +97,9 @@ export default function BankSmsTrackerModal({
     }
   }>({})
 
-  // Test parser state
+  // Test parser state with Jordanian bank examples
   const [testText, setTestText] = useState('')
-  const [testSender, setTestSender] = useState('EtihadBank')
+  const [testSender, setTestSender] = useState('Bank')
   const [testResult, setTestResult] = useState<ParsedBankTransaction | null>(null)
 
   useEffect(() => {
@@ -93,10 +120,13 @@ export default function BankSmsTrackerModal({
     const nextEditing = { ...editingTxs }
     for (const tx of pendingTransactions) {
       if (!nextEditing[tx.id]) {
+        const appropriateCategories = categories.filter(c =>
+          tx.type === 'income' ? c.category_type !== 'expense' : c.category_type !== 'income'
+        )
         nextEditing[tx.id] = {
           merchant: tx.merchant,
           amount: tx.amount,
-          categoryId: tx.suggestedCategoryId || categories.find(c => c.category_type !== 'income')?.id || '',
+          categoryId: tx.suggestedCategoryId || appropriateCategories[0]?.id || '',
           visibility: settings.defaultVisibility,
           date: tx.date,
           showRaw: false,
@@ -106,6 +136,26 @@ export default function BankSmsTrackerModal({
     setEditingTxs(nextEditing)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingTransactions, categories])
+
+  // Filter pending transactions by type
+  const filteredTransactions = useMemo(() => {
+    if (filterType === 'all') return pendingTransactions
+    return pendingTransactions.filter(t => t.type === filterType)
+  }, [pendingTransactions, filterType])
+
+  // Group transactions by date in reverse chronological order
+  const groupedByDate = useMemo(() => {
+    const map: { [dateStr: string]: ParsedBankTransaction[] } = {}
+    for (const tx of filteredTransactions) {
+      if (!map[tx.date]) map[tx.date] = []
+      map[tx.date].push(tx)
+    }
+    return Object.entries(map).sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+  }, [filteredTransactions])
+
+  // Counts for tabs
+  const expenseCount = useMemo(() => pendingTransactions.filter(t => t.type === 'expense').length, [pendingTransactions])
+  const incomeCount = useMemo(() => pendingTransactions.filter(t => t.type === 'income').length, [pendingTransactions])
 
   if (!isOpen) return null
 
@@ -126,14 +176,14 @@ export default function BankSmsTrackerModal({
     }
   }
 
-  const handleScan = async (days: number = 14) => {
+  const handleScan = async (days: number = 0) => {
     setScanning(true)
     try {
-      const found = await scanRecentBankTransactions(categories, days)
+      const found = await scanRecentBankTransactions(categories, days, 500)
       if (found.length === 0) {
-        toast('No new bank expenses found in recent SMS.', { icon: 'ℹ️' })
+        toast('No new bank transactions found in SMS.', { icon: 'ℹ️' })
       } else {
-        toast.success(`Found ${found.length} new bank ${found.length === 1 ? 'transaction' : 'transactions'}!`)
+        toast.success(`Found ${found.length} bank ${found.length === 1 ? 'transaction' : 'transactions'} organized by date!`)
         onAddTransactions(found)
         setActiveTab('pending')
       }
@@ -150,19 +200,31 @@ export default function BankSmsTrackerModal({
 
     setSavingIndex(tx.id)
     try {
-      await onSaveExpense({
-        amount: edit.amount,
-        description: edit.merchant,
-        category_id: edit.categoryId,
-        visibility: edit.visibility,
-        date: edit.date,
-        account_type: 'bank',
-      })
+      if (tx.type === 'income' && onSaveIncome) {
+        await onSaveIncome({
+          amount: edit.amount,
+          description: edit.merchant,
+          category_id: edit.categoryId,
+          visibility: edit.visibility,
+          date: edit.date,
+          account_type: 'bank',
+        })
+        toast.success(`Saved Income: ${edit.merchant}`)
+      } else {
+        await onSaveExpense({
+          amount: edit.amount,
+          description: edit.merchant,
+          category_id: edit.categoryId,
+          visibility: edit.visibility,
+          date: edit.date,
+          account_type: 'bank',
+        })
+        toast.success(`Saved Expense: ${edit.merchant}`)
+      }
       markTransactionProcessed(tx.smsId)
       onRemoveTransaction(tx.id)
-      toast.success(`Saved: ${edit.merchant}`)
     } catch {
-      toast.error('Failed to save expense')
+      toast.error('Failed to save transaction')
     } finally {
       setSavingIndex(null)
     }
@@ -178,14 +240,25 @@ export default function BankSmsTrackerModal({
         const edit = editingTxs[tx.id]
         if (!edit) continue
 
-        await onSaveExpense({
-          amount: edit.amount,
-          description: edit.merchant,
-          category_id: edit.categoryId,
-          visibility: edit.visibility,
-          date: edit.date,
-          account_type: 'bank',
-        })
+        if (tx.type === 'income' && onSaveIncome) {
+          await onSaveIncome({
+            amount: edit.amount,
+            description: edit.merchant,
+            category_id: edit.categoryId,
+            visibility: edit.visibility,
+            date: edit.date,
+            account_type: 'bank',
+          })
+        } else {
+          await onSaveExpense({
+            amount: edit.amount,
+            description: edit.merchant,
+            category_id: edit.categoryId,
+            visibility: edit.visibility,
+            date: edit.date,
+            account_type: 'bank',
+          })
+        }
         markTransactionProcessed(tx.smsId)
         onRemoveTransaction(tx.id)
         savedCount++
@@ -217,30 +290,30 @@ export default function BankSmsTrackerModal({
     setTestResult(result)
   }
 
-  const loadPresetTest = (type: 'etihad' | 'arab' | 'jordan_petrol' | 'cliq') => {
+  const loadPresetTest = (type: 'cliq' | 'deposit' | 'osaka' | 'arabic_carrefour') => {
     switch (type) {
-      case 'etihad':
-        setTestSender('EtihadBank')
-        setTestText('Purchase of JOD 14.500 at STARBUCKS with card ending 1234 on 08/09/2026. Avail Bal: JOD 230.120')
-        break
-      case 'arab':
-        setTestSender('ArabBank')
-        setTestText('تمت عملية شراء بقيمة 42.000 د.أ لدى كارفور بواسطة بطاقة تنتهي بـ 5678 بتاريخ 2026-09-08')
-        break
-      case 'jordan_petrol':
-        setTestSender('JKB')
-        setTestText('Purchase of JD 20.000 at MANASEER GAS STATION with card 4321')
-        break
       case 'cliq':
         setTestSender('Bank')
-        setTestText('تم تنفيذ حوالة كليك صادر بقيمة 30.00 د.أ إلى احمد بتاريخ 08-09-2026')
+        setTestText('JOD6.200 has been credited to 0145*500from KHALED ISSA SABRI ABU QUTISH as CliQ transfer Balance 923.186JOD')
+        break
+      case 'deposit':
+        setTestSender('Bank')
+        setTestText('30.000 JOD has been credited to your account on 08/09 01:22. Available balance 47.744 JOD.')
+        break
+      case 'osaka':
+        setTestSender('Bank')
+        setTestText('A purchase transaction of 4.000 JOD from UNCLE OSAKA ALRABIEH has been debited from your card XXXX5061 on 06-09-2026. Available balance 17.744 JOD.')
+        break
+      case 'arabic_carrefour':
+        setTestSender('ArabBank')
+        setTestText('تمت عملية شراء بقيمة 42.000 د.أ لدى كارفور بواسطة بطاقة تنتهي بـ 5678 بتاريخ 2026-09-08. الرصيد 120.00 د.أ')
         break
     }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl bg-white shadow-2xl overflow-hidden">
+      <div className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-3xl bg-white shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-2.5">
@@ -249,7 +322,7 @@ export default function BankSmsTrackerModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">Bank SMS Auto-Tracking</h2>
-              <p className="text-xs text-slate-500">Auto-detect bank card & CliQ expenses</p>
+              <p className="text-xs text-slate-500">Scan & auto-track bank debit/credit messages by date</p>
             </div>
           </div>
           <button
@@ -271,7 +344,7 @@ export default function BankSmsTrackerModal({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Pending
+            By Date
             {pendingTransactions.length > 0 && (
               <span className="ml-1 rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] text-white">
                 {pendingTransactions.length}
@@ -287,7 +360,7 @@ export default function BankSmsTrackerModal({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Scan Inbox
+            Scan All Messages
           </button>
 
           <button
@@ -323,7 +396,7 @@ export default function BankSmsTrackerModal({
                 <div className="text-xs">
                   <p className="font-semibold">SMS Permission Required</p>
                   <p className="mt-1 text-amber-700">
-                    Grant SMS permissions so Pocket Expenses can listen to incoming bank alerts and scan recent expenses.
+                    Grant SMS permissions so Pocket Expenses can scan your bank messages and organize them by date.
                   </p>
                   <button
                     disabled={checkingPerms}
@@ -337,31 +410,62 @@ export default function BankSmsTrackerModal({
             </div>
           )}
 
-          {/* TAB 1: PENDING TRANSACTIONS */}
+          {/* TAB 1: PENDING TRANSACTIONS GROUPED BY DATE */}
           {activeTab === 'pending' && (
             <div className="space-y-4">
               {pendingTransactions.length === 0 ? (
-                <div className="py-10 text-center">
+                <div className="py-12 text-center">
                   <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                     <CheckCircle2 size={24} />
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-slate-900">All caught up!</h3>
                   <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
-                    No pending bank transactions to review. When you receive a bank SMS, it will appear here automatically.
+                    No pending bank transactions. Click Scan below to parse all bank messages from your phone and group them by date.
                   </p>
                   <button
                     onClick={() => setActiveTab('scan')}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
                   >
-                    <RefreshCw size={14} /> Scan SMS Inbox
+                    <RefreshCw size={14} /> Scan Bank Messages
                   </button>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-slate-500">
-                      {pendingTransactions.length} detected {pendingTransactions.length === 1 ? 'transaction' : 'transactions'}
-                    </p>
+                  {/* Top Bar: Filter Pills & Bulk Action */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setFilterType('all')}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                          filterType === 'all'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        All ({pendingTransactions.length})
+                      </button>
+                      <button
+                        onClick={() => setFilterType('expense')}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                          filterType === 'expense'
+                            ? 'bg-rose-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        Expenses ({expenseCount})
+                      </button>
+                      <button
+                        onClick={() => setFilterType('income')}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                          filterType === 'income'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        Income ({incomeCount})
+                      </button>
+                    </div>
+
                     <button
                       disabled={savingAll}
                       onClick={() => void handleSaveAll()}
@@ -372,162 +476,226 @@ export default function BankSmsTrackerModal({
                     </button>
                   </div>
 
-                  <div className="space-y-3">
-                    {pendingTransactions.map(tx => {
-                      const edit = editingTxs[tx.id] || {
-                        merchant: tx.merchant,
-                        amount: tx.amount,
-                        categoryId: tx.suggestedCategoryId || '',
-                        visibility: settings.defaultVisibility,
-                        date: tx.date,
-                        showRaw: false,
-                      }
+                  {/* Date Groups */}
+                  <div className="space-y-6">
+                    {groupedByDate.map(([dateKey, txList]) => {
+                      const dayExpenses = txList.filter(t => t.type === 'expense').reduce((sum, t) => sum + (editingTxs[t.id]?.amount || t.amount), 0)
+                      const dayIncome = txList.filter(t => t.type === 'income').reduce((sum, t) => sum + (editingTxs[t.id]?.amount || t.amount), 0)
 
                       return (
-                        <div
-                          key={tx.id}
-                          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-slate-800">{tx.sender}</span>
-                                {tx.accountEnding && (
-                                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 font-mono">
-                                    •{tx.accountEnding}
-                                  </span>
-                                )}
-                                <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                  {tx.confidence} confidence
+                        <div key={dateKey} className="space-y-2.5">
+                          {/* Date Group Header */}
+                          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                              <Calendar size={14} className="text-indigo-600" />
+                              <span>{formatGroupDateHeader(dateKey)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px]">
+                              {dayIncome > 0 && (
+                                <span className="font-semibold text-emerald-600">
+                                  +{formatCurrency(dayIncome)}
                                 </span>
-                              </div>
-                              <p className="mt-0.5 text-[11px] text-slate-400">
-                                {formatDateShort(edit.date)}
-                              </p>
-                            </div>
-                            <span className="text-base font-bold text-indigo-600">
-                              {formatCurrency(edit.amount)}
-                            </span>
-                          </div>
-
-                          {/* Editable fields */}
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                              <label className="block text-[10px] font-medium text-slate-500 mb-1">
-                                Description / Merchant
-                              </label>
-                              <input
-                                type="text"
-                                value={edit.merchant}
-                                onChange={e => {
-                                  setEditingTxs(prev => ({
-                                    ...prev,
-                                    [tx.id]: { ...prev[tx.id], merchant: e.target.value },
-                                  }))
-                                }}
-                                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-[10px] font-medium text-slate-500 mb-1">
-                                Category
-                              </label>
-                              <select
-                                value={edit.categoryId}
-                                onChange={e => {
-                                  setEditingTxs(prev => ({
-                                    ...prev,
-                                    [tx.id]: { ...prev[tx.id], categoryId: e.target.value },
-                                  }))
-                                }}
-                                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800"
-                              >
-                                <option value="">Select Category</option>
-                                {categories
-                                  .filter(c => c.category_type !== 'income')
-                                  .map(c => (
-                                    <option key={c.id} value={c.id}>
-                                      {c.name}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <label className="flex items-center gap-1 text-[11px] text-slate-600">
-                                <input
-                                  type="radio"
-                                  name={`vis-${tx.id}`}
-                                  checked={edit.visibility === 'household'}
-                                  onChange={() =>
-                                    setEditingTxs(prev => ({
-                                      ...prev,
-                                      [tx.id]: { ...prev[tx.id], visibility: 'household' },
-                                    }))
-                                  }
-                                  className="text-indigo-600"
-                                />
-                                Shared
-                              </label>
-                              <label className="flex items-center gap-1 text-[11px] text-slate-600">
-                                <input
-                                  type="radio"
-                                  name={`vis-${tx.id}`}
-                                  checked={edit.visibility === 'private'}
-                                  onChange={() =>
-                                    setEditingTxs(prev => ({
-                                      ...prev,
-                                      [tx.id]: { ...prev[tx.id], visibility: 'private' },
-                                    }))
-                                  }
-                                  className="text-indigo-600"
-                                />
-                                Personal
-                              </label>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingTxs(prev => ({
-                                  ...prev,
-                                  [tx.id]: { ...prev[tx.id], showRaw: !prev[tx.id]?.showRaw },
-                                }))
-                              }}
-                              className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600"
-                            >
-                              <Eye size={12} /> {edit.showRaw ? 'Hide SMS' : 'View SMS'}
-                            </button>
-                          </div>
-
-                          {edit.showRaw && (
-                            <div className="rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-600 font-mono whitespace-pre-wrap">
-                              {tx.rawBody}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-end gap-2 pt-1">
-                            <button
-                              onClick={() => handleDismiss(tx)}
-                              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
-                            >
-                              <Trash2 size={13} /> Dismiss
-                            </button>
-                            <button
-                              disabled={savingIndex === tx.id}
-                              onClick={() => void handleSaveOne(tx)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                            >
-                              {savingIndex === tx.id ? (
-                                <RefreshCw size={13} className="animate-spin" />
-                              ) : (
-                                <ArrowRight size={13} />
                               )}
-                              Save Expense
-                            </button>
+                              {dayExpenses > 0 && (
+                                <span className="font-semibold text-rose-600">
+                                  -{formatCurrency(dayExpenses)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Transaction Cards for this Date */}
+                          <div className="space-y-3">
+                            {txList.map(tx => {
+                              const edit = editingTxs[tx.id] || {
+                                merchant: tx.merchant,
+                                amount: tx.amount,
+                                categoryId: tx.suggestedCategoryId || '',
+                                visibility: settings.defaultVisibility,
+                                date: tx.date,
+                                showRaw: false,
+                              }
+
+                              const isIncome = tx.type === 'income'
+                              const categoryOptions = categories.filter(c =>
+                                isIncome ? c.category_type !== 'expense' : c.category_type !== 'income'
+                              )
+
+                              return (
+                                <div
+                                  key={tx.id}
+                                  className={`rounded-2xl border p-4 shadow-sm space-y-3 ${
+                                    isIncome
+                                      ? 'border-emerald-200 bg-emerald-50/20'
+                                      : 'border-slate-200 bg-white'
+                                  }`}
+                                >
+                                  {/* Card Header: Type Badge, Amount, Card ending */}
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span
+                                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                            isIncome
+                                              ? 'bg-emerald-100 text-emerald-800'
+                                              : 'bg-rose-100 text-rose-800'
+                                          }`}
+                                        >
+                                          {isIncome ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                                          {isIncome ? 'Credited / Income' : 'Debited / Expense'}
+                                        </span>
+
+                                        <span className="text-xs font-semibold text-slate-700">{tx.sender}</span>
+
+                                        {tx.accountEnding && (
+                                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 font-mono">
+                                            •{tx.accountEnding}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {tx.availableBalance !== undefined && (
+                                        <p className="mt-1 text-[11px] text-slate-400">
+                                          Balance: <span className="font-mono">{formatCurrency(tx.availableBalance)}</span>
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    <span
+                                      className={`text-base font-bold ${
+                                        isIncome ? 'text-emerald-600' : 'text-slate-900'
+                                      }`}
+                                    >
+                                      {isIncome ? '+' : '-'}{formatCurrency(edit.amount)}
+                                    </span>
+                                  </div>
+
+                                  {/* Editable Description & Category */}
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                        {isIncome ? 'Source / Sender' : 'Merchant / Description'}
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={edit.merchant}
+                                        onChange={e => {
+                                          setEditingTxs(prev => ({
+                                            ...prev,
+                                            [tx.id]: { ...prev[tx.id], merchant: e.target.value },
+                                          }))
+                                        }}
+                                        className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                        Category
+                                      </label>
+                                      <select
+                                        value={edit.categoryId}
+                                        onChange={e => {
+                                          setEditingTxs(prev => ({
+                                            ...prev,
+                                            [tx.id]: { ...prev[tx.id], categoryId: e.target.value },
+                                          }))
+                                        }}
+                                        className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                                      >
+                                        <option value="">Select Category</option>
+                                        {categoryOptions.map(c => (
+                                          <option key={c.id} value={c.id}>
+                                            {c.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {/* Visibility & Toggle Raw */}
+                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                                    <div className="flex items-center gap-3">
+                                      <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                                        <input
+                                          type="radio"
+                                          name={`vis-${tx.id}`}
+                                          checked={edit.visibility === 'household'}
+                                          onChange={() =>
+                                            setEditingTxs(prev => ({
+                                              ...prev,
+                                              [tx.id]: { ...prev[tx.id], visibility: 'household' },
+                                            }))
+                                          }
+                                          className="text-indigo-600"
+                                        />
+                                        Shared
+                                      </label>
+                                      <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                                        <input
+                                          type="radio"
+                                          name={`vis-${tx.id}`}
+                                          checked={edit.visibility === 'private'}
+                                          onChange={() =>
+                                            setEditingTxs(prev => ({
+                                              ...prev,
+                                              [tx.id]: { ...prev[tx.id], visibility: 'private' },
+                                            }))
+                                          }
+                                          className="text-indigo-600"
+                                        />
+                                        Personal
+                                      </label>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingTxs(prev => ({
+                                          ...prev,
+                                          [tx.id]: { ...prev[tx.id], showRaw: !prev[tx.id]?.showRaw },
+                                        }))
+                                      }}
+                                      className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600"
+                                    >
+                                      <Eye size={12} /> {edit.showRaw ? 'Hide SMS' : 'View SMS'}
+                                    </button>
+                                  </div>
+
+                                  {edit.showRaw && (
+                                    <div className="rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-600 font-mono whitespace-pre-wrap">
+                                      {tx.rawBody}
+                                    </div>
+                                  )}
+
+                                  {/* Action Buttons */}
+                                  <div className="flex items-center justify-end gap-2 pt-1">
+                                    <button
+                                      onClick={() => handleDismiss(tx)}
+                                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+                                    >
+                                      <Trash2 size={13} /> Dismiss
+                                    </button>
+                                    <button
+                                      disabled={savingIndex === tx.id}
+                                      onClick={() => void handleSaveOne(tx)}
+                                      className={`inline-flex items-center gap-1 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm disabled:opacity-50 ${
+                                        isIncome
+                                          ? 'bg-emerald-600 hover:bg-emerald-700'
+                                          : 'bg-indigo-600 hover:bg-indigo-700'
+                                      }`}
+                                    >
+                                      {savingIndex === tx.id ? (
+                                        <RefreshCw size={13} className="animate-spin" />
+                                      ) : (
+                                        <ArrowRight size={13} />
+                                      )}
+                                      {isIncome ? 'Save Income' : 'Save Expense'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       )
@@ -538,43 +706,54 @@ export default function BankSmsTrackerModal({
             </div>
           )}
 
-          {/* TAB 2: SCAN INBOX */}
+          {/* TAB 2: SCAN ALL MESSAGES */}
           {activeTab === 'scan' && (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-indigo-50/60 p-4 border border-indigo-100">
-                <h3 className="text-sm font-bold text-indigo-950">Scan Past Bank SMS</h3>
-                <p className="mt-1 text-xs text-slate-600">
-                  Scan your SMS inbox for previous bank transactions and import them into Pocket Expenses without duplicates.
+              <div className="rounded-2xl bg-indigo-50/60 p-5 border border-indigo-100 space-y-3">
+                <h3 className="text-sm font-bold text-indigo-950">Scan Bank Messages</h3>
+                <p className="text-xs text-slate-600">
+                  Scan your SMS messages for all Jordanian bank debit purchases, ATM withdrawals, CliQ transfers, and account deposits, organized chronologically by date.
                 </p>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="pt-2 flex flex-col gap-2.5">
                   <button
                     disabled={scanning}
-                    onClick={() => void handleScan(7)}
-                    className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+                    onClick={() => void handleScan(0)}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 disabled:opacity-50"
                   >
-                    {scanning ? 'Scanning…' : 'Scan Last 7 Days'}
+                    {scanning ? <RefreshCw size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                    {scanning ? 'Scanning All Messages…' : 'Scan All Bank Messages (Recommended)'}
                   </button>
-                  <button
-                    disabled={scanning}
-                    onClick={() => void handleScan(14)}
-                    className="rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Scan Last 14 Days
-                  </button>
-                  <button
-                    disabled={scanning}
-                    onClick={() => void handleScan(30)}
-                    className="rounded-xl bg-white border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Scan Last 30 Days
-                  </button>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      disabled={scanning}
+                      onClick={() => void handleScan(7)}
+                      className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Last 7 Days
+                    </button>
+                    <button
+                      disabled={scanning}
+                      onClick={() => void handleScan(30)}
+                      className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Last 30 Days
+                    </button>
+                    <button
+                      disabled={scanning}
+                      onClick={() => void handleScan(90)}
+                      className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Last 90 Days
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {!isNative && (
                 <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-                  💡 Running in web browser preview mode. To scan real device SMS, build and install the standalone Android APK on your phone.
+                  💡 Running in web preview. Use the <strong>Test Parser</strong> tab to test the three Jordanian bank SMS formats immediately!
                 </div>
               )}
             </div>
@@ -588,7 +767,7 @@ export default function BankSmsTrackerModal({
                   <div>
                     <h4 className="font-bold text-slate-900">Auto-Tracking Mode</h4>
                     <p className="text-[11px] text-slate-500">
-                      Choose whether detected transactions are auto-logged or reviewed first.
+                      Choose whether incoming bank messages require confirmation or are logged automatically.
                     </p>
                   </div>
                   <Sliders size={18} className="text-slate-400" />
@@ -609,7 +788,7 @@ export default function BankSmsTrackerModal({
                     <div>
                       <span className="font-semibold text-slate-800">Review Before Saving (Recommended)</span>
                       <p className="text-[11px] text-slate-500">
-                        Shows a quick badge/notification when bank SMS arrives. You confirm category & amount with 1 tap.
+                        Shows a badge and organizes transactions by date so you review and approve with 1 tap.
                       </p>
                     </div>
                   </label>
@@ -628,7 +807,7 @@ export default function BankSmsTrackerModal({
                     <div>
                       <span className="font-semibold text-slate-800">Zero-Click Auto-Save</span>
                       <p className="text-[11px] text-slate-500">
-                        Automatically writes the expense directly to the database as soon as the bank SMS is received.
+                        Directly records the transaction into your ledger whenever a bank SMS arrives.
                       </p>
                     </div>
                   </label>
@@ -636,7 +815,7 @@ export default function BankSmsTrackerModal({
 
                 <div className="pt-3 border-t border-slate-100">
                   <label className="block font-medium text-slate-700 mb-1">
-                    Default Visibility for Bank SMS
+                    Default Visibility for Bank Transactions
                   </label>
                   <select
                     value={settings.defaultVisibility}
@@ -646,7 +825,7 @@ export default function BankSmsTrackerModal({
                     }}
                     className="w-full rounded-xl border border-slate-200 bg-white p-2 text-xs"
                   >
-                    <option value="household">Shared Household (Everyone sees it)</option>
+                    <option value="household">Shared Household (Everyone in household sees it)</option>
                     <option value="private">Personal (Only visible to you)</option>
                   </select>
                 </div>
@@ -654,37 +833,37 @@ export default function BankSmsTrackerModal({
             </div>
           )}
 
-          {/* TAB 4: TEST PARSER */}
+          {/* TAB 4: TEST PARSER PLAYGROUND */}
           {activeTab === 'test' && (
             <div className="space-y-4 text-xs">
               <div>
                 <p className="text-slate-500">
-                  Test the parser with sample bank SMS messages from Jordan or international banks.
+                  Test the parser with your bank SMS examples (CliQ, Uncle Osaka purchase, account deposits).
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <button
-                    onClick={() => loadPresetTest('etihad')}
-                    className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
+                    onClick={() => loadPresetTest('osaka')}
+                    className="rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
                   >
-                    Etihad Bank (EN)
-                  </button>
-                  <button
-                    onClick={() => loadPresetTest('arab')}
-                    className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
-                  >
-                    Arab Bank (AR)
-                  </button>
-                  <button
-                    onClick={() => loadPresetTest('jordan_petrol')}
-                    className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
-                  >
-                    Manaseer Gas (EN)
+                    Uncle Osaka (Debit 4.000 JOD)
                   </button>
                   <button
                     onClick={() => loadPresetTest('cliq')}
-                    className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
+                    className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
                   >
-                    CliQ Payment (AR)
+                    CliQ Credited (JOD6.200)
+                  </button>
+                  <button
+                    onClick={() => loadPresetTest('deposit')}
+                    className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                  >
+                    Account Credited (30.000 JOD)
+                  </button>
+                  <button
+                    onClick={() => loadPresetTest('arabic_carrefour')}
+                    className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
+                  >
+                    Arabic Bank (42.000 د.أ)
                   </button>
                 </div>
               </div>
@@ -706,7 +885,7 @@ export default function BankSmsTrackerModal({
                   value={testText}
                   onChange={e => setTestText(e.target.value)}
                   placeholder="Paste bank SMS text here…"
-                  className="w-full rounded-xl border border-slate-200 p-2 text-xs"
+                  className="w-full rounded-xl border border-slate-200 p-2 text-xs font-mono"
                 />
               </div>
 
@@ -714,19 +893,27 @@ export default function BankSmsTrackerModal({
                 onClick={handleRunTest}
                 className="w-full rounded-xl bg-indigo-600 py-2.5 font-semibold text-white shadow-sm hover:bg-indigo-700"
               >
-                Parse SMS
+                Parse Bank SMS
               </button>
 
               {testResult && (
-                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 space-y-2">
+                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-800">Parsed Result:</span>
                     <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-semibold ${
-                        testResult.isFinancial ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                        testResult.type === 'income'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : testResult.isFinancial
+                          ? 'bg-rose-100 text-rose-800'
+                          : 'bg-slate-200 text-slate-700'
                       }`}
                     >
-                      {testResult.isFinancial ? 'Financial Expense' : 'Non-Financial / Ignored'}
+                      {testResult.type === 'income'
+                        ? 'Income / Credit'
+                        : testResult.type === 'expense'
+                        ? 'Expense / Debit'
+                        : 'Ignored'}
                     </span>
                   </div>
 
@@ -737,20 +924,25 @@ export default function BankSmsTrackerModal({
                         <span className="font-bold text-indigo-600">{formatCurrency(testResult.amount)}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400">Merchant:</span>{' '}
+                        <span className="text-slate-400">Date:</span>{' '}
+                        <span className="font-medium">{testResult.date}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Merchant/Source:</span>{' '}
                         <span className="font-medium">{testResult.merchant}</span>
                       </div>
                       <div>
                         <span className="text-slate-400">Category:</span>{' '}
                         <span className="font-medium">{testResult.categoryGuess}</span>
                       </div>
-                      <div>
-                        <span className="text-slate-400">Date:</span>{' '}
-                        <span className="font-medium">{testResult.date}</span>
-                      </div>
                       {testResult.accountEnding && (
                         <div>
-                          <span className="text-slate-400">Card/Account:</span> •{testResult.accountEnding}
+                          <span className="text-slate-400">Account/Card:</span> •{testResult.accountEnding}
+                        </div>
+                      )}
+                      {testResult.availableBalance !== undefined && (
+                        <div>
+                          <span className="text-slate-400">Balance:</span> {formatCurrency(testResult.availableBalance)}
                         </div>
                       )}
                     </div>

@@ -127,9 +127,8 @@ public class BankSmsPlugin extends Plugin {
             return;
         }
 
-        int limit = call.getInt("limit", 50);
-        int days = call.getInt("days", 30);
-        long minDate = System.currentTimeMillis() - ((long) days * 24L * 60L * 60L * 1000L);
+        int limit = call.getInt("limit", 500);
+        int days = call.getInt("days", 0); // 0 or negative = scan all messages
 
         JSArray messages = new JSArray();
         Cursor cursor = null;
@@ -138,8 +137,13 @@ public class BankSmsPlugin extends Plugin {
             ContentResolver cr = context.getContentResolver();
             Uri inboxUri = Telephony.Sms.Inbox.CONTENT_URI;
             String[] projection = new String[] { "_id", "address", "body", "date" };
-            String selection = "date >= ?";
-            String[] selectionArgs = new String[] { String.valueOf(minDate) };
+            String selection = null;
+            String[] selectionArgs = null;
+            if (days > 0) {
+                long minDate = System.currentTimeMillis() - ((long) days * 24L * 60L * 60L * 1000L);
+                selection = "date >= ?";
+                selectionArgs = new String[] { String.valueOf(minDate) };
+            }
             String sortOrder = "date DESC LIMIT " + limit;
 
             cursor = cr.query(inboxUri, projection, selection, selectionArgs, sortOrder);

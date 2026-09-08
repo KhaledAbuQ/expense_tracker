@@ -20,6 +20,64 @@ test('SMS Parser - Arabic digits normalization', () => {
   assert.equal(normalizeDigits('المبلغ: ٥٠.٠٠ دينار'), 'المبلغ: 50.00 دينار')
 })
 
+test('SMS Parser - User Example 1: CliQ credited JOD6.200 with balance', () => {
+  const sampleSms = {
+    id: 'user-1',
+    address: 'Bank',
+    body: 'JOD6.200 has been credited to 0145*500from KHALED ISSA SABRI ABU QUTISH as CliQ transfer Balance 923.186JOD',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.isFinancial, true)
+  assert.equal(parsed.amount, 6.2)
+  assert.equal(parsed.currency, 'JOD')
+  assert.equal(parsed.type, 'income')
+  assert.equal(parsed.merchant, 'KHALED ISSA SABRI ABU QUTISH')
+  assert.equal(parsed.availableBalance, 923.186)
+  assert.equal(parsed.accountEnding, '500')
+})
+
+test('SMS Parser - User Example 2: Account credited 30.000 JOD with DD/MM date and time', () => {
+  const sampleSms = {
+    id: 'user-2',
+    address: 'Bank',
+    body: '30.000 JOD has been credited to your account on 08/09 01:22. Available balance 47.744 JOD.',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.isFinancial, true)
+  assert.equal(parsed.amount, 30.0)
+  assert.equal(parsed.currency, 'JOD')
+  assert.equal(parsed.type, 'income')
+  assert.equal(parsed.date, '2026-09-08')
+  assert.equal(parsed.availableBalance, 47.744)
+})
+
+test('SMS Parser - User Example 3: Purchase debited 4.000 JOD UNCLE OSAKA with card XXXX5061 on 06-09-2026', () => {
+  const sampleSms = {
+    id: 'user-3',
+    address: 'Bank',
+    body: 'A purchase transaction of 4.000 JOD from UNCLE OSAKA ALRABIEH has been debited from your card XXXX5061 on 06-09-2026. Available balance 17.744 JOD.',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms, [
+    { id: 'cat-dining', name: 'Food & Dining', icon: 'Utensils', color: '#f59e0b', is_default: true, category_type: 'expense', created_at: '' }
+  ])
+
+  assert.equal(parsed.isFinancial, true)
+  assert.equal(parsed.amount, 4.0)
+  assert.equal(parsed.currency, 'JOD')
+  assert.equal(parsed.type, 'expense')
+  assert.equal(parsed.merchant, 'UNCLE OSAKA ALRABIEH')
+  assert.equal(parsed.date, '2026-09-06')
+  assert.equal(parsed.accountEnding, '5061')
+  assert.equal(parsed.availableBalance, 17.744)
+  assert.equal(parsed.suggestedCategoryId, 'cat-dining')
+})
+
 test('SMS Parser - English Bank SMS (Jordan / Etihad / Arab Bank)', () => {
   const sampleSms = {
     id: '101',
@@ -39,13 +97,14 @@ test('SMS Parser - English Bank SMS (Jordan / Etihad / Arab Bank)', () => {
   assert.equal(parsed.merchant.toUpperCase(), 'STARBUCKS')
   assert.equal(parsed.suggestedCategoryId, 'cat-1')
   assert.equal(parsed.accountEnding, '1234')
+  assert.equal(parsed.availableBalance, 230.12)
 })
 
 test('SMS Parser - Arabic Bank SMS (Arab Bank / Housing Bank / CliQ)', () => {
   const sampleSms = {
     id: '102',
     address: 'ArabBank',
-    body: 'تمت عملية شراء بقيمة 45.000 د.أ لدى كارفور بواسطة بطاقة تنتهي بـ 5678 بتاريخ 2026-09-08',
+    body: 'تمت عملية شراء بقيمة 45.000 د.أ لدى كارفور بواسطة بطاقة تنتهي بـ 5678 بتاريخ 2026-09-08. الرصيد 120.00 د.أ',
     date: Date.now()
   }
 

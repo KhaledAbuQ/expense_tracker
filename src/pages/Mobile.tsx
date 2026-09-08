@@ -18,7 +18,8 @@ import { ParsedBankTransaction } from '../lib/smsParser'
 import { calculateTotalExpenses, formatCurrency, formatDateShort, getDateRange, groupExpensesByCategory } from '../lib/utils'
 import { syncExpenseWidget, ExpenseWidget } from '../lib/widget'
 import { checkBiometricStatus, BiometricAuth, type BiometricAvailability } from '../lib/biometrics'
-import type { ExpenseFormData } from '../types'
+import { useIncome } from '../hooks/useIncome'
+import type { ExpenseFormData, IncomeFormData } from '../types'
 
 export default function Mobile({
   standalone = false,
@@ -43,6 +44,7 @@ export default function Mobile({
   const { expenses, loading, error, fetchExpenses, addExpense } = useExpenses({
     dateRange: getDateRange(period), visibility: visibility === 'all' ? undefined : visibility,
   })
+  const { addIncome } = useIncome()
   const { categories, loading: categoriesLoading, error: categoriesError, fetchCategories } = useCategories()
 
   // Keep ref to latest categories for async SMS handling
@@ -153,7 +155,21 @@ export default function Mobile({
     }
   }
 
-  // Handle incoming or background SMS transactions
+  const saveIncome = async (data: IncomeFormData) => {
+    setSaveError('')
+    if (!member || !navigator.onLine) {
+      setSaveError('Connect to the internet and load your profile before saving.')
+      return
+    }
+    try {
+      await addIncome({ ...data, member_id: member.id })
+      await fetchExpenses()
+    } catch {
+      setSaveError('Could not save your income. Please try again.')
+    }
+  }
+
+  // Handle incoming or background SMS transactions (both expenses and income)
   const processIncomingTransaction = useCallback(async (tx: ParsedBankTransaction) => {
     const settings = getSmsSettings()
     if (!settings.enabled) return
@@ -161,17 +177,31 @@ export default function Mobile({
     if (settings.mode === 'auto' && member && navigator.onLine) {
       // Zero-click auto-save mode
       try {
-        await addExpense({
-          amount: tx.amount,
-          description: tx.merchant,
-          category_id: tx.suggestedCategoryId || categoriesRef.current.find(c => c.category_type !== 'income')?.id || '',
-          visibility: settings.defaultVisibility,
-          date: tx.date,
-          account_type: 'bank',
-          member_id: member.id,
-        })
-        markTransactionProcessed(tx.smsId)
-        toast.success(`Auto-logged bank expense: ${tx.merchant} (${formatCurrency(tx.amount)})`)
+        if (tx.type === 'income') {
+          await addIncome({
+            amount: tx.amount,
+            description: tx.merchant,
+            category_id: tx.suggestedCategoryId || categoriesRef.current.find(c => c.category_type === 'income')?.id || '',
+            visibility: settings.defaultVisibility,
+            date: tx.date,
+            account_type: 'bank',
+            member_id: member.id,
+          })
+          markTransactionProcessed(tx.smsId)
+          toast.success(`Auto-logged bank income: ${tx.merchant} (+${formatCurrency(tx.amount)})`)
+        } else {
+          await addExpense({
+            amount: tx.amount,
+            description: tx.merchant,
+            category_id: tx.suggestedCategoryId || categoriesRef.current.find(c => c.category_type !== 'income')?.id || '',
+            visibility: settings.defaultVisibility,
+            date: tx.date,
+            account_type: 'bank',
+            member_id: member.id,
+          })
+          markTransactionProcessed(tx.smsId)
+          toast.success(`Auto-logged bank expense: ${tx.merchant} (-${formatCurrency(tx.amount)})`)
+        }
         await fetchExpenses()
       } catch (err) {
         console.error('Failed to auto-save SMS transaction:', err)
@@ -184,9 +214,15 @@ export default function Mobile({
         if (prev.some(item => item.id === tx.id || item.smsId === tx.smsId)) return prev
         return [tx, ...prev]
       })
-      toast(`Bank expense detected: ${tx.merchant} (${formatCurrency(tx.amount)})`, { icon: '💳' })
+      const isInc = tx.type === 'income'
+      toast(
+        isInc
+          ? `Bank income credited: ${tx.merchant} (+${formatCurrency(tx.amount)})`
+          : `Bank expense detected: ${tx.merchant} (-${formatCurrency(tx.amount)})`,
+        { icon: isInc ? '💰' : '💳' }
+      )
     }
-  }, [member, addExpense, fetchExpenses])
+  }, [member, addExpense, addIncome, fetchExpenses])
 
   const checkPendingBackgroundSms = useCallback(async () => {
     try {
@@ -364,6 +400,7 @@ export default function Mobile({
         onClose={() => setSmsModalOpen(false)}
         categories={categories}
         onSaveExpense={save}
+        onSaveIncome={saveIncome}
         pendingTransactions={pendingSmsTxs}
         onRemoveTransaction={id => setPendingSmsTxs(prev => prev.filter(t => t.id !== id))}
         onAddTransactions={txs => {

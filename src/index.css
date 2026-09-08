@@ -11,3 +11,13 @@ body {
 .mobile-client input, .mobile-client select, .mobile-client textarea { font-size: 16px; min-height: 44px; }
 .mobile-client button { min-height: 44px; }
 .mobile-action { padding-bottom: max(12px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }
+
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Database } from 'lucide-react'
+import { Database, Fingerprint } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase, isSupabaseConfigured, getActiveSupabaseConfig } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import ServerConfigForm from '../components/ServerConfigForm'
 import ResetPasswordModal from '../components/ResetPasswordModal'
+import { BiometricAuth, checkBiometricStatus, type BiometricAvailability } from '../lib/biometrics'
 
 type Mode = 'sign-in' | 'sign-up'
 
@@ -23,6 +24,13 @@ export default function AuthPage() {
   const [householdName, setHouseholdName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [joinMode, setJoinMode] = useState<'create' | 'join'>('create')
+  const [biometricStatus, setBiometricStatus] = useState<BiometricAvailability>({
+    isAvailable: false,
+    isEnrolled: false,
+    hasSavedCredentials: false,
+  })
+  const [enableBiometrics, setEnableBiometrics] = useState(true)
+  const [biometricAuthenticating, setBiometricAuthenticating] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const destination = searchParams.get('next') === 'mobile' ? '/mobile' : '/'
@@ -33,7 +41,50 @@ export default function AuthPage() {
     if (session && !isPasswordRecovery) navigate(destination, { replace: true })
   }, [session, navigate, destination, isPasswordRecovery])
 
+  const triggerBiometricSignIn = useCallback(async (savedEmail?: string) => {
+    setBiometricAuthenticating(true)
+    try {
+      const res = await BiometricAuth.authenticateAndGetCredentials({
+        title: 'Sign in to Pocket Expenses',
+        subtitle: savedEmail ? `Confirm fingerprint or face to sign in as ${savedEmail}` : 'Confirm your biometric identity',
+        cancelText: 'Use password',
+      })
 
+      if (res.success && res.email && res.password) {
+        setLoading(true)
+        const { error } = await supabase.auth.signInWithPassword({
+          email: res.email,
+          password: res.password,
+        })
+        if (error) throw error
+        toast.success('Signed in with biometrics!')
+        navigate(destination)
+      } else if (res.canceled) {
+        // User cancelled or chose password
+      } else if (res.error) {
+        toast.error(res.error)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Biometric authentication failed')
+    } finally {
+      setBiometricAuthenticating(false)
+      setLoading(false)
+    }
+  }, [destination, navigate])
+
+  useEffect(() => {
+    let isMounted = true
+    void checkBiometricStatus().then(status => {
+      if (!isMounted) return
+      setBiometricStatus(status)
+      if (status.hasSavedCredentials) {
+        void triggerBiometricSignIn(status.savedEmail)
+      }
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [triggerBiometricSignIn])
 
   const title = useMemo(
     () => (mode === 'sign-in' ? 'Welcome back' : 'Create your household'),
@@ -62,6 +113,15 @@ export default function AuthPage() {
           password,
         })
         if (error) throw error
+
+        if (enableBiometrics && biometricStatus.isAvailable) {
+          try {
+            await BiometricAuth.saveCredentials({ email: email.trim(), password })
+          } catch (e) {
+            console.warn('Failed to save biometric credentials:', e)
+          }
+        }
+
         navigate(destination)
         return
       }
@@ -162,17 +222,17 @@ export default function AuthPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] bg-white shadow-xl rounded-3xl overflow-hidden">
-        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-900 text-white p-10 flex flex-col justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 flex items-center justify-center p-4 sm:p-6 lg:p-12">
+      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] bg-white shadow-xl rounded-2xl sm:rounded-3xl overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-900 text-white p-6 sm:p-8 lg:p-10 flex flex-col justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">Household Ledger</p>
-            <h1 className="text-3xl font-semibold mt-6 leading-tight">Keep every member in sync with shared household spending.</h1>
-            <p className="mt-4 text-sm text-emerald-100/80">
+            <p className="text-xs sm:text-sm uppercase tracking-[0.3em] text-emerald-300">Household Ledger</p>
+            <h1 className="text-2xl sm:text-3xl font-semibold mt-3 sm:mt-6 leading-tight">Keep every member in sync with shared household spending.</h1>
+            <p className="mt-2 sm:mt-4 text-xs sm:text-sm text-emerald-100/80">
               Personal expenses stay private. Household expenses are visible to everyone so the budget stays fair.
             </p>
           </div>
-          <div className="mt-10 grid grid-cols-2 gap-4 text-xs text-emerald-200/90">
+          <div className="hidden sm:grid mt-6 lg:mt-10 grid-cols-2 gap-4 text-xs text-emerald-200/90">
             <div className="rounded-2xl bg-white/10 p-4">
               <p className="text-emerald-200/70">Private</p>
               <p className="text-base font-semibold mt-1">Personal expenses</p>
@@ -184,7 +244,7 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className="p-10">
+        <div className="p-6 sm:p-8 lg:p-10">
           {showServerConfig || !isSupabaseConfigured ? (
             <ServerConfigForm
               onCancel={isSupabaseConfigured ? () => setShowServerConfig(false) : undefined}
@@ -207,10 +267,34 @@ export default function AuthPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+              {mode === 'sign-in' && biometricStatus.hasSavedCredentials && (
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    onClick={() => void triggerBiometricSignIn(biometricStatus.savedEmail)}
+                    disabled={loading || biometricAuthenticating}
+                    className="w-full flex items-center justify-center gap-3 rounded-xl bg-emerald-50 border-2 border-emerald-200 py-3 px-4 font-medium text-emerald-800 hover:bg-emerald-100 transition shadow-sm disabled:opacity-50"
+                  >
+                    <Fingerprint className="w-5 h-5 text-emerald-600" />
+                    <span>
+                      {biometricAuthenticating
+                        ? 'Authenticating…'
+                        : biometricStatus.savedEmail
+                          ? `Sign in with Biometrics (${biometricStatus.savedEmail})`
+                          : 'Sign in with Biometrics'}
+                    </span>
+                  </button>
+                  <div className="relative my-4 text-center text-xs text-slate-400 before:absolute before:inset-0 before:top-1/2 before:border-t before:border-slate-200">
+                    <span className="relative bg-white px-3">or continue with password</span>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className={`${mode === 'sign-in' && biometricStatus.hasSavedCredentials ? 'mt-2' : 'mt-8'} space-y-4`}>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Email</label>
+                  <label htmlFor="email" className="block text-sm font-medium text-slate-700">Email</label>
                   <input
+                    id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -221,7 +305,7 @@ export default function AuthPage() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-slate-700">Password</label>
+                    <label htmlFor="password" className="block text-sm font-medium text-slate-700">Password</label>
                     {mode === 'sign-in' && (
                       <button
                         type="button"
@@ -234,6 +318,7 @@ export default function AuthPage() {
                     )}
                   </div>
                   <input
+                    id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -242,6 +327,18 @@ export default function AuthPage() {
                     placeholder="••••••••"
                   />
                 </div>
+
+                {mode === 'sign-in' && biometricStatus.isAvailable && (
+                  <label className="flex items-center gap-2 pt-1 text-xs text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={enableBiometrics}
+                      onChange={e => setEnableBiometrics(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Remember with Fingerprint / Face Unlock</span>
+                  </label>
+                )}
 
                 {mode === 'sign-up' && (
                   <>

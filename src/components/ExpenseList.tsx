@@ -1,5 +1,5 @@
 import { Expense } from '../types'
-import ExpenseRow from './ExpenseRow'
+import ExpenseRow, { ExpenseCard } from './ExpenseRow'
 
 interface ExpenseListProps {
   expenses: Expense[]
@@ -39,37 +39,52 @@ export default function ExpenseList({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <table className="w-full">
-        <thead>
-          <tr className="bg-gray-50 border-b border-gray-100">
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
-              Date
-            </th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
-              Description
-            </th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
-              Category
-            </th>
-            <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">
-              Amount
-            </th>
-            <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {expenses.map((expense) => (
-            <ExpenseRow
-              key={expense.id}
-              expense={expense}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </tbody>
-      </table>
+      {/* Mobile Card View */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {expenses.map((expense) => (
+          <ExpenseCard
+            key={expense.id}
+            expense={expense}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+                Date
+              </th>
+              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+                Description
+              </th>
+              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+                Category
+              </th>
+              <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">
+                Amount
+              </th>
+              <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {expenses.map((expense) => (
+              <ExpenseRow
+                key={expense.id}
+                expense={expense}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

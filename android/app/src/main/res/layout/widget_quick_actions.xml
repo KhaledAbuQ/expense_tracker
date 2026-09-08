@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_quick_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_quick_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingLeft="14dp"
+    android:paddingRight="14dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <!-- Left info block -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_quick_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TODAY'S SPENT"
+            android:textColor="#818cf8"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06" />
+
+        <TextView
+            android:id="@+id/widget_quick_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text="$0.00"
+            android:textColor="#f8fafc"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:maxLines="1" />
+    </LinearLayout>
+
+    <!-- Quick action button "+ Add" -->
+    <Button
+        android:id="@+id/widget_quick_btn_add"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_marginLeft="10dp"
+        android:background="@drawable/widget_button_bg"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:text="@string/widget_btn_add"
+        android:textColor="#ffffff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textAllCaps="false"
+        style="?android:attr/borderlessButtonStyle" />
+
+</LinearLayout>

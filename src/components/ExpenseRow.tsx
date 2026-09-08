@@ -4,10 +4,85 @@ import { formatCurrency, formatDate } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
 import CategoryBadge from './CategoryBadge'
 
-interface ExpenseRowProps {
+export interface ExpenseRowProps {
   expense: Expense
   onEdit: (expense: Expense) => void
   onDelete: (id: string) => void
+}
+
+export function ExpenseCard({ expense, onEdit, onDelete }: ExpenseRowProps) {
+  const { member } = useAuth()
+
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      onDelete(expense.id)
+    }
+  }
+
+  const accountType = expense.account_type || 'bank'
+  const isOwn = !!member && expense.member_id === member.id
+
+  return (
+    <div className="p-4 hover:bg-gray-50/80 transition-colors">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-gray-900 text-sm">
+            {expense.description || <span className="text-gray-400 italic">No description</span>}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {formatDate(expense.date)}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <span className="text-base font-bold text-gray-900">
+            {formatCurrency(expense.amount)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+        <CategoryBadge category={expense.category} />
+        <span className={`inline-flex items-center px-2 py-0.5 text-xs rounded font-medium ${
+          expense.visibility === 'household' 
+            ? 'bg-purple-100 text-purple-700' 
+            : 'bg-blue-100 text-blue-700'
+        }`}>
+          {expense.visibility === 'household' ? 'Household' : 'Personal'}
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-emerald-50 text-emerald-700 font-medium">
+          <Users className="w-3 h-3" />
+          {expense.member?.name || 'Member'}
+        </span>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded font-medium ${
+          accountType === 'bank' 
+            ? 'bg-blue-50 text-blue-600' 
+            : 'bg-green-50 text-green-600'
+        }`}>
+          {accountType === 'bank' ? <Building2 className="w-3 h-3" /> : <Banknote className="w-3 h-3" />}
+          {accountType === 'bank' ? 'Bank' : 'Cash'}
+        </span>
+      </div>
+
+      {isOwn && (
+        <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-gray-100">
+          <button
+            onClick={() => onEdit(expense)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </button>
+          <button
+            onClick={handleDelete}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ExpenseRow({ expense, onEdit, onDelete }: ExpenseRowProps) {
@@ -26,7 +101,7 @@ export default function ExpenseRow({ expense, onEdit, onDelete }: ExpenseRowProp
 
   return (
     <tr className="hover:bg-gray-50 transition-colors">
-      <td className="px-6 py-4 text-sm text-gray-600">
+      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
         {formatDate(expense.date)}
       </td>
       <td className="px-6 py-4 text-sm text-gray-900">
@@ -55,13 +130,13 @@ export default function ExpenseRow({ expense, onEdit, onDelete }: ExpenseRowProp
           </div>
         </div>
       </td>
-      <td className="px-6 py-4">
+      <td className="px-6 py-4 whitespace-nowrap">
         <CategoryBadge category={expense.category} />
       </td>
-      <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+      <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right whitespace-nowrap">
         {formatCurrency(expense.amount)}
       </td>
-      <td className="px-6 py-4 text-right">
+      <td className="px-6 py-4 text-right whitespace-nowrap">
         <div className="flex items-center justify-end gap-2">
           {isOwn ? (
             <>

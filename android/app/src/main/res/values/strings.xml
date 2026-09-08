@@ -4,4 +4,11 @@
     <string name="title_activity_main">Pocket Expenses</string>
     <string name="package_name">com.householdledger.expenses</string>
     <string name="custom_url_scheme">com.householdledger.expenses</string>
+    <string name="widget_name">Pocket Expenses</string>
+    <string name="widget_description">Quick view of your monthly expenses and fast entry.</string>
+    <string name="widget_default_month_total">$0.00</string>
+    <string name="widget_default_sub_stat">Open app to sync</string>
+    <string name="widget_btn_add">+ Add</string>
+    <string name="widget_quick_name">Pocket Expenses Quick Add</string>
+    <string name="widget_quick_description">Compact launcher to view today\'s spending and quickly log expenses.</string>
 </resources>

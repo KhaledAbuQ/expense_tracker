@@ -140,15 +140,15 @@ export default function TransferForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <label htmlFor="from_account" className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="flex-1 min-w-0">
+          <label htmlFor="from_account" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
             From
           </label>
           <select
             id="from_account"
             value={formData.from_account}
             onChange={(e) => handleFromAccountChange(e.target.value as TransferAccountType)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-2 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {accountOptions.map((account) => (
               <option key={account} value={account}>{accountLabels[account]}</option>
@@ -156,19 +156,19 @@ export default function TransferForm({
           </select>
         </div>
 
-        <div className="pt-6">
-          <ArrowRight className="w-5 h-5 text-gray-400" />
+        <div className="pt-5 sm:pt-6 shrink-0">
+          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
         </div>
 
-        <div className="flex-1">
-          <label htmlFor="to_account" className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="flex-1 min-w-0">
+          <label htmlFor="to_account" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
             To
           </label>
           <select
             id="to_account"
             value={formData.to_account}
             onChange={(e) => handleToAccountChange(e.target.value as TransferAccountType)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-2 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {accountOptions.map((account) => (
               <option key={account} value={account}>{accountLabels[account]}</option>

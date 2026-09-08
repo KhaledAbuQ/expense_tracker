@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { App as NativeApp } from '@capacitor/app'
 import { Link } from 'react-router-dom'
-import { Plus, Wallet, RefreshCw, LogOut, ArrowLeft, MessageSquare } from 'lucide-react'
+import { Plus, Wallet, RefreshCw, LogOut, ArrowLeft, MessageSquare, Fingerprint, Lock } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { useExpenses } from '../hooks/useExpenses'
 import { useCategories } from '../hooks/useCategories'
@@ -15,10 +16,18 @@ import {
 } from '../lib/bankSms'
 import { ParsedBankTransaction } from '../lib/smsParser'
 import { calculateTotalExpenses, formatCurrency, formatDateShort, getDateRange, groupExpensesByCategory } from '../lib/utils'
+import { syncExpenseWidget, ExpenseWidget } from '../lib/widget'
+import { checkBiometricStatus, BiometricAuth, type BiometricAvailability } from '../lib/biometrics'
 import type { ExpenseFormData } from '../types'
 import toast from 'react-hot-toast'
 
-export default function Mobile({ standalone = false }: { standalone?: boolean }) {
+export default function Mobile({
+  standalone = false,
+  onLock,
+}: {
+  standalone?: boolean
+  onLock?: () => void
+}) {
   const { member, loading: profileLoading, refreshMember, signOut } = useAuth()
   const [adding, setAdding] = useState(false)
   const [period, setPeriod] = useState<'month' | 'last-month' | 'week'>('month')
@@ -27,7 +36,11 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
   const [saveError, setSaveError] = useState('')
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [pendingSmsTxs, setPendingSmsTxs] = useState<ParsedBankTransaction[]>([])
-
+  const [biometrics, setBiometrics] = useState<BiometricAvailability>({
+    isAvailable: false,
+    isEnrolled: false,
+    hasSavedCredentials: false,
+  })
   const { expenses, loading, error, fetchExpenses, addExpense } = useExpenses({
     dateRange: getDateRange(period), visibility: visibility === 'all' ? undefined : visibility,
   })
@@ -67,6 +80,63 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
     })
     return () => { void resumeListener.then(handle => handle.remove()) }
   }, [standalone, fetchExpenses])
+
+  // Check biometrics status
+  useEffect(() => {
+    let mounted = true
+    void checkBiometricStatus().then(status => {
+      if (mounted) setBiometrics(status)
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  // Check if opened from Android Widget "+ Add" button
+  useEffect(() => {
+    void ExpenseWidget.checkLaunchIntent()
+      .then(res => {
+        if (res?.action === 'add_expense') {
+          setAdding(true)
+        }
+      })
+      .catch(() => {})
+
+    const sub = ExpenseWidget.addListener('widgetAction', info => {
+      if (info?.action === 'add_expense') {
+        setAdding(true)
+      }
+    })
+
+    return () => {
+      void sub.then(h => h.remove()).catch(() => {})
+    }
+  }, [])
+
+  // Sync widget with latest spending stats whenever expenses update
+  useEffect(() => {
+    if (!expenses) return
+    const currentMonthTotal = calculateTotalExpenses(expenses)
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const todayExpenses = expenses.filter(e => e.date === todayIso)
+    const todayTotal = calculateTotalExpenses(todayExpenses)
+
+    void syncExpenseWidget({
+      monthTotal: formatCurrency(currentMonthTotal),
+      expenseCount: expenses.length,
+      todayTotal: formatCurrency(todayTotal),
+    })
+  }, [expenses])
+
+  const handleToggleBiometrics = async () => {
+    if (biometrics.hasSavedCredentials) {
+      await BiometricAuth.clearCredentials()
+      setBiometrics(prev => ({ ...prev, hasSavedCredentials: false }))
+      toast.success('Biometric login disabled on this device')
+    } else {
+      toast('To enable biometrics, check "Remember with Fingerprint" next time you sign in.', { icon: '🔐' })
+    }
+  }
 
   const save = async (data: ExpenseFormData) => {
     setSaveError('')
@@ -167,9 +237,37 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
                 </span>
               )}
             </button>
-            <button onClick={() => void signOut()} aria-label="Sign out" className="rounded-full bg-white p-3 shadow-sm text-slate-600 hover:bg-slate-50 transition">
-              <LogOut size={20} />
-            </button>
+            {biometrics.isAvailable && (
+              <button
+                type="button"
+                onClick={() => void handleToggleBiometrics()}
+                aria-label={biometrics.hasSavedCredentials ? 'Biometrics active' : 'Enable biometrics'}
+                title={
+                  biometrics.hasSavedCredentials
+                    ? 'Biometric sign-in active on this device. Tap to disable.'
+                    : 'Biometrics supported. Sign in with password to enable.'
+                }
+                className={`rounded-full p-3 shadow-sm transition ${
+                  biometrics.hasSavedCredentials
+                    ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200'
+                    : 'bg-white text-slate-400'
+                }`}
+              >
+                <Fingerprint size={20} />
+              </button>
+            )}
+            {onLock && (
+              <button
+                type="button"
+                onClick={onLock}
+                aria-label="Lock app"
+                title="Lock app with biometrics now"
+                className="rounded-full bg-white p-3 shadow-sm text-slate-500 hover:text-indigo-600 transition"
+              >
+                <Lock size={20} />
+              </button>
+            )}
+            <button onClick={() => void signOut()} aria-label="Sign out" className="rounded-full bg-white p-3 shadow-sm text-slate-600 hover:bg-slate-50 transition"><LogOut size={20} /></button>
           </div>
         </header>
 

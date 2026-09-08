@@ -38,7 +38,7 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
           <button
             key={preset.value}
             onClick={() => handlePresetClick(preset.value)}
-            className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+            className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
           >
             {preset.label}
           </button>
@@ -50,14 +50,14 @@ export default function DateRangePicker({ value, onChange }: DateRangePickerProp
           type="date"
           value={format(value.start, 'yyyy-MM-dd')}
           onChange={(e) => handleCustomChange('start', e.target.value)}
-          className="flex-1 sm:flex-none px-2.5 py-1 sm:px-3 sm:py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
+          className="flex-1 sm:flex-none px-2.5 py-1 sm:px-3 sm:py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
         />
-        <span className="text-gray-400 shrink-0">to</span>
+        <span className="text-gray-400 dark:text-gray-500 shrink-0">to</span>
         <input
           type="date"
           value={format(value.end, 'yyyy-MM-dd')}
           onChange={(e) => handleCustomChange('end', e.target.value)}
-          className="flex-1 sm:flex-none px-2.5 py-1 sm:px-3 sm:py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
+          className="flex-1 sm:flex-none px-2.5 py-1 sm:px-3 sm:py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-0"
         />
       </div>
     </div>

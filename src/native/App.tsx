@@ -52,7 +52,7 @@ export default function NativeApp() {
   }, [biometricStatus])
 
   if (loading && !session) {
-    return <div role="status" className="flex min-h-dvh items-center justify-center bg-slate-50 text-slate-500">Opening Pocket Expenses…</div>
+    return <div role="status" className="flex min-h-dvh items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-gray-400">Opening Pocket Expenses…</div>
   }
 
   // Not signed in -> show sign in

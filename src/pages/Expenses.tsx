@@ -70,8 +70,8 @@ export default function Expenses() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Expenses</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             Manage and track all your household expenses
           </p>
         </div>
@@ -85,7 +85,7 @@ export default function Expenses() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
           
@@ -94,7 +94,7 @@ export default function Expenses() {
               <select
                 value={visibilityFilter}
                 onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'private' | 'household')}
-                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[130px]"
+                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[130px]"
               >
                 <option value="all">All visibility</option>
                 <option value="private">Personal</option>
@@ -104,7 +104,7 @@ export default function Expenses() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[130px]"
+                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[130px]"
               >
                 <option value="">All Categories</option>
                 {filterCategories.map((category) => (
@@ -115,8 +115,8 @@ export default function Expenses() {
               </select>
             </div>
             
-            <div className="text-sm text-gray-500 w-full sm:w-auto text-right sm:text-left font-medium">
-              Total: <span className="font-semibold text-gray-900">{formatCurrency(total)}</span>
+            <div className="text-sm text-gray-500 dark:text-gray-400 w-full sm:w-auto text-right sm:text-left font-medium">
+              Total: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(total)}</span>
             </div>
           </div>
         </div>

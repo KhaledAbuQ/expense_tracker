@@ -2,8 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+html.dark {
+  color-scheme: dark;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
 }
 
 .mobile-client { padding-top: var(--safe-area-inset-top, env(safe-area-inset-top));

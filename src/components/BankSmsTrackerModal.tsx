@@ -44,6 +44,7 @@ interface BankSmsTrackerModalProps {
   pendingTransactions: ParsedBankTransaction[]
   onRemoveTransaction: (id: string) => void
   onAddTransactions: (txs: ParsedBankTransaction[]) => void
+  initialTab?: 'pending' | 'settings' | 'test'
 }
 
 function formatGroupDateHeader(dateStr: string): string {
@@ -76,8 +77,15 @@ export default function BankSmsTrackerModal({
   pendingTransactions,
   onRemoveTransaction,
   onAddTransactions,
+  initialTab = 'pending',
 }: BankSmsTrackerModalProps) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'settings' | 'test'>('pending')
+  const [activeTab, setActiveTab] = useState<'pending' | 'settings' | 'test'>(initialTab)
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [isOpen, initialTab])
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all')
   const [isNative, setIsNative] = useState(false)
   const [permissionsGranted, setPermissionsGranted] = useState(false)

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { supabase, isSupabaseConfigured, getActiveSupabaseConfig } from '../lib/supabase'
 import ServerConfigForm from '../components/ServerConfigForm'
 import { BiometricAuth, checkBiometricStatus, type BiometricAvailability } from '../lib/biometrics'
+import ThemeToggle from '../components/ThemeToggle'
 
 const PENDING_ONBOARDING_KEY = 'expense_tracker_pending_onboarding'
 
@@ -203,7 +204,7 @@ export default function NativeSignIn() {
 
   if (showServerConfig || !isSupabaseConfigured) {
     return (
-      <main className="mobile-client flex min-h-dvh items-center bg-slate-50 px-5 py-10">
+      <main className="mobile-client flex min-h-dvh items-center bg-slate-50 dark:bg-slate-950 px-5 py-10 transition-colors">
         <div className="w-full max-w-sm mx-auto">
           <ServerConfigForm
             onCancel={isSupabaseConfigured ? () => setShowServerConfig(false) : undefined}
@@ -218,17 +219,21 @@ export default function NativeSignIn() {
   const serverHostname = activeConfig ? new URL(activeConfig.url).hostname : ''
 
   return (
-    <main className="mobile-client flex min-h-dvh items-center bg-slate-50 px-6 py-10">
+    <main className="mobile-client flex min-h-dvh items-center bg-slate-50 dark:bg-slate-950 px-6 py-10 text-slate-900 dark:text-slate-100 transition-colors">
       <div className="mx-auto w-full max-w-sm">
-        <div className="mb-6">
-          <div className="mb-4 inline-flex rounded-2xl bg-indigo-600 p-3.5 text-white">
+        <div className="flex items-center justify-between mb-4">
+          <div className="inline-flex rounded-2xl bg-indigo-600 p-3.5 text-white shadow-sm">
             <Wallet size={28} />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-indigo-600">Pocket expenses</p>
-          <h1 className="mt-2 text-2xl font-bold">
+          <ThemeToggle variant="icon" className="rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-slate-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition" />
+        </div>
+
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Pocket expenses</p>
+          <h1 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
             {mode === 'sign-in' ? 'Welcome back' : 'Create account'}
           </h1>
-          <p className="mt-2 text-sm leading-5 text-slate-500">
+          <p className="mt-2 text-sm leading-5 text-slate-500 dark:text-gray-400">
             {mode === 'sign-in'
               ? 'Sign in to access your household budget and add expenses.'
               : 'Create a household ledger or join an existing household.'}
@@ -241,9 +246,9 @@ export default function NativeSignIn() {
               type="button"
               onClick={() => void triggerBiometricSignIn(biometricStatus.savedEmail)}
               disabled={saving || biometricAuthenticating}
-              className="w-full flex items-center justify-center gap-3 rounded-2xl bg-indigo-50 border-2 border-indigo-200 py-3.5 px-4 font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border-2 border-indigo-200 dark:border-indigo-800 py-3.5 px-4 font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition shadow-sm disabled:opacity-50"
             >
-              <Fingerprint className="w-5 h-5 text-indigo-600" />
+              <Fingerprint className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               <span>
                 {biometricAuthenticating
                   ? 'Verifying…'
@@ -252,15 +257,15 @@ export default function NativeSignIn() {
                     : 'Sign in with Biometrics'}
               </span>
             </button>
-            <div className="relative my-4 text-center text-xs text-slate-400 before:absolute before:inset-0 before:top-1/2 before:border-t before:border-slate-200">
-              <span className="relative bg-slate-50 px-3">or use password</span>
+            <div className="relative my-4 text-center text-xs text-slate-400 dark:text-gray-500 before:absolute before:inset-0 before:top-1/2 before:border-t before:border-slate-200 dark:before:border-gray-800">
+              <span className="relative bg-slate-50 dark:bg-slate-950 px-3">or use password</span>
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium">Email</label>
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">Email</label>
             <input
               id="email"
               type="email"
@@ -270,19 +275,19 @@ export default function NativeSignIn() {
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm"
+              className="w-full rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="password" className="block text-sm font-medium">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-gray-300">Password</label>
               {mode === 'sign-in' && (
                 <button
                   type="button"
                   onClick={handleForgotPassword}
                   disabled={sendingReset}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium disabled:opacity-50"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium disabled:opacity-50"
                 >
                   {sendingReset ? 'Sending…' : 'Forgot password?'}
                 </button>
@@ -295,17 +300,17 @@ export default function NativeSignIn() {
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm"
+              className="w-full rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
             />
           </div>
 
           {mode === 'sign-in' && biometricStatus.isAvailable && (
-            <label className="flex items-center gap-2 pt-1 text-xs text-slate-600 cursor-pointer select-none">
+            <label className="flex items-center gap-2 pt-1 text-xs text-slate-600 dark:text-gray-400 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={enableBiometrics}
                 onChange={e => setEnableBiometrics(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-slate-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-white dark:bg-gray-800"
               />
               <span>Remember with Fingerprint / Face Unlock</span>
             </label>
@@ -314,7 +319,7 @@ export default function NativeSignIn() {
           {mode === 'sign-up' && (
             <>
               <div>
-                <label htmlFor="display-name" className="mb-1.5 block text-sm font-medium">Your name</label>
+                <label htmlFor="display-name" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">Your name</label>
                 <input
                   id="display-name"
                   type="text"
@@ -322,19 +327,21 @@ export default function NativeSignIn() {
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
                   placeholder="e.g. Alex"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 />
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-3 space-y-3 bg-white">
+              <div className="rounded-xl border border-slate-200 dark:border-gray-700 p-3 space-y-3 bg-white dark:bg-gray-805 bg-white dark:bg-gray-800">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-slate-700">Household</span>
+                  <span className="font-medium text-slate-700 dark:text-gray-300">Household</span>
                   <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => setJoinMode('create')}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        joinMode === 'create' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                        joinMode === 'create'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300'
                       }`}
                     >
                       Create
@@ -342,8 +349,10 @@ export default function NativeSignIn() {
                     <button
                       type="button"
                       onClick={() => setJoinMode('join')}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        joinMode === 'join' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                        joinMode === 'join'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300'
                       }`}
                     >
                       Join
@@ -353,7 +362,7 @@ export default function NativeSignIn() {
 
                 {joinMode === 'create' ? (
                   <div>
-                    <label htmlFor="household-name" className="mb-1 block text-xs font-medium text-slate-600">Household name</label>
+                    <label htmlFor="household-name" className="mb-1 block text-xs font-medium text-slate-600 dark:text-gray-400">Household name</label>
                     <input
                       id="household-name"
                       type="text"
@@ -361,12 +370,12 @@ export default function NativeSignIn() {
                       value={householdName}
                       onChange={e => setHouseholdName(e.target.value)}
                       placeholder="e.g. Smith Household"
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+                      className="w-full rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 ) : (
                   <div>
-                    <label htmlFor="invite-code" className="mb-1 block text-xs font-medium text-slate-600">8-character invite code</label>
+                    <label htmlFor="invite-code" className="mb-1 block text-xs font-medium text-slate-600 dark:text-gray-400">8-character invite code</label>
                     <input
                       id="invite-code"
                       type="text"
@@ -374,7 +383,7 @@ export default function NativeSignIn() {
                       value={inviteCode}
                       onChange={e => setInviteCode(e.target.value.toUpperCase())}
                       placeholder="ABCD2345"
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono uppercase tracking-widest text-xs"
+                      className="w-full rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 px-3 py-2 font-mono uppercase tracking-widest text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 )}
@@ -382,12 +391,12 @@ export default function NativeSignIn() {
             </>
           )}
 
-          {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+          {error && <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 p-3 text-xs text-red-700 dark:text-red-300">{error}</p>}
 
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white text-sm disabled:opacity-50 transition"
+            className="w-full rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white text-sm disabled:opacity-50 hover:bg-indigo-700 active:bg-indigo-800 transition shadow-sm"
           >
             {saving ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
           </button>
@@ -400,20 +409,20 @@ export default function NativeSignIn() {
               setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
               setError('')
             }}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
           >
             {mode === 'sign-in' ? "Don't have an account? Create one" : 'Already have an account? Sign in'}
           </button>
         </div>
 
-        <div className="mt-8 border-t border-slate-200 pt-5 text-center">
-          <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
+        <div className="mt-8 border-t border-slate-200 dark:border-gray-800 pt-5 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-gray-400">
             <Database className="w-3.5 h-3.5 text-indigo-500" />
             <span className="truncate max-w-[200px]" title={activeConfig?.url}>
               {serverHostname}
             </span>
             {activeConfig?.isCustom && (
-              <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-medium">
+              <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-medium">
                 Custom
               </span>
             )}
@@ -421,7 +430,7 @@ export default function NativeSignIn() {
           <button
             type="button"
             onClick={() => setShowServerConfig(true)}
-            className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
           >
             Change database server
           </button>

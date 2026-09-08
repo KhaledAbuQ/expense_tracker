@@ -8,7 +8,7 @@ interface CategoryBadgeProps {
 export default function CategoryBadge({ category }: CategoryBadgeProps) {
   if (!category) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
         Uncategorized
       </span>
     )

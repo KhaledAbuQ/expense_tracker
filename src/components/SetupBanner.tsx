@@ -8,12 +8,12 @@ export default function SetupBanner() {
 
   return (
     <>
-      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r-xl">
+      <div className="bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-400 dark:border-amber-500 p-4 mb-6 rounded-r-xl">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h3 className="text-sm font-medium text-amber-800">
+              <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">
                 Supabase Configuration Required
               </h3>
               <button
@@ -25,7 +25,7 @@ export default function SetupBanner() {
                 Connect Supabase in Browser
               </button>
             </div>
-            <div className="mt-2 text-sm text-amber-700 space-y-2">
+            <div className="mt-2 text-sm text-amber-700 dark:text-amber-300 space-y-2">
               <p>To use this expense tracker, connect a Supabase project:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2 text-xs">
                 <li>
@@ -34,17 +34,17 @@ export default function SetupBanner() {
                     href="https://supabase.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-amber-800 underline hover:text-amber-900 inline-flex items-center gap-1"
+                    className="text-amber-800 dark:text-amber-200 underline hover:text-amber-900 dark:hover:text-amber-100 inline-flex items-center gap-1"
                   >
                     supabase.com
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </li>
                 <li>
-                  Run the SQL schema from <code className="bg-amber-100 px-1 rounded">supabase/schema.sql</code>
+                  Run the SQL schema from <code className="bg-amber-100 dark:bg-amber-900/60 dark:text-amber-200 px-1 rounded">supabase/schema.sql</code>
                 </li>
                 <li>
-                  Click the <strong>Connect Supabase in Browser</strong> button above to enter your URL and anon key (or set them in <code className="bg-amber-100 px-1 rounded">.env</code>).
+                  Click the <strong>Connect Supabase in Browser</strong> button above to enter your URL and anon key (or set them in <code className="bg-amber-100 dark:bg-amber-900/60 dark:text-amber-200 px-1 rounded">.env</code>).
                 </li>
               </ol>
             </div>

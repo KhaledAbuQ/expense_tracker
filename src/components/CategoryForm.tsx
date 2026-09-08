@@ -59,7 +59,7 @@ export default function CategoryForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Category Name *
         </label>
         <input
@@ -68,26 +68,26 @@ export default function CategoryForm({
           required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="e.g., Pet Supplies"
         />
       </div>
 
       <div>
-        <label htmlFor="category_type" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="category_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Category Type
         </label>
         <select
           id="category_type"
           value={formData.category_type}
           onChange={(e) => setFormData({ ...formData, category_type: e.target.value as CategoryType })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         >
           <option value="expense">Expense</option>
           <option value="income">Income</option>
           <option value="both">Both</option>
         </select>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {formData.category_type === 'expense' && 'This category will only appear when adding expenses.'}
           {formData.category_type === 'income' && 'This category will only appear when adding income.'}
           {formData.category_type === 'both' && 'This category will appear for both expenses and income.'}
@@ -95,7 +95,7 @@ export default function CategoryForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Color
         </label>
         <div className="flex flex-wrap gap-2">
@@ -109,7 +109,7 @@ export default function CategoryForm({
               onClick={() => setFormData({ ...formData, color })}
               className={`w-8 h-8 rounded-full border-2 transition-all ${
                 formData.color === color
-                  ? 'border-gray-900 scale-110'
+                  ? 'border-gray-900 dark:border-white scale-110'
                   : 'border-transparent hover:scale-105'
               }`}
               style={{ backgroundColor: color }}
@@ -117,14 +117,14 @@ export default function CategoryForm({
           ))}
         </div>
         <div className="flex items-center gap-3 mt-3">
-          <label htmlFor="custom-color" className="text-sm text-gray-700">Custom color</label>
-          <input id="custom-color" type="color" value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-12 h-10 cursor-pointer rounded border border-gray-300" />
-          <span className="text-sm text-gray-500">{formData.color.toUpperCase()}</span>
+          <label htmlFor="custom-color" className="text-sm text-gray-700 dark:text-gray-300">Custom color</label>
+          <input id="custom-color" type="color" value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-12 h-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600 dark:bg-gray-700" />
+          <span className="text-sm text-gray-500 dark:text-gray-400">{formData.color.toUpperCase()}</span>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Icon
         </label>
         <div className="flex flex-wrap gap-2">
@@ -137,8 +137,8 @@ export default function CategoryForm({
               onClick={() => setFormData({ ...formData, icon })}
               className={`inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
                 formData.icon === icon
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <CategoryIcon name={icon} />
@@ -149,8 +149,8 @@ export default function CategoryForm({
       </div>
 
       <div className="pt-2">
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-          <span className="text-sm text-gray-500">Preview:</span>
+        <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/80 rounded-lg">
+          <span className="text-sm text-gray-500 dark:text-gray-400">Preview:</span>
           <span
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium"
             style={{
@@ -161,7 +161,7 @@ export default function CategoryForm({
             <CategoryIcon name={formData.icon} />
             {formData.name || 'Category Name'}
           </span>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-400 dark:text-gray-500">
             ({formData.category_type})
           </span>
         </div>
@@ -171,7 +171,7 @@ export default function CategoryForm({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
           Cancel
         </button>

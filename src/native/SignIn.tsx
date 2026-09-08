@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { App } from '@capacitor/app'
-import { Wallet, Database } from 'lucide-react'
+import { Wallet, Database, Fingerprint } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase, isSupabaseConfigured, getActiveSupabaseConfig } from '../lib/supabase'
 import ServerConfigForm from '../components/ServerConfigForm'
+import { BiometricAuth, checkBiometricStatus, type BiometricAvailability } from '../lib/biometrics'
 
 const PENDING_ONBOARDING_KEY = 'expense_tracker_pending_onboarding'
 
@@ -20,6 +21,44 @@ export default function NativeSignIn() {
   const [saving, setSaving] = useState(false)
   const [sendingReset, setSendingReset] = useState(false)
   const [error, setError] = useState('')
+  const [biometricStatus, setBiometricStatus] = useState<BiometricAvailability>({
+    isAvailable: false,
+    isEnrolled: false,
+    hasSavedCredentials: false,
+  })
+  const [enableBiometrics, setEnableBiometrics] = useState(true)
+  const [biometricAuthenticating, setBiometricAuthenticating] = useState(false)
+
+  const triggerBiometricSignIn = useCallback(async (savedEmail?: string) => {
+    setError('')
+    setBiometricAuthenticating(true)
+    try {
+      const res = await BiometricAuth.authenticateAndGetCredentials({
+        title: 'Sign in to Pocket Expenses',
+        subtitle: savedEmail ? `Confirm fingerprint or face to sign in as ${savedEmail}` : 'Confirm your biometric identity to sign in',
+        cancelText: 'Use password',
+      })
+
+      if (res.success && res.email && res.password) {
+        setSaving(true)
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: res.email,
+          password: res.password,
+        })
+        if (authError) throw authError
+        toast.success('Signed in with biometrics!')
+      } else if (res.canceled) {
+        // User deliberately canceled or chose password
+      } else if (res.error) {
+        setError(res.error)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Biometric sign-in failed.')
+    } finally {
+      setBiometricAuthenticating(false)
+      setSaving(false)
+    }
+  }, [])
 
   useEffect(() => {
     const listener = App.addListener('backButton', () => {
@@ -33,6 +72,22 @@ export default function NativeSignIn() {
       void listener.then(handle => handle.remove())
     }
   }, [showServerConfig])
+
+  useEffect(() => {
+    let isMounted = true
+    void checkBiometricStatus().then(status => {
+      if (!isMounted) return
+      setBiometricStatus(status)
+      if (status.hasSavedCredentials) {
+        // Auto-prompt once on arrival
+        void triggerBiometricSignIn(status.savedEmail)
+      }
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [triggerBiometricSignIn])
+
 
   async function handleForgotPassword() {
     if (!email.trim()) {
@@ -72,6 +127,14 @@ export default function NativeSignIn() {
           password,
         })
         if (authError) throw authError
+
+        if (enableBiometrics && biometricStatus.isAvailable) {
+          try {
+            await BiometricAuth.saveCredentials({ email: email.trim(), password })
+          } catch (e) {
+            console.warn('Failed to save biometric credentials:', e)
+          }
+        }
         return
       }
 
@@ -172,6 +235,29 @@ export default function NativeSignIn() {
           </p>
         </div>
 
+        {mode === 'sign-in' && biometricStatus.hasSavedCredentials && (
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={() => void triggerBiometricSignIn(biometricStatus.savedEmail)}
+              disabled={saving || biometricAuthenticating}
+              className="w-full flex items-center justify-center gap-3 rounded-2xl bg-indigo-50 border-2 border-indigo-200 py-3.5 px-4 font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm disabled:opacity-50"
+            >
+              <Fingerprint className="w-5 h-5 text-indigo-600" />
+              <span>
+                {biometricAuthenticating
+                  ? 'Verifying…'
+                  : biometricStatus.savedEmail
+                    ? `Sign in as ${biometricStatus.savedEmail}`
+                    : 'Sign in with Biometrics'}
+              </span>
+            </button>
+            <div className="relative my-4 text-center text-xs text-slate-400 before:absolute before:inset-0 before:top-1/2 before:border-t before:border-slate-200">
+              <span className="relative bg-slate-50 px-3">or use password</span>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium">Email</label>
@@ -212,6 +298,18 @@ export default function NativeSignIn() {
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm"
             />
           </div>
+
+          {mode === 'sign-in' && biometricStatus.isAvailable && (
+            <label className="flex items-center gap-2 pt-1 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enableBiometrics}
+                onChange={e => setEnableBiometrics(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>Remember with Fingerprint / Face Unlock</span>
+            </label>
+          )}
 
           {mode === 'sign-up' && (
             <>

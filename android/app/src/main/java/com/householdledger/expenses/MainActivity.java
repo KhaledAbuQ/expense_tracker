@@ -18,5 +18,6 @@ public class MainActivity extends BridgeActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         ExpenseWidgetPlugin.handleNewIntent(intent);
+        BankSmsPlugin.handleNewIntent(intent);
     }
 }

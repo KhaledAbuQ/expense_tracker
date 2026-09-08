@@ -38,10 +38,36 @@ public class BankSmsPlugin extends Plugin {
     private static final String TAG = "BankSmsPlugin";
     private static BankSmsPlugin activeInstance;
 
+    private static boolean pendingApprovalIntent = false;
+
     @Override
     public void load() {
         super.load();
         activeInstance = this;
+        if (getActivity() != null && getActivity().getIntent() != null) {
+            handleIntent(getActivity().getIntent());
+        }
+    }
+
+    public static void handleNewIntent(Intent intent) {
+        handleIntent(intent);
+    }
+
+    private static void handleIntent(Intent intent) {
+        if (intent == null) return;
+        if (SmsBroadcastReceiver.ACTION_SMS_APPROVAL.equals(intent.getAction()) ||
+            intent.getBooleanExtra("open_sms_approval", false)) {
+            pendingApprovalIntent = true;
+            if (activeInstance != null) {
+                try {
+                    JSObject ret = new JSObject();
+                    ret.put("openApproval", true);
+                    activeInstance.notifyListeners("smsApprovalRequested", ret);
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to dispatch smsApprovalRequested", e);
+                }
+            }
+        }
     }
 
     @Override
@@ -222,6 +248,43 @@ public class BankSmsPlugin extends Plugin {
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Failed to clear pending SMS: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void checkLaunchIntent(PluginCall call) {
+        JSObject ret = new JSObject();
+        boolean openApproval = pendingApprovalIntent;
+        if (getActivity() != null && getActivity().getIntent() != null) {
+            Intent intent = getActivity().getIntent();
+            if (SmsBroadcastReceiver.ACTION_SMS_APPROVAL.equals(intent.getAction()) ||
+                intent.getBooleanExtra("open_sms_approval", false)) {
+                openApproval = true;
+                intent.removeExtra("open_sms_approval");
+                intent.setAction(Intent.ACTION_MAIN);
+            }
+        }
+        pendingApprovalIntent = false;
+        ret.put("openApproval", openApproval);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void updateSmsSettings(PluginCall call) {
+        Context context = getContext();
+        String mode = call.getString("mode", "approval");
+        boolean notify = call.getBoolean("notify", true);
+        try {
+            SharedPreferences prefs = context.getSharedPreferences(SmsBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit()
+                .putString(SmsBroadcastReceiver.PREF_MODE, mode)
+                .putBoolean(SmsBroadcastReceiver.PREF_NOTIFY, notify)
+                .apply();
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed to update SMS settings: " + e.getMessage());
         }
     }
 }

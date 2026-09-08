@@ -1,14 +1,18 @@
 import { registerPlugin } from '@capacitor/core'
-import { parseBankSms, ParsedBankTransaction, RawSms } from './smsParser'
+import { parseBankSms, ParsedBankTransaction, RawSms, saveLearnedCategory, getLearnedCategory } from './smsParser'
 import { Category, Visibility, AccountType } from '../types'
+
+export { saveLearnedCategory, getLearnedCategory }
 
 export interface SmsTrackingSettings {
   enabled: boolean
-  mode: 'review' | 'auto'
+  mode: 'auto' | 'approval' | 'review'
+  notifyEveryTransaction: boolean
   defaultVisibility: Visibility
   defaultAccount: AccountType
-  scanDays: number
+  scanDays: number // 7 | 30 | 0 (0 = all messages)
   lastScanTimestamp?: number
+  autoDetectCategory: boolean
 }
 
 const SETTINGS_STORAGE_KEY = 'pocket_expenses_sms_settings'
@@ -21,7 +25,10 @@ interface NativeBankSmsPlugin {
   getRecentSms(options: { limit?: number; days?: number }): Promise<{ messages: RawSms[]; count: number }>
   getPendingReceivedSms(): Promise<{ messages: RawSms[]; count: number }>
   clearPendingReceivedSms(): Promise<{ success: boolean }>
+  updateSmsSettings(options: { mode: string; notify: boolean }): Promise<{ success: boolean }>
+  checkLaunchIntent(): Promise<{ openApproval: boolean }>
   addListener(eventName: 'smsReceived', listenerFunc: (data: RawSms) => void): Promise<{ remove: () => Promise<void> }>
+  addListener(eventName: 'smsApprovalRequested', listenerFunc: (data: { openApproval: boolean }) => void): Promise<{ remove: () => Promise<void> }>
 }
 
 const BankSms = registerPlugin<NativeBankSmsPlugin>('BankSms')
@@ -33,7 +40,17 @@ export function getSmsSettings(): SmsTrackingSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
     if (raw) {
-      return JSON.parse(raw)
+      const parsed = JSON.parse(raw)
+      return {
+        enabled: parsed.enabled ?? true,
+        mode: parsed.mode === 'auto' ? 'auto' : 'approval',
+        notifyEveryTransaction: parsed.notifyEveryTransaction ?? true,
+        defaultVisibility: parsed.defaultVisibility ?? 'household',
+        defaultAccount: parsed.defaultAccount ?? 'bank',
+        scanDays: parsed.scanDays ?? 7,
+        lastScanTimestamp: parsed.lastScanTimestamp,
+        autoDetectCategory: parsed.autoDetectCategory ?? true,
+      }
     }
   } catch {
     // fallback
@@ -41,15 +58,31 @@ export function getSmsSettings(): SmsTrackingSettings {
 
   return {
     enabled: true,
-    mode: 'review', // Default to review for user control, toggleable to auto
+    mode: 'approval', // Default: Notify & ask for approval with edit option
+    notifyEveryTransaction: true,
     defaultVisibility: 'household',
     defaultAccount: 'bank',
-    scanDays: 14,
+    scanDays: 7,
+    autoDetectCategory: true,
   }
 }
 
 /**
- * Saves user settings for SMS auto-tracking.
+ * Syncs SMS settings to Android Native SharedPreferences.
+ */
+export async function syncNativeSmsSettings(settings: SmsTrackingSettings): Promise<void> {
+  try {
+    await BankSms.updateSmsSettings({
+      mode: settings.mode === 'auto' ? 'auto' : 'approval',
+      notify: settings.notifyEveryTransaction,
+    })
+  } catch {
+    // ignore in web
+  }
+}
+
+/**
+ * Saves user settings for SMS auto-tracking and syncs to Android.
  */
 export function saveSmsSettings(partial: Partial<SmsTrackingSettings>): SmsTrackingSettings {
   const current = getSmsSettings()
@@ -59,6 +92,7 @@ export function saveSmsSettings(partial: Partial<SmsTrackingSettings>): SmsTrack
   } catch {
     // ignore
   }
+  void syncNativeSmsSettings(updated)
   return updated
 }
 
@@ -238,3 +272,34 @@ export function subscribeToIncomingSms(
     if (removeHandle) removeHandle()
   }
 }
+
+/**
+ * Checks if the app was launched from an SMS approval notification.
+ */
+export async function checkLaunchApprovalIntent(): Promise<boolean> {
+  try {
+    const res = await BankSms.checkLaunchIntent()
+    return !!res?.openApproval
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Subscribes to SMS approval intent triggers while the app is active in foreground/background.
+ */
+export function subscribeToApprovalIntent(onRequested: () => void): () => void {
+  let removeHandle: (() => void) | null = null
+  void BankSms.addListener('smsApprovalRequested', data => {
+    if (data?.openApproval) {
+      onRequested()
+    }
+  }).then(handle => {
+    removeHandle = () => { void handle.remove() }
+  }).catch(() => {})
+
+  return () => {
+    if (removeHandle) removeHandle()
+  }
+}
+

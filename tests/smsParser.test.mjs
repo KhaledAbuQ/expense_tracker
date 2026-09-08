@@ -160,4 +160,83 @@ test('SMS Parser - Income / Credit transfer', () => {
   const parsed = parseBankSms(sampleSms)
   assert.equal(parsed.type, 'income')
   assert.equal(parsed.amount, 1200)
+  assert.equal(parsed.categoryGuess, 'Salary & Income')
 })
+
+test('SMS Parser - Category Detection for Uncle Osaka (Food & Dining)', () => {
+  const sampleSms = {
+    id: 'cat-test-1',
+    address: 'Bank',
+    body: 'A purchase transaction of 4.000 JOD from UNCLE OSAKA ALRABIEH has been debited from your card XXXX5061 on 06-09-2026. Available balance 17.744 JOD.',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.categoryGuess, 'Food & Dining')
+})
+
+test('SMS Parser - Category Detection for Carrefour & Supermarkets (Groceries)', () => {
+  const sampleSms = {
+    id: 'cat-test-2',
+    address: 'Bank',
+    body: 'Purchase of 35.50 JOD at CARREFOUR CITY MALL with card 1234',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.categoryGuess, 'Groceries')
+})
+
+test('SMS Parser - Category Detection for Fuel & Stations (Transportation)', () => {
+  const sampleSms = {
+    id: 'cat-test-3',
+    address: 'Bank',
+    body: 'تمت عملية شراء بقيمة 20.00 د.أ لدى محطة المناصير بتاريخ اليوم',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.categoryGuess, 'Transportation')
+})
+
+test('SMS Parser - Category Detection for Bills & Telecom (Utilities & Bills)', () => {
+  const sampleSms = {
+    id: 'cat-test-4',
+    address: 'Bank',
+    body: 'Payment of 25.00 JOD to ZAIN FIBER via eFawateercom on 08/09/2026',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.categoryGuess, 'Utilities & Bills')
+})
+
+test('SMS Parser - Category Detection for Pharmacy (Health & Pharmacy)', () => {
+  const sampleSms = {
+    id: 'cat-test-5',
+    address: 'Bank',
+    body: 'Purchase of 12.300 JOD at PHARMACY ONE on 08-09-2026',
+    date: Date.now()
+  }
+
+  const parsed = parseBankSms(sampleSms)
+  assert.equal(parsed.categoryGuess, 'Health & Pharmacy')
+})
+
+test('SMS Parser - Maps to custom user category using alias', () => {
+  const sampleSms = {
+    id: 'cat-test-6',
+    address: 'Bank',
+    body: 'Purchase of 15.000 JOD at STARBUCKS on 08-09-2026',
+    date: Date.now()
+  }
+
+  // User category is named "Restaurants" instead of "Food & Dining"
+  const userCategories = [
+    { id: 'cat-rest', name: 'Restaurants', icon: 'Utensils', color: '#f59e0b', is_default: false, category_type: 'expense', created_at: '' }
+  ]
+
+  const parsed = parseBankSms(sampleSms, userCategories)
+  assert.equal(parsed.suggestedCategoryId, 'cat-rest')
+})
+

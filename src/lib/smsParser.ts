@@ -20,11 +20,48 @@ export interface ParsedBankTransaction {
   type: TransactionType
   categoryGuess: string
   suggestedCategoryId?: string
+  isAutoDetected?: boolean
   rawBody: string
   confidence: 'high' | 'medium' | 'low'
   isFinancial: boolean
   accountEnding?: string
   availableBalance?: number
+}
+
+const LEARNED_MERCHANTS_KEY = 'pocket_expenses_merchant_categories'
+
+/**
+ * Gets a learned category ID for a specific merchant if previously saved/approved by the user.
+ */
+export function getLearnedCategory(merchant: string): string | undefined {
+  try {
+    if (typeof localStorage === 'undefined') return undefined
+    const raw = localStorage.getItem(LEARNED_MERCHANTS_KEY)
+    if (!raw) return undefined
+    const map = JSON.parse(raw)
+    const norm = merchant.trim().toLowerCase()
+    return map[norm]
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Saves a merchant-to-category association when approved or edited by the user.
+ */
+export function saveLearnedCategory(merchant: string, categoryId: string): void {
+  try {
+    if (typeof localStorage === 'undefined') return
+    const raw = localStorage.getItem(LEARNED_MERCHANTS_KEY)
+    const map = raw ? JSON.parse(raw) : {}
+    const norm = merchant.trim().toLowerCase()
+    if (norm.length > 1 && categoryId) {
+      map[norm] = categoryId
+      localStorage.setItem(LEARNED_MERCHANTS_KEY, JSON.stringify(map))
+    }
+  } catch {
+    // ignore
+  }
 }
 
 // Common Bank & Financial Keywords in English and Arabic
@@ -59,69 +96,121 @@ const IGNORE_PATTERNS = [
   /do\s*not\s*share/i,
 ]
 
-// Category keywords for intelligent matching
-const CATEGORY_RULES: { category: string; keywords: string[] }[] = [
+// Category keywords for intelligent matching across Jordanian & regional banks
+export const CATEGORY_RULES: { category: string; keywords: string[]; aliases: string[] }[] = [
   {
     category: 'Groceries',
+    aliases: ['grocery', 'groceries', 'supermarket', 'market', 'بقالة', 'تموينات', 'سوبرماركت', 'خضار', 'فواكه'],
     keywords: [
       'carrefour', 'safeway', 'cozmo', 'miles', 'supermarket', 'market', 'hypermarket',
-      'grocery', 'bakery', 'kareem', 'sameh', 'rawabi', 'c-town', 'metro', 'mart',
-      'سوبرماركت', 'ماركت', 'بقالة', 'مخبز', 'خضار', 'كارفور', 'سيفوي', 'سامح مول'
+      'grocery', 'bakery', 'kareem', 'sameh', 'sameh mall', 'rawabi', 'c-town', 'metro', 'mart',
+      'al-amad', 'farhat', 'al-mukhtar', 'khobz', 'produce', 'butcher', 'meat', 'vegetables', 'fruits',
+      'سوبرماركت', 'ماركت', 'بقالة', 'مخبز', 'خضار', 'فواكه', 'لحوم', 'ملحمة', 'كارفور', 'سيفوي', 'سامح', 'سامح مول', 'الروابي', 'سي تاون'
     ],
   },
   {
     category: 'Food & Dining',
+    aliases: ['dining out', 'food & dining', 'food', 'dining', 'restaurant', 'restaurants', 'cafe', 'cafes', 'coffee', 'مطعم', 'مطاعم', 'أكل', 'طعام', 'وجبات', 'حلويات', 'كافيه', 'مقهى'],
     keywords: [
       'restaurant', 'cafe', 'coffee', 'mcdonald', 'starbucks', 'burger', 'pizza',
-      'shawarma', 'grill', 'sushi', 'diner', 'kfc', 'subway', 'talabat', 'careem food',
-      'uncle osaka', 'osaka', 'cheesecake', 'sweets', 'dessert',
-      'مطعم', 'كافيه', 'مقهى', 'شاورما', 'برجر', 'وجبات', 'بيتزا', 'قهوة', 'حلويات', 'طلبات'
+      'shawarma', 'grill', 'sushi', 'diner', 'kfc', 'subway', 'talabat', 'careem food', 'jahez',
+      'uncle osaka', 'osaka', 'cheesecake', 'sweets', 'dessert', 'cake', 'bakery',
+      'astrolabe', 'costa', 'caribou', 'dimitris', 'espresso', 'buffalo wings', 'firefly',
+      'bun meat beef', 'blunder', 'crisp', 'fatatri', 'habiba', 'nafisa', 'anabtawi', 'zalatimo',
+      'مطعم', 'كافيه', 'مقهى', 'كوفي', 'شاورما', 'برجر', 'وجبات', 'بيتزا', 'قهوة', 'حلويات', 'حبيبة', 'نفيسة', 'عنبتاوي', 'زلاطيمو', 'طلبات', 'كريم فود'
     ],
   },
   {
     category: 'Transportation',
+    aliases: ['transportation', 'transport', 'fuel', 'gas', 'car', 'مواصلات', 'بنزين', 'سيارة', 'وقود', 'محروقات'],
     keywords: [
       'uber', 'careem', 'petrol', 'gas', 'fuel', 'station', 'shell', 'total', 'manaseer',
-      'jo petrol', 'oil', 'taxi', 'parking', 'garage', 'airline', 'flight', 'transport',
-      'بنزين', 'محطة', 'محروقات', 'المناصير', 'جو بترول', 'توتال', 'تاكسي', 'موقف', 'كريم', 'اوبر'
+      'jo petrol', 'jopetrol', 'oil', 'taxi', 'parking', 'garage', 'airline', 'flight', 'transport',
+      'airport', 'qia', 'queen alia', 'rj', 'royal jordanian', 'fly jordan', 'car wash', 'automotive',
+      'بنزين', 'محطة', 'محروقات', 'المناصير', 'جو بترول', 'توتال', 'شل', 'تاكسي', 'موقف', 'كريم', 'اوبر', 'غسيل سيارات', 'طيران'
     ],
   },
   {
     category: 'Utilities & Bills',
+    aliases: ['utilities & bills', 'utilities', 'bills', 'services', 'telecom', 'فواتير', 'خدمات', 'كهرباء', 'مياه', 'اتصالات', 'انترنت'],
     keywords: [
       'orange', 'zain', 'umniah', 'telecom', 'electricity', 'water', 'internet', 'bill',
-      'jepco', 'miyahuna', 'fiber', 'efawateercom', 'e-fawateercom',
-      'فواتيركم', 'زين', 'اورنج', 'امنية', 'كهرباء', 'مياه', 'فاتورة', 'انترنت'
+      'jepco', 'miyahuna', 'fiber', 'efawateercom', 'e-fawateercom', 'nepco', 'wifi', 'mobile',
+      'فواتيركم', 'زين', 'اورنج', 'امنية', 'كهرباء', 'مياه', 'مياونا', 'فاتورة', 'فواتير', 'انترنت', 'الياف'
     ],
   },
   {
     category: 'Health & Pharmacy',
+    aliases: ['health & pharmacy', 'healthcare', 'health', 'medical', 'pharmacy', 'medicine', 'صحة', 'صيدلية', 'طب', 'علاج', 'مستشفى'],
     keywords: [
-      'pharmacy', 'chemist', 'drug', 'hospital', 'clinic', 'medical', 'doctor', 'lab',
-      'medication', 'dental', 'optics', 'rawhi', 'one click',
-      'صيدلية', 'مستشفى', 'عيادة', 'طبيب', 'مختبر', 'دواء', 'روحي'
+      'pharmacy', 'chemist', 'drug', 'hospital', 'clinic', 'medical', 'doctor', 'lab', 'laboratory',
+      'medication', 'dental', 'dentist', 'optics', 'rawhi', 'one click', 'dawacom', 'pharmacy one',
+      'one pharmacy', 'jordan hospital', 'abdali hospital', 'khalidi', 'istishari', 'medgulf',
+      'صيدلية', 'دواكم', 'فارمسي', 'مستشفى', 'عيادة', 'طبيب', 'دكتور', 'مختبر', 'تحاليل', 'دواء', 'علاج', 'نظارات', 'روحي', 'الخالدي', 'العبدلي', 'الاستشاري'
     ],
   },
   {
     category: 'Shopping',
+    aliases: ['shopping', 'clothes', 'retail', 'fashion', 'تسوق', 'ملابس', 'أزياء', 'الكترونيات'],
     keywords: [
-      'zara', 'h&m', 'amazon', 'aliexpress', 'noon', 'shein', 'clothing', 'fashion',
-      'shoes', 'mall', 'store', 'electronics', 'ikea', 'apple', 'sharaf dg',
-      'مول', 'متجر', 'ملابس', 'أزياء', 'الكترونيات', 'تسوق', 'ايكيا'
+      'zara', 'h&m', 'amazon', 'aliexpress', 'noon', 'shein', 'pull&bear', 'bershka', 'massimo dutti',
+      'mango', 'stradivarius', 'clothing', 'fashion', 'shoes', 'footwear', 'mall', 'city mall',
+      'abdali mall', 'mecca mall', 'taj mall', 'galleria', 'barcode', 'store', 'electronics',
+      'ikea', 'apple', 'sharaf dg', 'leaders', 'smartbuy', 'dna', 'virgin',
+      'مول', 'تاج مول', 'سيتي مول', 'مكة مول', 'العبدلي مول', 'متجر', 'ملابس', 'أزياء', 'أحذية', 'الكترونيات', 'تسوق', 'ايكيا', 'ليدرز', 'سمارت باي'
     ],
   },
   {
     category: 'Entertainment',
+    aliases: ['entertainment', 'leisure', 'fun', 'games', 'ترفيه', 'سينما', 'ألعاب'],
     keywords: [
-      'cinema', 'prime', 'netflix', 'spotify', 'movie', 'theatre', 'gaming', 'playstation',
-      'steam', 'game', 'سينما', 'ترفيه', 'العاب'
+      'cinema', 'prime cinema', 'grand cinemas', 'vox', 'prime', 'netflix', 'spotify', 'youtube',
+      'movie', 'theatre', 'gaming', 'playstation', 'steam', 'nintendo', 'game', 'resort', 'park',
+      'سينما', 'ترفيه', 'العاب', 'ألعاب', 'افلام', 'مسرح', 'بولينغ'
+    ],
+  },
+  {
+    category: 'Rent/Mortgage',
+    aliases: ['rent/mortgage', 'rent', 'mortgage', 'housing', 'إيجار', 'ايجار', 'سكن'],
+    keywords: [
+      'rent', 'mortgage', 'housing', 'lease', 'apartment', 'landlord',
+      'إيجار', 'ايجار', 'سكن', 'شقة'
+    ],
+  },
+  {
+    category: 'Education',
+    aliases: ['education', 'learning', 'school', 'university', 'تعليم', 'دراسة', 'جامعة', 'مدرسة'],
+    keywords: [
+      'school', 'university', 'college', 'tuition', 'academy', 'nursery', 'kindergarten', 'madrasa',
+      'jamiat', 'ju', 'gju', 'psut', 'just', 'german jordanian', 'courses', 'books', 'library',
+      'مدرسة', 'جامعة', 'كلية', 'روضة', 'حضانة', 'أقساط', 'دورات', 'كتب', 'مكتبة'
+    ],
+  },
+  {
+    category: 'Personal Care',
+    aliases: ['personal care', 'beauty', 'care', 'fitness', 'عناية', 'تجميل', 'صالون', 'جيم'],
+    keywords: [
+      'salon', 'barber', 'spa', 'cosmetics', 'perfume', 'makeup', 'hair', 'beauty', 'nails',
+      'gym', 'fitness', 'gold gym', 'vega',
+      'صالون', 'حلاقة', 'كوافير', 'سبا', 'تجميل', 'عطور', 'مكياج', 'نادي', 'جيم'
+    ],
+  },
+  {
+    category: 'Home & Maintenance',
+    aliases: ['home', 'maintenance', 'repairs', 'housing', 'منزل', 'صيانة'],
+    keywords: [
+      'furniture', 'hardware', 'plumbing', 'paint', 'maintenance', 'homebox', 'home centre', 'ace',
+      'cleaning', 'laundry', 'dry clean',
+      'صيانة', 'سباكة', 'أثاث', 'تنظيف', 'دراي كلين', 'غسيل'
     ],
   },
   {
     category: 'Salary & Income',
+    aliases: ['salary & income', 'salary', 'income', 'deposit', 'transfer', 'freelance', 'راتب', 'دخل', 'إيداع', 'حوالة'],
     keywords: [
-      'salary', 'cliq', 'transfer from', 'inward', 'payroll', 'dividend', 'interest',
-      'راتب', 'حوالة كليك', 'إيداع', 'دفعة', 'مكافأة'
+      'salary', 'cliq', 'transfer from', 'inward', 'payroll', 'dividend', 'interest', 'deposit',
+      'bonus', 'compensation', 'wage', 'freelance',
+      'راتب', 'حوالة كليك', 'إيداع', 'وارد', 'دفعة', 'مكافأة', 'ارباح', 'أرباح', 'عمل حر'
     ],
   },
 ]
@@ -341,51 +430,87 @@ export function extractDate(text: string, timestamp: number | string): string {
 }
 
 /**
- * Matches merchant or SMS text against existing categories.
+ * Matches merchant or SMS text against existing categories and aliases.
  */
 export function matchCategory(
   merchant: string,
   rawText: string,
   type: TransactionType,
   categories: Category[] = []
-): { categoryGuess: string; categoryId?: string } {
+): { categoryGuess: string; categoryId?: string; isAutoDetected: boolean } {
   const combined = `${merchant} ${rawText}`.toLowerCase()
 
-  // First try rules matching the transaction type
-  for (const rule of CATEGORY_RULES) {
-    for (const kw of rule.keywords) {
-      if (combined.includes(kw.toLowerCase())) {
-        const matchingCategory = categories.find(
-          c => (type === 'income' ? c.category_type === 'income' || c.category_type === 'both' : c.category_type !== 'income') &&
-               (c.name.toLowerCase().includes(rule.category.toLowerCase()) || rule.category.toLowerCase().includes(c.name.toLowerCase()))
-        )
-        return {
-          categoryGuess: rule.category,
-          categoryId: matchingCategory?.id,
-        }
+  // Filter categories compatible with this transaction type
+  const compatibleCategories = categories.filter(c =>
+    type === 'income'
+      ? c.category_type === 'income' || c.category_type === 'both'
+      : c.category_type === 'expense' || c.category_type === 'both' || !c.category_type
+  )
+
+  // 1. Check user-learned merchant categories (from past approvals/edits)
+  const learnedId = getLearnedCategory(merchant)
+  if (learnedId) {
+    const matchedCategory = compatibleCategories.find(c => c.id === learnedId)
+    if (matchedCategory) {
+      return {
+        categoryGuess: matchedCategory.name,
+        categoryId: matchedCategory.id,
+        isAutoDetected: true,
       }
     }
   }
 
-  // Second try matching directly against user category names
-  for (const cat of categories) {
-    if ((type === 'income' ? cat.category_type !== 'expense' : cat.category_type !== 'income') &&
-        combined.includes(cat.name.toLowerCase())) {
+  // 2. Direct match with user categories first if an exact or substring match exists
+  for (const cat of compatibleCategories) {
+    const catLower = cat.name.trim().toLowerCase()
+    if (catLower.length >= 3 && combined.includes(catLower)) {
       return {
         categoryGuess: cat.name,
         categoryId: cat.id,
+        isAutoDetected: true,
       }
     }
   }
 
-  // Default fallback
-  const fallbackCategory = categories.find(c =>
-    type === 'income' ? c.category_type === 'income' || c.category_type === 'both' : c.category_type === 'expense' || c.category_type === 'both'
-  )
+  // 3. Prioritize rules matching transaction type
+  const sortedRules = [...CATEGORY_RULES].sort((a, b) => {
+    if (type === 'income') {
+      if (a.category === 'Salary & Income') return -1
+      if (b.category === 'Salary & Income') return 1
+    } else {
+      if (a.category === 'Salary & Income') return 1
+      if (b.category === 'Salary & Income') return -1
+    }
+    return 0
+  })
+
+  for (const rule of sortedRules) {
+    const matchedKw = rule.keywords.find(kw => combined.includes(kw.toLowerCase()))
+    if (matchedKw) {
+      // Find matching user category by name or aliases
+      const matchingCategory = compatibleCategories.find(c => {
+        const cName = c.name.toLowerCase().trim()
+        if (cName === rule.category.toLowerCase() || cName.includes(rule.category.toLowerCase()) || rule.category.toLowerCase().includes(cName)) {
+          return true
+        }
+        return rule.aliases.some(alias => cName === alias.toLowerCase() || cName.includes(alias.toLowerCase()) || alias.toLowerCase().includes(cName))
+      })
+
+      return {
+        categoryGuess: matchingCategory?.name || rule.category,
+        categoryId: matchingCategory?.id,
+        isAutoDetected: true,
+      }
+    }
+  }
+
+  // 4. Fallback to first compatible category or general
+  const fallbackCategory = compatibleCategories.find(c => /other|general|أخرى|عام/i.test(c.name)) || compatibleCategories[0]
 
   return {
     categoryGuess: fallbackCategory?.name || (type === 'income' ? 'Income' : 'General'),
     categoryId: fallbackCategory?.id,
+    isAutoDetected: false,
   }
 }
 
@@ -433,7 +558,7 @@ export function parseBankSms(
   const accountEnding = extractAccountEnding(body)
 
   // 5. Category matching
-  const { categoryGuess, categoryId } = matchCategory(merchant, body, type, categories)
+  const { categoryGuess, categoryId, isAutoDetected } = matchCategory(merchant, body, type, categories)
 
   // 6. Confidence scoring
   let confidence: 'high' | 'medium' | 'low' = 'low'
@@ -458,6 +583,7 @@ export function parseBankSms(
     type,
     categoryGuess,
     suggestedCategoryId: categoryId,
+    isAutoDetected,
     rawBody: body,
     confidence,
     isFinancial,

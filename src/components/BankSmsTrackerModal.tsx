@@ -14,10 +14,12 @@ import {
   Calendar,
   TrendingDown,
   TrendingUp,
+  Sparkles,
 } from 'lucide-react'
 import {
   ParsedBankTransaction,
   parseBankSms,
+  saveLearnedCategory,
 } from '../lib/smsParser'
 import {
   isNativeSmsAvailable,
@@ -75,7 +77,7 @@ export default function BankSmsTrackerModal({
   onRemoveTransaction,
   onAddTransactions,
 }: BankSmsTrackerModalProps) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'scan' | 'settings' | 'test'>('pending')
+  const [activeTab, setActiveTab] = useState<'pending' | 'settings' | 'test'>('pending')
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all')
   const [isNative, setIsNative] = useState(false)
   const [permissionsGranted, setPermissionsGranted] = useState(false)
@@ -221,6 +223,9 @@ export default function BankSmsTrackerModal({
         })
         toast.success(`Saved Expense: ${edit.merchant}`)
       }
+      if (edit.categoryId && edit.merchant) {
+        saveLearnedCategory(edit.merchant, edit.categoryId)
+      }
       markTransactionProcessed(tx.smsId)
       onRemoveTransaction(tx.id)
     } catch {
@@ -258,6 +263,9 @@ export default function BankSmsTrackerModal({
             date: edit.date,
             account_type: 'bank',
           })
+        }
+        if (edit.categoryId && edit.merchant) {
+          saveLearnedCategory(edit.merchant, edit.categoryId)
         }
         markTransactionProcessed(tx.smsId)
         onRemoveTransaction(tx.id)
@@ -344,23 +352,12 @@ export default function BankSmsTrackerModal({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            By Date
+            Pending Approvals
             {pendingTransactions.length > 0 && (
               <span className="ml-1 rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] text-white">
                 {pendingTransactions.length}
               </span>
             )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('scan')}
-            className={`flex items-center gap-1.5 px-3 py-3 ${
-              activeTab === 'scan'
-                ? 'text-indigo-600 border-b-2 border-indigo-600 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Scan All Messages
           </button>
 
           <button
@@ -420,13 +417,13 @@ export default function BankSmsTrackerModal({
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-slate-900">All caught up!</h3>
                   <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
-                    No pending bank transactions. Click Scan below to parse all bank messages from your phone and group them by date.
+                    No pending bank transactions waiting for approval. To scan past bank messages (last 7 days, 30 days, or all messages), open the Settings tab.
                   </p>
                   <button
-                    onClick={() => setActiveTab('scan')}
+                    onClick={() => setActiveTab('settings')}
                     className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
                   >
-                    <RefreshCw size={14} /> Scan Bank Messages
+                    <Sliders size={14} /> Open SMS Settings
                   </button>
                 </div>
               ) : (
@@ -590,9 +587,16 @@ export default function BankSmsTrackerModal({
                                     </div>
 
                                     <div>
-                                      <label className="block text-[10px] font-medium text-slate-500 mb-1">
-                                        Category
-                                      </label>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[10px] font-medium text-slate-500">
+                                          Category
+                                        </label>
+                                        {tx.isAutoDetected && (
+                                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                            <Sparkles size={9} /> Auto-detected
+                                          </span>
+                                        )}
+                                      </div>
                                       <select
                                         value={edit.categoryId}
                                         onChange={e => {
@@ -706,62 +710,61 @@ export default function BankSmsTrackerModal({
             </div>
           )}
 
-          {/* TAB 2: SCAN ALL MESSAGES */}
-          {activeTab === 'scan' && (
-            <div className="space-y-4">
-              <div className="rounded-2xl bg-indigo-50/60 p-5 border border-indigo-100 space-y-3">
-                <h3 className="text-sm font-bold text-indigo-950">Scan Bank Messages</h3>
-                <p className="text-xs text-slate-600">
-                  Scan your SMS messages for all Jordanian bank debit purchases, ATM withdrawals, CliQ transfers, and account deposits, organized chronologically by date.
-                </p>
+          {/* TAB 2: SETTINGS (Includes Auto/Approval mode & Scan Old Messages: 7 days, 30 days, all) */}
+          {activeTab === 'settings' && (
+            <div className="space-y-4 text-xs">
+              {/* Scan Old Bank Messages Section */}
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-indigo-950 flex items-center gap-1.5">
+                      <RefreshCw size={15} className={scanning ? 'animate-spin text-indigo-600' : 'text-indigo-600'} />
+                      Scan Old Bank Messages
+                    </h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Scan your inbox for past bank transactions with automatically detected categories:
+                    </p>
+                  </div>
+                </div>
 
-                <div className="pt-2 flex flex-col gap-2.5">
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    disabled={scanning}
+                    onClick={() => void handleScan(7)}
+                    className="flex-1 rounded-xl bg-white border border-indigo-200 py-2.5 px-3 text-xs font-semibold text-indigo-900 shadow-sm hover:bg-indigo-50/80 disabled:opacity-50 transition"
+                  >
+                    📅 Last 7 Days
+                  </button>
+                  <button
+                    disabled={scanning}
+                    onClick={() => void handleScan(30)}
+                    className="flex-1 rounded-xl bg-white border border-indigo-200 py-2.5 px-3 text-xs font-semibold text-indigo-900 shadow-sm hover:bg-indigo-50/80 disabled:opacity-50 transition"
+                  >
+                    📅 Last 30 Days
+                  </button>
                   <button
                     disabled={scanning}
                     onClick={() => void handleScan(0)}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-md hover:bg-indigo-700 disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-indigo-600 py-2.5 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition"
                   >
-                    {scanning ? <RefreshCw size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                    {scanning ? 'Scanning All Messages…' : 'Scan All Bank Messages (Recommended)'}
+                    🔄 All Messages
                   </button>
-
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      disabled={scanning}
-                      onClick={() => void handleScan(7)}
-                      className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      Last 7 Days
-                    </button>
-                    <button
-                      disabled={scanning}
-                      onClick={() => void handleScan(30)}
-                      className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      Last 30 Days
-                    </button>
-                    <button
-                      disabled={scanning}
-                      onClick={() => void handleScan(90)}
-                      className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      Last 90 Days
-                    </button>
-                  </div>
                 </div>
+
+                {scanning && (
+                  <p className="text-center text-[11px] font-medium text-indigo-700 animate-pulse pt-1">
+                    Scanning SMS messages and detecting categories…
+                  </p>
+                )}
+
+                {!isNative && (
+                  <div className="rounded-xl bg-white/80 p-2.5 text-[11px] text-slate-500 border border-indigo-100">
+                    💡 Running in web preview. Use the <strong>Test Parser</strong> tab to test SMS samples!
+                  </div>
+                )}
               </div>
 
-              {!isNative && (
-                <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-                  💡 Running in web preview. Use the <strong>Test Parser</strong> tab to test the three Jordanian bank SMS formats immediately!
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 3: SETTINGS */}
-          {activeTab === 'settings' && (
-            <div className="space-y-4 text-xs">
+              {/* Mode Selection */}
               <div className="rounded-2xl border border-slate-200 p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -774,26 +777,28 @@ export default function BankSmsTrackerModal({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3 cursor-pointer hover:bg-slate-50">
+                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3 cursor-pointer hover:bg-slate-50 transition">
                     <input
                       type="radio"
                       name="mode"
-                      checked={settings.mode === 'review'}
+                      checked={settings.mode !== 'auto'}
                       onChange={() => {
-                        const updated = saveSmsSettings({ mode: 'review' })
+                        const updated = saveSmsSettings({ mode: 'approval', notifyEveryTransaction: true })
                         setSettings(updated)
                       }}
                       className="mt-0.5 text-indigo-600"
                     />
                     <div>
-                      <span className="font-semibold text-slate-800">Review Before Saving (Recommended)</span>
-                      <p className="text-[11px] text-slate-500">
-                        Shows a badge and organizes transactions by date so you review and approve with 1 tap.
+                      <span className="font-semibold text-slate-800">
+                        Notify & Ask for Approval (with Edit Option)
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Sends a notification for each transaction and lets you review, edit category/amount, and approve before adding.
                       </p>
                     </div>
                   </label>
 
-                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3 cursor-pointer hover:bg-slate-50">
+                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3 cursor-pointer hover:bg-slate-50 transition">
                     <input
                       type="radio"
                       name="mode"
@@ -806,13 +811,25 @@ export default function BankSmsTrackerModal({
                     />
                     <div>
                       <span className="font-semibold text-slate-800">Zero-Click Auto-Save</span>
-                      <p className="text-[11px] text-slate-500">
-                        Directly records the transaction into your ledger whenever a bank SMS arrives.
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Directly records the transaction into your ledger with automatically detected category whenever a bank SMS arrives.
                       </p>
                     </div>
                   </label>
                 </div>
 
+                {/* Category Detection Info */}
+                <div className="pt-3 border-t border-slate-100 flex items-start gap-2.5 text-[11px] text-slate-600">
+                  <Sparkles size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-slate-800">Automatic Category Detection Active</span>
+                    <p className="text-slate-500 mt-0.5">
+                      Intelligently matches Jordanian bank merchants and CliQ transfers to categories. Manual category changes are remembered for future transactions.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Default Visibility */}
                 <div className="pt-3 border-t border-slate-100">
                   <label className="block font-medium text-slate-700 mb-1">
                     Default Visibility for Bank Transactions

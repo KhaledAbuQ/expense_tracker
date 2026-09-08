@@ -19,7 +19,6 @@ import { calculateTotalExpenses, formatCurrency, formatDateShort, getDateRange, 
 import { syncExpenseWidget, ExpenseWidget } from '../lib/widget'
 import { checkBiometricStatus, BiometricAuth, type BiometricAvailability } from '../lib/biometrics'
 import type { ExpenseFormData } from '../types'
-import toast from 'react-hot-toast'
 
 export default function Mobile({
   standalone = false,

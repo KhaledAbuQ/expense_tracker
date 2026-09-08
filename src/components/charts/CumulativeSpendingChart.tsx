@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { format, isValid, subMonths } from 'date-fns'
 import { Area, ComposedChart, Line, ReferenceDot, ReferenceLine, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Expense } from '../../types'
@@ -14,6 +14,10 @@ interface Props {
 
 export default function CumulativeSpendingChart({ expenses, scopeLabel, comparisonMonth, onComparisonChange }: Props) {
   const gradientId = useId().replace(/:/g, '')
+  const [monthInput, setMonthInput] = useState(comparisonMonth)
+  useEffect(() => {
+    setMonthInput(comparisonMonth)
+  }, [comparisonMonth])
   const now = new Date()
   const data = cumulativeMonthlySpending(expenses, comparisonMonth, now)
   const currentLabel = format(now, 'MMMM yyyy')
@@ -36,8 +40,9 @@ export default function CumulativeSpendingChart({ expenses, scopeLabel, comparis
         </div>
         <label className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
           Compare
-          <input type="month" aria-label="Comparison month" className="min-w-0 bg-transparent text-xs font-medium text-gray-800 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded" value={comparisonMonth} max={format(subMonths(now, 1), 'yyyy-MM')} onChange={event => {
+          <input type="month" aria-label="Comparison month" placeholder="YYYY-MM" className="min-w-0 bg-transparent text-xs font-medium text-gray-800 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded" value={monthInput} max={format(subMonths(now, 1), 'yyyy-MM')} onBlur={() => setMonthInput(comparisonMonth)} onChange={event => {
             const value = event.target.value
+            setMonthInput(value)
             if (/^\d{4}-\d{2}$/.test(value) && isValid(parseDateOnly(`${value}-01`)) && value < format(now, 'yyyy-MM')) onComparisonChange(value)
           }} />
         </label>

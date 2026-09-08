@@ -63,3 +63,19 @@ test('monthly cumulative spending fills gaps and stops at today and shorter mont
   assert.equal(empty[30].current, null)
   assert.equal(empty[30].comparison, 0)
 })
+
+test('groupExpensesByCategory recognizes both user categories and embedded categories from shared expenses', async () => {
+  const { groupExpensesByCategory } = await load('src/lib/utils.ts')
+  const userCategories = [
+    { id: 'cat-1', name: 'Groceries', color: '#22c55e' }
+  ]
+  const expenses = [
+    { id: 'e1', amount: 50, category_id: 'cat-1', category: { id: 'cat-1', name: 'Groceries', color: '#22c55e' } },
+    { id: 'e2', amount: 30, category_id: 'cat-2', category: { id: 'cat-2', name: 'Housemate Custom', color: '#ec4899' } },
+  ]
+  const breakdown = groupExpensesByCategory(expenses, userCategories)
+  assert.equal(breakdown.length, 2)
+  assert.deepEqual(breakdown[0], { name: 'Groceries', value: 50, color: '#22c55e' })
+  assert.deepEqual(breakdown[1], { name: 'Housemate Custom', value: 30, color: '#ec4899' })
+})
+

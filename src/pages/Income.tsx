@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useCategories } from '../hooks/useCategories'
@@ -34,6 +34,19 @@ export default function IncomePage() {
   const incomeCategories = categories.filter(
     (c) => c.category_type === 'income' || c.category_type === 'both'
   )
+
+  const filterCategories = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+    for (const c of incomeCategories) {
+      map.set(c.id, { id: c.id, name: c.name })
+    }
+    for (const i of income) {
+      if (i.category_id && i.category && !map.has(i.category_id)) {
+        map.set(i.category_id, { id: i.category_id, name: i.category.name })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [incomeCategories, income])
 
   const handleSubmit = async (data: IncomeFormData) => {
     if (!member) return
@@ -106,7 +119,7 @@ export default function IncomePage() {
               className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
             >
               <option value="">All Sources</option>
-              {incomeCategories.map((category) => (
+              {filterCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>

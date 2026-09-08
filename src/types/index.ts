@@ -57,8 +57,10 @@ export interface Category {
   color: string;
   is_default: boolean;
   category_type: CategoryType;
-  /** null for the built-in defaults, which are shared and read-only. */
-  household_id: string | null;
+  /** null for built-in defaults; set for custom categories owned by a user. */
+  user_id?: string | null;
+  /** null for built-in defaults; set for household-linked categories. */
+  household_id?: string | null;
   created_at: string;
 }
 

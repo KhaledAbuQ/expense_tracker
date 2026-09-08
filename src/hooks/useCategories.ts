@@ -21,7 +21,7 @@ export function useCategories() {
   const [error, setError] = useState<string | null>(null)
   const hasShownError = useRef(false)
   const requestId = useRef(0)
-  const { member } = useAuth()
+  const { member, user } = useAuth()
 
   const fetchCategories = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -34,12 +34,21 @@ export function useCategories() {
     try {
       setLoading(true)
       setError(null)
-      // RLS returns the shared defaults plus this household's own categories.
-      const { data, error } = await supabase
+      // Query defaults plus this user's own custom categories
+      let query = supabase
         .from('categories')
         .select('*')
         .order('is_default', { ascending: false })
         .order('name')
+
+      const uid = user?.id || member?.user_id
+      if (uid) {
+        query = query.or(`user_id.eq.${uid},is_default.eq.true`)
+      } else {
+        query = query.eq('is_default', true)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       if (currentRequest !== requestId.current) return
@@ -60,7 +69,7 @@ export function useCategories() {
         setLoading(false)
       }
     }
-  }, [])
+  }, [user?.id, member?.user_id])
 
   useEffect(() => {
     fetchCategories()
@@ -72,15 +81,21 @@ export function useCategories() {
       throw new Error('Supabase not configured')
     }
 
-    if (!member) {
-      toast.error('Your household profile is still loading')
-      throw new Error('No member profile')
+    const uid = user?.id || member?.user_id
+    if (!uid) {
+      toast.error('You must be signed in to add categories')
+      throw new Error('No authenticated user')
     }
 
     try {
       const { data, error } = await supabase
         .from('categories')
-        .insert([{ ...formData, is_default: false, household_id: member.household_id }])
+        .insert([{
+          ...formData,
+          is_default: false,
+          user_id: uid,
+          household_id: member?.household_id ?? null,
+        }])
         .select()
         .single()
 
@@ -101,6 +116,12 @@ export function useCategories() {
       throw new Error('Supabase not configured')
     }
 
+    const category = categories.find(c => c.id === id)
+    if (category?.is_default) {
+      toast.error('Cannot edit default categories')
+      return
+    }
+
     try {
       const { data, error } = await supabase
         .from('categories')
@@ -119,6 +140,7 @@ export function useCategories() {
       throw err
     }
   }
+
 
   const deleteCategory = async (id: string) => {
     if (!isSupabaseConfigured) {

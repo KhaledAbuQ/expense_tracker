@@ -169,6 +169,7 @@ export default function QrScannerModal({
     return () => {
       stopCamera()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   return (

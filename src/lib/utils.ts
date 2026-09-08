@@ -132,6 +132,16 @@ export function groupExpensesByCategory(
   expenses: Expense[],
   categories: Category[]
 ): ChartDataPoint[] {
+  const categoryMap = new Map<string, Category>()
+  for (const c of categories) {
+    categoryMap.set(c.id, c)
+  }
+  for (const e of expenses) {
+    if (e.category_id && e.category && !categoryMap.has(e.category_id)) {
+      categoryMap.set(e.category_id, e.category)
+    }
+  }
+
   const grouped = expenses.reduce((acc, expense) => {
     const categoryId = expense.category_id || 'uncategorized'
     if (!acc[categoryId]) {
@@ -142,7 +152,7 @@ export function groupExpensesByCategory(
   }, {} as Record<string, number>)
 
   return Object.entries(grouped).map(([categoryId, value]) => {
-    const category = categories.find(c => c.id === categoryId)
+    const category = categoryMap.get(categoryId)
     return {
       name: category?.name || 'Uncategorized',
       value: Number(value.toFixed(3)),

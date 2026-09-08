@@ -207,17 +207,19 @@ The project uses Tailwind CSS. Customize styles in:
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| name | VARCHAR(100) | Category name (unique per household) |
+| name | VARCHAR(100) | Category name (unique per user) |
 | icon | VARCHAR(50) | Lucide icon name |
 | color | VARCHAR(7) | Hex color code |
 | is_default | BOOLEAN | Whether it's a default category |
-| household_id | UUID | Owning household; `NULL` for the shared read-only defaults |
+| user_id | UUID | Owning user; `NULL` for the shared read-only defaults |
+| household_id | UUID | Owning household context; `NULL` for defaults |
 | category_type | VARCHAR(20) | expense, income, or both |
 | created_at | TIMESTAMPTZ | Creation timestamp |
 
-Custom categories belong to one household and are invisible to others. The 14
-built-in defaults have `household_id IS NULL`, are readable by everyone, and
-cannot be edited or deleted by anyone.
+Custom categories belong to one user (scoped per user). Other members of the same
+household can view the category name on shared household transactions, but cannot
+use, edit, or delete it. The 14 built-in defaults have `user_id IS NULL`, are readable
+by everyone, and cannot be edited or deleted by anyone.
 
 **households**
 | Column | Type | Description |
@@ -271,7 +273,7 @@ thing standing between the publishable anon key and your data.
   owner can edit or delete them. Sharing an expense shares the *view*, not
   control of the record.
 - **Transfers** are always private.
-- **Categories** are per-household; the built-in defaults are read-only.
+- **Categories** are per-user; the built-in defaults are read-only. Other household members can view custom categories used on shared expenses, but cannot edit or use them.
 - **Anonymous (signed-out) requests can read and write nothing.**
 
 ### Joining a household
@@ -348,10 +350,9 @@ matters because these values price your holdings.
 `supabase/schema.sql` is idempotent -- run it on a fresh project or over an
 existing one. When upgrading an existing database it also migrates data:
 backfills invite codes and attributes each pre-existing custom category to
-whichever household actually used it. A custom category no expense or income
-row references cannot be attributed; if you have more than one household those
-are hidden rather than shared, and the script prints a `NOTICE` telling you how
-to find and reassign them.
+whichever user actually used it. A custom category no expense or income
+row references is attributed to the household admin; if it cannot be attributed,
+the script prints a `NOTICE` telling you how to find and reassign it.
 
 ## License
 

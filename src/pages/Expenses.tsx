@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { useExpenses } from '../hooks/useExpenses'
 import { useCategories } from '../hooks/useCategories'
@@ -24,6 +24,19 @@ export default function Expenses() {
     visibility: visibilityFilter === 'all' ? undefined : visibilityFilter,
   })
   const { categories } = useCategories()
+
+  const filterCategories = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+    for (const c of categories) {
+      map.set(c.id, { id: c.id, name: c.name })
+    }
+    for (const e of expenses) {
+      if (e.category_id && e.category && !map.has(e.category_id)) {
+        map.set(e.category_id, { id: e.category_id, name: e.category.name })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [categories, expenses])
 
   const handleSubmit = async (data: ExpenseFormData) => {
     if (!member) return
@@ -93,7 +106,7 @@ export default function Expenses() {
               className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="">All Categories</option>
-              {categories.map((category) => (
+              {filterCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>

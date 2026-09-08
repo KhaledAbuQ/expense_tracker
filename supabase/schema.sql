@@ -26,8 +26,9 @@ CREATE TABLE IF NOT EXISTS members (
 );
 
 -- Categories table (supports both expense and income categories)
--- household_id NULL  => built-in default category, readable by everyone, writable by no one
--- household_id SET   => custom category owned by that household
+-- is_default TRUE   => built-in default category, readable by everyone, writable by no one
+-- user_id SET       => custom category owned by that user (scoped per user)
+-- household_id SET  => household context for visibility on shared household expenses
 CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL,
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS categories (
   color VARCHAR(7) DEFAULT '#6b7280',
   is_default BOOLEAN DEFAULT false,
   category_type VARCHAR(20) DEFAULT 'expense' CHECK (category_type IN ('expense', 'income', 'both')),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   household_id UUID REFERENCES households(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -114,6 +116,9 @@ CREATE TABLE IF NOT EXISTS gold_prices (
 
 ALTER TABLE IF EXISTS households
   ADD COLUMN IF NOT EXISTS invite_code TEXT;
+
+ALTER TABLE IF EXISTS categories
+  ADD COLUMN IF NOT EXISTS user_id UUID;
 
 ALTER TABLE IF EXISTS categories
   ADD COLUMN IF NOT EXISTS household_id UUID;
@@ -270,6 +275,15 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name = 'categories' AND constraint_name = 'categories_user_id_fkey'
+  ) THEN
+    ALTER TABLE categories
+      ADD CONSTRAINT categories_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
     WHERE table_name = 'categories' AND constraint_name = 'categories_household_id_fkey'
   ) THEN
     ALTER TABLE categories
@@ -384,58 +398,65 @@ ALTER TABLE households ALTER COLUMN invite_code SET NOT NULL;
 ALTER TABLE households ALTER COLUMN invite_code SET DEFAULT NULL;
 
 -- ============================================
--- CATEGORY SCOPING MIGRATION
+-- CATEGORY SCOPING MIGRATION (PER-USER)
 -- ============================================
--- Categories used to be global with a UNIQUE(name) constraint, which meant every
--- household shared one list and could edit/delete each other's entries. Custom
--- categories are now owned by a household. Attribute existing custom categories
--- to whichever household actually used them.
+-- Custom categories are owned by a user (per-user scoping).
+-- Attribute existing custom categories to whichever user actually used them.
 
 UPDATE categories c
-SET household_id = usage.household_id
+SET user_id = usage.user_id
 FROM (
-  SELECT DISTINCT ON (t.category_id) t.category_id, m.household_id
+  SELECT DISTINCT ON (t.category_id) t.category_id, m.user_id
   FROM (
     SELECT category_id, member_id FROM expenses WHERE category_id IS NOT NULL
     UNION ALL
     SELECT category_id, member_id FROM income WHERE category_id IS NOT NULL
   ) t
   JOIN members m ON m.id = t.member_id
-  ORDER BY t.category_id, m.household_id
+  ORDER BY t.category_id, m.user_id
 ) usage
 WHERE c.id = usage.category_id
   AND c.is_default = false
-  AND c.household_id IS NULL;
+  AND c.user_id IS NULL;
 
--- Any remaining unused custom categories can't be attributed by usage. If there
--- is exactly one household, they belong to it. Otherwise they stay orphaned --
--- retained in the table but invisible, because the read policy below only
--- exposes NULL-household rows when they are built-in defaults. Assign one
--- manually with:
---   UPDATE categories SET household_id = '<household-uuid>' WHERE id = '<id>';
+-- Any remaining unused custom categories that have a household_id belong to an
+-- admin or member of that household.
+UPDATE categories c
+SET user_id = (
+  SELECT m.user_id
+  FROM members m
+  WHERE m.household_id = c.household_id
+  ORDER BY (m.role = 'admin') DESC, m.created_at ASC
+  LIMIT 1
+)
+WHERE c.is_default = false
+  AND c.user_id IS NULL
+  AND c.household_id IS NOT NULL;
+
+-- If there is exactly one user, attribute any remaining unassigned custom categories.
 DO $$
 DECLARE
-  only_household UUID;
+  only_user UUID;
   orphan_count INT;
 BEGIN
-  IF (SELECT count(*) FROM households) = 1 THEN
-    SELECT id INTO only_household FROM households;
+  IF (SELECT count(*) FROM auth.users) = 1 THEN
+    SELECT id INTO only_user FROM auth.users;
     UPDATE categories
-    SET household_id = only_household
-    WHERE is_default = false AND household_id IS NULL;
+    SET user_id = only_user
+    WHERE is_default = false AND user_id IS NULL;
   END IF;
 
   SELECT count(*) INTO orphan_count
-  FROM categories WHERE is_default = false AND household_id IS NULL;
+  FROM categories WHERE is_default = false AND user_id IS NULL;
 
   IF orphan_count > 0 THEN
     RAISE NOTICE
-      '% custom category/categories could not be attributed to a household and are now hidden. Query: SELECT id, name FROM categories WHERE is_default = false AND household_id IS NULL;',
+      '% custom category/categories could not be attributed to a user and are now hidden. Query: SELECT id, name FROM categories WHERE is_default = false AND user_id IS NULL;',
       orphan_count;
   END IF;
 END $$;
 
--- Replace the old global UNIQUE(name) with per-scope uniqueness.
+-- Drop legacy constraints / indexes
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'categories_name_key') THEN
@@ -443,11 +464,14 @@ BEGIN
   END IF;
 END $$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS categories_default_name_key
-  ON categories (lower(name)) WHERE household_id IS NULL;
+DROP INDEX IF EXISTS categories_household_name_key;
+DROP INDEX IF EXISTS categories_default_name_key;
 
-CREATE UNIQUE INDEX IF NOT EXISTS categories_household_name_key
-  ON categories (household_id, lower(name)) WHERE household_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS categories_default_name_key
+  ON categories (lower(name)) WHERE is_default = true;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_user_name_key
+  ON categories (user_id, lower(name)) WHERE user_id IS NOT NULL;
 
 -- ============================================
 -- INDEXES
@@ -468,15 +492,16 @@ CREATE INDEX IF NOT EXISTS idx_transfers_from ON transfers(from_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_to ON transfers(to_account);
 CREATE INDEX IF NOT EXISTS idx_transfers_member ON transfers(member_id);
 CREATE INDEX IF NOT EXISTS idx_members_household ON members(household_id);
+CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_categories_household ON categories(household_id);
 CREATE INDEX IF NOT EXISTS idx_gold_prices_fetched ON gold_prices(fetched_at DESC);
 
 -- ============================================
--- DEFAULT CATEGORIES (household_id IS NULL = shared, read-only)
+-- DEFAULT CATEGORIES (user_id IS NULL = shared, read-only)
 -- ============================================
 
-INSERT INTO categories (name, icon, color, is_default, category_type, household_id)
-SELECT v.name, v.icon, v.color, true, v.category_type, NULL
+INSERT INTO categories (name, icon, color, is_default, category_type, user_id, household_id)
+SELECT v.name, v.icon, v.color, true, v.category_type, NULL, NULL
 FROM (VALUES
   ('Utilities', 'zap', '#eab308', 'expense'),
   ('Groceries', 'shopping-cart', '#22c55e', 'expense'),
@@ -495,7 +520,7 @@ FROM (VALUES
 ) AS v(name, icon, color, category_type)
 WHERE NOT EXISTS (
   SELECT 1 FROM categories c
-  WHERE c.household_id IS NULL AND lower(c.name) = lower(v.name)
+  WHERE c.is_default = true AND lower(c.name) = lower(v.name)
 );
 
 -- ============================================
@@ -709,6 +734,10 @@ DROP POLICY IF EXISTS "Categories are readable by owner household" ON categories
 DROP POLICY IF EXISTS "Categories insert own household" ON categories;
 DROP POLICY IF EXISTS "Categories update own household" ON categories;
 DROP POLICY IF EXISTS "Categories delete own household" ON categories;
+DROP POLICY IF EXISTS "Categories are readable by owner, household members, or defaults" ON categories;
+DROP POLICY IF EXISTS "Categories insert own user" ON categories;
+DROP POLICY IF EXISTS "Categories update own user" ON categories;
+DROP POLICY IF EXISTS "Categories delete own user" ON categories;
 DROP POLICY IF EXISTS "Allow household read" ON households;
 DROP POLICY IF EXISTS "Allow household rename by admin" ON households;
 DROP POLICY IF EXISTS "Allow members read" ON members;
@@ -729,46 +758,41 @@ DROP POLICY IF EXISTS "Allow transfers delete" ON transfers;
 DROP POLICY IF EXISTS "Gold prices are readable" ON gold_prices;
 
 -- --- Categories -------------------------------------------------------------
--- Built-in defaults (household_id IS NULL) are world-readable and immutable.
--- Custom categories are visible and editable only within their own household.
+-- Built-in defaults (is_default = true) are world-readable and immutable.
+-- Custom categories are owned by a user (per-user scoping).
+-- Household members can view the category on shared household expenses/income.
+-- Only the owning user can insert, update, or delete their custom categories.
 
--- The global branch is restricted to `is_default`. Without that, any category
--- left with a NULL household_id -- e.g. a pre-migration custom category that
--- could not be attributed to anyone -- would read as a shared default and leak
--- into every household's list.
-CREATE POLICY "Categories are readable by owner household" ON categories FOR SELECT
+CREATE POLICY "Categories are readable by owner, household members, or defaults" ON categories FOR SELECT
   TO authenticated
   USING (
-    (household_id IS NULL AND is_default = true)
-    OR is_household_member(auth.uid(), household_id)
+    (user_id IS NULL AND is_default = true)
+    OR user_id = auth.uid()
+    OR (household_id IS NOT NULL AND is_household_member(auth.uid(), household_id))
   );
 
-CREATE POLICY "Categories insert own household" ON categories FOR INSERT
+CREATE POLICY "Categories insert own user" ON categories FOR INSERT
   TO authenticated
   WITH CHECK (
-    household_id IS NOT NULL
-    AND is_household_member(auth.uid(), household_id)
+    user_id = auth.uid()
     AND is_default = false
   );
 
-CREATE POLICY "Categories update own household" ON categories FOR UPDATE
+CREATE POLICY "Categories update own user" ON categories FOR UPDATE
   TO authenticated
   USING (
-    household_id IS NOT NULL
-    AND is_household_member(auth.uid(), household_id)
+    user_id = auth.uid()
     AND is_default = false
   )
   WITH CHECK (
-    household_id IS NOT NULL
-    AND is_household_member(auth.uid(), household_id)
+    user_id = auth.uid()
     AND is_default = false
   );
 
-CREATE POLICY "Categories delete own household" ON categories FOR DELETE
+CREATE POLICY "Categories delete own user" ON categories FOR DELETE
   TO authenticated
   USING (
-    household_id IS NOT NULL
-    AND is_household_member(auth.uid(), household_id)
+    user_id = auth.uid()
     AND is_default = false
   );
 

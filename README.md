@@ -34,8 +34,9 @@ A household expense tracking application built with React, TypeScript, and Supab
    - Open the SQL Editor in your Supabase dashboard
    - Copy the contents of `supabase/schema.sql` and run it to create the tables
 
-3. Configure environment variables:
-   - Copy `.env` and update with your Supabase credentials:
+3. Configure Supabase connection:
+   - **In-App / QR Code:** You can connect directly in the app without editing `.env`. Launch the app and click **Connect Database** or scan the desktop app's QR code from your mobile device.
+   - **Environment Variables (Optional):** You can also define default credentials in `.env`:
    
    ```
    VITE_SUPABASE_URL=your_supabase_project_url

@@ -1,11 +1,12 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import SetupBanner from './SetupBanner'
+import ResetPasswordModal from './ResetPasswordModal'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 export default function Layout() {
-  const { session, member, loading, refreshMember } = useAuth()
+  const { session, member, loading, refreshMember, isPasswordRecovery, setIsPasswordRecovery } = useAuth()
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -30,6 +31,14 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {isPasswordRecovery && (
+        <ResetPasswordModal
+          isOpen={isPasswordRecovery}
+          onClose={() => setIsPasswordRecovery(false)}
+        />
+      )}
     </div>
   )
 }
+

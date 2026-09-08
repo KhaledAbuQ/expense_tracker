@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Users, Copy, RefreshCw, Pencil, UserMinus, Check, X } from 'lucide-react'
+import { Users, Copy, RefreshCw, Pencil, UserMinus, Check, X, KeyRound } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { useMembers } from '../hooks/useMembers'
+import ResetPasswordModal from '../components/ResetPasswordModal'
 
 export default function MembersPage() {
   const { member } = useAuth()
@@ -11,6 +12,8 @@ export default function MembersPage() {
   const [rotating, setRotating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
+  const [showChangePassword, setShowChangePassword] = useState(false)
+
 
   const isAdmin = member?.role === 'admin'
 
@@ -193,6 +196,16 @@ export default function MembersPage() {
                             <Pencil className="w-4 h-4" />
                           </button>
                         )}
+                        {isSelf && (
+                          <button
+                            type="button"
+                            onClick={() => setShowChangePassword(true)}
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Change password"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                        )}
                         {canEdit && (
                           <button
                             type="button"
@@ -212,6 +225,14 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {showChangePassword && (
+        <ResetPasswordModal
+          isOpen={showChangePassword}
+          onClose={() => setShowChangePassword(false)}
+          isVoluntary={true}
+        />
+      )}
     </div>
   )
 }

@@ -18,6 +18,8 @@ interface AuthContextValue {
   /** Every member id in the current household, including your own. */
   householdMemberIds: string[]
   loading: boolean
+  isPasswordRecovery: boolean
+  setIsPasswordRecovery: (value: boolean) => void
   refreshMember: () => Promise<Member | null>
   signOut: () => Promise<void>
 }
@@ -30,6 +32,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [householdMemberIds, setHouseholdMemberIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [authReady, setAuthReady] = useState(false)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(() => {
+    try {
+      return (
+        window.location.hash.includes('type=recovery') ||
+        window.location.search.includes('type=recovery')
+      )
+    } catch {
+      return false
+    }
+  })
   const provisioningAttemptedUserId = useRef<string | null>(null)
 
   const getOnboardingMetadata = useCallback((user: User): OnboardingMetadata | null => {
@@ -190,8 +202,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let isMounted = true
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!isMounted) return
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true)
+      }
       // Ignore token refreshes that don't change identity: the session object is
       // new on every refresh, and propagating it would restart every data hook.
       setSession(prev => (prev?.user?.id === newSession?.user?.id ? prev : newSession))
@@ -302,10 +317,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       householdId: member?.household_id ?? null,
       householdMemberIds,
       loading,
+      isPasswordRecovery,
+      setIsPasswordRecovery,
       refreshMember,
       signOut,
     }),
-    [session, member, householdMemberIds, loading, refreshMember, signOut]
+    [session, member, householdMemberIds, loading, isPasswordRecovery, refreshMember, signOut]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

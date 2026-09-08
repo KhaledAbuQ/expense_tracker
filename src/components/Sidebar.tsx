@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Receipt, Tags, Wallet, TrendingUp, ArrowRightLeft, HandCoins, LogOut, UserCircle, Users } from 'lucide-react'
+import { LayoutDashboard, Receipt, Tags, Wallet, TrendingUp, ArrowRightLeft, HandCoins, LogOut, UserCircle, Users, QrCode } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import QrCodeDisplayModal from './QrCodeDisplayModal'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,6 +16,8 @@ const navItems = [
 
 export default function Sidebar() {
   const { member, signOut } = useAuth()
+  const [showQrModal, setShowQrModal] = useState(false)
+
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
@@ -51,11 +55,20 @@ export default function Sidebar() {
         </ul>
       </nav>
       
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-3">
+        <button
+          type="button"
+          onClick={() => setShowQrModal(true)}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-xs font-semibold text-gray-700 transition"
+        >
+          <QrCode className="w-4 h-4 text-indigo-600" />
+          Connect Mobile App
+        </button>
+
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <UserCircle className="w-4 h-4" />
-            <span>{member?.name ?? 'Account'}</span>
+          <div className="flex items-center gap-2 text-sm text-gray-600 truncate">
+            <UserCircle className="w-4 h-4 shrink-0" />
+            <span className="truncate">{member?.name ?? 'Account'}</span>
           </div>
           <button
             type="button"
@@ -67,6 +80,13 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+
+      {showQrModal && (
+        <QrCodeDisplayModal
+          isOpen={showQrModal}
+          onClose={() => setShowQrModal(false)}
+        />
+      )}
     </aside>
   )
 }

@@ -1,0 +1,245 @@
+{
+  "version": "1.0.0",
+  "name": "Pocket Expenses - Bank SMS Auto-Tracking Knowledge Graph",
+  "description": "Knowledge graph tracking the architecture, components, flows, and Android native bridge for auto-tracking expenses from bank SMS messages.",
+  "generatedAt": "2026-09-08T18:40:00Z",
+  "generator": "graphify-ai-agent-v1",
+  "stats": {
+    "nodeCount": 13,
+    "edgeCount": 15,
+    "communityCount": 4
+  },
+  "communities": [
+    {
+      "id": "c1_mobile_ui",
+      "name": "Mobile UI & Review Flow",
+      "description": "Components and pages delivering the user interface on Android APK."
+    },
+    {
+      "id": "c2_sms_engine",
+      "name": "SMS Engine & Parsing",
+      "description": "Bilingual (AR/EN) SMS normalization, amount/currency extraction, and category categorization."
+    },
+    {
+      "id": "c3_android_native",
+      "name": "Android Native & Capacitor Bridge",
+      "description": "Android permissions, Telephony BroadcastReceiver, and Capacitor plugin."
+    },
+    {
+      "id": "c4_core_data",
+      "name": "Data Models & Storage",
+      "description": "Supabase database operations, domain types, and data hooks."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "src/pages/Mobile.tsx",
+      "label": "Mobile Page",
+      "type": "page",
+      "community": "c1_mobile_ui",
+      "path": "src/pages/Mobile.tsx",
+      "description": "Primary mobile view for standalone APK. Listens to incoming SMS, fetches background queued SMS, shows alerts, and manages expenses.",
+      "tags": ["ui", "capacitor", "lifecycle", "mobile"]
+    },
+    {
+      "id": "src/components/BankSmsTrackerModal.tsx",
+      "label": "BankSmsTrackerModal",
+      "type": "component",
+      "community": "c1_mobile_ui",
+      "path": "src/components/BankSmsTrackerModal.tsx",
+      "description": "Modal interface for reviewing pending bank transactions, scanning device inbox, toggling auto-save vs review, and testing SMS parser.",
+      "tags": ["ui", "modal", "settings", "testing"]
+    },
+    {
+      "id": "src/lib/smsParser.ts",
+      "label": "SMS Parser Engine",
+      "type": "utility",
+      "community": "c2_sms_engine",
+      "path": "src/lib/smsParser.ts",
+      "description": "Parses English and Arabic bank SMS. Normalizes numerals, extracts amounts, currencies, merchants, dates, and matches categories.",
+      "tags": ["parser", "regex", "arabic", "english", "ml-rules"]
+    },
+    {
+      "id": "src/lib/bankSms.ts",
+      "label": "Bank SMS Bridge",
+      "type": "service",
+      "community": "c2_sms_engine",
+      "path": "src/lib/bankSms.ts",
+      "description": "TypeScript client bridge to Capacitor BankSms plugin, managing user preferences, deduplication storage, and background queues.",
+      "tags": ["bridge", "storage", "capacitor", "events"]
+    },
+    {
+      "id": "tests/smsParser.test.mjs",
+      "label": "SMS Parser Tests",
+      "type": "test",
+      "community": "c2_sms_engine",
+      "path": "tests/smsParser.test.mjs",
+      "description": "Automated node:test suite verifying bank SMS formats (Etihad, Arab Bank, Manaseer, CliQ, OTP filtering).",
+      "tags": ["test", "verification"]
+    },
+    {
+      "id": "android/app/src/main/AndroidManifest.xml",
+      "label": "AndroidManifest.xml",
+      "type": "config",
+      "community": "c3_android_native",
+      "path": "android/app/src/main/AndroidManifest.xml",
+      "description": "Declares RECEIVE_SMS and READ_SMS permissions and registers SmsBroadcastReceiver.",
+      "tags": ["android", "permissions", "manifest"]
+    },
+    {
+      "id": "android/app/src/main/java/com/householdledger/expenses/SmsBroadcastReceiver.java",
+      "label": "SmsBroadcastReceiver",
+      "type": "android_native",
+      "community": "c3_android_native",
+      "path": "android/app/src/main/java/com/householdledger/expenses/SmsBroadcastReceiver.java",
+      "description": "Listens for Telephony.SMS_RECEIVED broadcast. Persists unhandled messages in SharedPreferences and notifies plugin.",
+      "tags": ["android", "broadcast_receiver", "background"]
+    },
+    {
+      "id": "android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java",
+      "label": "BankSmsPlugin",
+      "type": "android_native",
+      "community": "c3_android_native",
+      "path": "android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java",
+      "description": "Capacitor Plugin handling permission requests, content://sms/inbox scanning, and dispatching real-time smsReceived events.",
+      "tags": ["android", "capacitor_plugin", "permissions"]
+    },
+    {
+      "id": "android/app/src/main/java/com/householdledger/expenses/MainActivity.java",
+      "label": "MainActivity",
+      "type": "android_native",
+      "community": "c3_android_native",
+      "path": "android/app/src/main/java/com/householdledger/expenses/MainActivity.java",
+      "description": "Native Android entrypoint registering BankSmsPlugin with the Capacitor bridge.",
+      "tags": ["android", "activity"]
+    },
+    {
+      "id": "src/hooks/useExpenses.ts",
+      "label": "useExpenses Hook",
+      "type": "hook",
+      "community": "c4_core_data",
+      "path": "src/hooks/useExpenses.ts",
+      "description": "Data management hook querying and inserting expenses into Supabase with account_type bank.",
+      "tags": ["database", "supabase", "crud"]
+    },
+    {
+      "id": "src/hooks/useCategories.ts",
+      "label": "useCategories Hook",
+      "type": "hook",
+      "community": "c4_core_data",
+      "path": "src/hooks/useCategories.ts",
+      "description": "Fetches household categories used for category auto-detection in SMS transactions.",
+      "tags": ["categories", "data"]
+    },
+    {
+      "id": "src/types/index.ts",
+      "label": "Domain Types",
+      "type": "types",
+      "community": "c4_core_data",
+      "path": "src/types/index.ts",
+      "description": "Core TypeScript interfaces: Expense, ExpenseFormData, Category, Visibility, AccountType.",
+      "tags": ["types", "typescript"]
+    },
+    {
+      "id": "scripts/build-apk.mjs",
+      "label": "Build APK Script",
+      "type": "script",
+      "community": "c3_android_native",
+      "path": "scripts/build-apk.mjs",
+      "description": "Builds, signs, and outputs pocket-expenses.apk into artifacts/ directory.",
+      "tags": ["build", "gradle", "apk"]
+    }
+  ],
+  "edges": [
+    {
+      "source": "src/pages/Mobile.tsx",
+      "target": "src/components/BankSmsTrackerModal.tsx",
+      "relationship": "renders",
+      "description": "Opens modal for SMS configuration, reviewing pending items, and scanning inbox."
+    },
+    {
+      "source": "src/pages/Mobile.tsx",
+      "target": "src/lib/bankSms.ts",
+      "relationship": "subscribes",
+      "description": "Subscribes to live incoming SMS and flushes background pending transactions."
+    },
+    {
+      "source": "src/pages/Mobile.tsx",
+      "target": "src/hooks/useExpenses.ts",
+      "relationship": "calls",
+      "description": "Invokes addExpense to save confirmed or auto-logged bank transactions."
+    },
+    {
+      "source": "src/pages/Mobile.tsx",
+      "target": "src/hooks/useCategories.ts",
+      "relationship": "reads",
+      "description": "Provides category definitions for merchant category auto-matching."
+    },
+    {
+      "source": "src/components/BankSmsTrackerModal.tsx",
+      "target": "src/lib/bankSms.ts",
+      "relationship": "invokes",
+      "description": "Requests permissions, scans inbox, and updates tracking mode settings."
+    },
+    {
+      "source": "src/components/BankSmsTrackerModal.tsx",
+      "target": "src/lib/smsParser.ts",
+      "relationship": "tests",
+      "description": "Tests SMS parser with sample messages in the parser playground."
+    },
+    {
+      "source": "src/lib/bankSms.ts",
+      "target": "src/lib/smsParser.ts",
+      "relationship": "invokes",
+      "description": "Parses incoming and inbox SMS messages into structured transaction objects."
+    },
+    {
+      "source": "src/lib/bankSms.ts",
+      "target": "android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java",
+      "relationship": "bridges",
+      "description": "Communicates across Capacitor bridge for native permissions and telephony content."
+    },
+    {
+      "source": "android/app/src/main/AndroidManifest.xml",
+      "target": "android/app/src/main/java/com/householdledger/expenses/SmsBroadcastReceiver.java",
+      "relationship": "declares",
+      "description": "Registers receiver with SMS_RECEIVED intent filter and BROADCAST_SMS permission."
+    },
+    {
+      "source": "android/app/src/main/java/com/householdledger/expenses/SmsBroadcastReceiver.java",
+      "target": "android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java",
+      "relationship": "notifies",
+      "description": "Forwards incoming SMS to plugin listener when app is active."
+    },
+    {
+      "source": "android/app/src/main/java/com/householdledger/expenses/MainActivity.java",
+      "target": "android/app/src/main/java/com/householdledger/expenses/BankSmsPlugin.java",
+      "relationship": "registers",
+      "description": "Registers BankSmsPlugin in onCreate."
+    },
+    {
+      "source": "tests/smsParser.test.mjs",
+      "target": "src/lib/smsParser.ts",
+      "relationship": "tests",
+      "description": "Validates regex parsing, Arabic digits, amounts, currencies, and OTP rejection."
+    },
+    {
+      "source": "src/lib/smsParser.ts",
+      "target": "src/types/index.ts",
+      "relationship": "references",
+      "description": "Uses Category and Transaction models."
+    },
+    {
+      "source": "src/lib/bankSms.ts",
+      "target": "src/types/index.ts",
+      "relationship": "references",
+      "description": "Uses Visibility and AccountType types."
+    },
+    {
+      "source": "scripts/build-apk.mjs",
+      "target": "android/app/src/main/AndroidManifest.xml",
+      "relationship": "builds",
+      "description": "Packages Android application with SMS capabilities into pocket-expenses.apk."
+    }
+  ]
+}

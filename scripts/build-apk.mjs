@@ -15,12 +15,20 @@ if (!env.JAVA_HOME && process.platform === 'darwin') {
   const java = spawnSync('/usr/libexec/java_home', ['-v', '21'], { encoding: 'utf8' })
   if (java.status === 0) env.JAVA_HOME = java.stdout.trim()
 }
-if (!env.ANDROID_HOME && !env.ANDROID_SDK_ROOT && process.platform === 'darwin') {
-  env.ANDROID_HOME = path.join(homedir(), 'Library', 'Android', 'sdk')
+if (process.platform === 'win32') {
+  const winJbr = 'C:\\Program Files\\Android\\Android Studio\\jbr'
+  if (existsSync(winJbr)) {
+    env.JAVA_HOME = winJbr
+    env.PATH = `${path.join(winJbr, 'bin')};${env.PATH}`
+  }
+}
+if (!env.ANDROID_HOME && !env.ANDROID_SDK_ROOT && process.platform === 'win32') {
+  const winSdk = path.join(homedir(), 'AppData', 'Local', 'Android', 'Sdk')
+  if (existsSync(winSdk)) env.ANDROID_HOME = winSdk
 }
 
 function run(command, args, cwd = root) {
-  const result = spawnSync(command, args, { cwd, env, stdio: 'inherit' })
+  const result = spawnSync(command, args, { cwd, env, stdio: 'inherit', shell: process.platform === 'win32' })
   if (result.error) throw result.error
   if (result.status !== 0) process.exit(result.status ?? 1)
 }

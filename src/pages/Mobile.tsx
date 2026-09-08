@@ -1,13 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { App as NativeApp } from '@capacitor/app'
 import { Link } from 'react-router-dom'
-import { Plus, Wallet, RefreshCw, LogOut, ArrowLeft } from 'lucide-react'
+import { Plus, Wallet, RefreshCw, LogOut, ArrowLeft, MessageSquare } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useExpenses } from '../hooks/useExpenses'
 import { useCategories } from '../hooks/useCategories'
 import ExpenseForm from '../components/ExpenseForm'
+import BankSmsTrackerModal from '../components/BankSmsTrackerModal'
+import {
+  subscribeToIncomingSms,
+  fetchPendingBackgroundTransactions,
+  getSmsSettings,
+  markTransactionProcessed,
+} from '../lib/bankSms'
+import { ParsedBankTransaction } from '../lib/smsParser'
 import { calculateTotalExpenses, formatCurrency, formatDateShort, getDateRange, groupExpensesByCategory } from '../lib/utils'
 import type { ExpenseFormData } from '../types'
+import toast from 'react-hot-toast'
 
 export default function Mobile({ standalone = false }: { standalone?: boolean }) {
   const { member, loading: profileLoading, refreshMember, signOut } = useAuth()
@@ -16,10 +25,19 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
   const [visibility, setVisibility] = useState<'all' | 'private' | 'household'>('all')
   const [online, setOnline] = useState(navigator.onLine)
   const [saveError, setSaveError] = useState('')
+  const [smsModalOpen, setSmsModalOpen] = useState(false)
+  const [pendingSmsTxs, setPendingSmsTxs] = useState<ParsedBankTransaction[]>([])
+
   const { expenses, loading, error, fetchExpenses, addExpense } = useExpenses({
     dateRange: getDateRange(period), visibility: visibility === 'all' ? undefined : visibility,
   })
   const { categories, loading: categoriesLoading, error: categoriesError, fetchCategories } = useCategories()
+
+  // Keep ref to latest categories for async SMS handling
+  const categoriesRef = useRef(categories)
+  useEffect(() => {
+    categoriesRef.current = categories
+  }, [categories])
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine)
@@ -34,16 +52,18 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
   useEffect(() => {
     if (!standalone) return
     const backListener = NativeApp.addListener('backButton', () => {
-      if (adding) setAdding(false)
+      if (smsModalOpen) setSmsModalOpen(false)
+      else if (adding) setAdding(false)
       else void NativeApp.exitApp()
     })
     return () => { void backListener.then(handle => handle.remove()) }
-  }, [standalone, adding])
+  }, [standalone, adding, smsModalOpen])
 
   useEffect(() => {
     if (!standalone) return
     const resumeListener = NativeApp.addListener('resume', () => {
       if (navigator.onLine) void fetchExpenses()
+      void checkPendingBackgroundSms()
     })
     return () => { void resumeListener.then(handle => handle.remove()) }
   }, [standalone, fetchExpenses])
@@ -64,6 +84,64 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
     }
   }
 
+  // Handle incoming or background SMS transactions
+  const processIncomingTransaction = useCallback(async (tx: ParsedBankTransaction) => {
+    const settings = getSmsSettings()
+    if (!settings.enabled) return
+
+    if (settings.mode === 'auto' && member && navigator.onLine) {
+      // Zero-click auto-save mode
+      try {
+        await addExpense({
+          amount: tx.amount,
+          description: tx.merchant,
+          category_id: tx.suggestedCategoryId || categoriesRef.current.find(c => c.category_type !== 'income')?.id || '',
+          visibility: settings.defaultVisibility,
+          date: tx.date,
+          account_type: 'bank',
+          member_id: member.id,
+        })
+        markTransactionProcessed(tx.smsId)
+        toast.success(`Auto-logged bank expense: ${tx.merchant} (${formatCurrency(tx.amount)})`)
+        await fetchExpenses()
+      } catch (err) {
+        console.error('Failed to auto-save SMS transaction:', err)
+        // Fall back to review queue if auto-save failed
+        setPendingSmsTxs(prev => [...prev.filter(item => item.id !== tx.id), tx])
+      }
+    } else {
+      // Review mode: add to pending review queue
+      setPendingSmsTxs(prev => {
+        if (prev.some(item => item.id === tx.id || item.smsId === tx.smsId)) return prev
+        return [tx, ...prev]
+      })
+      toast(`Bank expense detected: ${tx.merchant} (${formatCurrency(tx.amount)})`, { icon: '💳' })
+    }
+  }, [member, addExpense, fetchExpenses])
+
+  const checkPendingBackgroundSms = useCallback(async () => {
+    try {
+      const pending = await fetchPendingBackgroundTransactions(categoriesRef.current)
+      for (const tx of pending) {
+        void processIncomingTransaction(tx)
+      }
+    } catch {
+      // ignore
+    }
+  }, [processIncomingTransaction])
+
+  // Setup SMS broadcast listener on mount
+  useEffect(() => {
+    void checkPendingBackgroundSms()
+    const unsubscribe = subscribeToIncomingSms(tx => {
+      void processIncomingTransaction(tx)
+    }, categoriesRef.current)
+
+    return () => {
+      unsubscribe()
+    }
+  }, [checkPendingBackgroundSms, processIncomingTransaction])
+
   const total = calculateTotalExpenses(expenses)
   const breakdown = groupExpensesByCategory(expenses, categories)
 
@@ -75,10 +153,52 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
             <p className="text-xs font-semibold uppercase tracking-widest text-indigo-600">Pocket expenses</p>
             <p className="mt-1 text-sm text-slate-500">{member ? `Hello, ${member.name}` : 'Your daily spending, together'}</p>
           </div>
-          <button onClick={() => void signOut()} aria-label="Sign out" className="rounded-full bg-white p-3 shadow-sm"><LogOut size={20} /></button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSmsModalOpen(true)}
+              aria-label="Bank SMS Auto-Tracking"
+              className="relative rounded-full bg-white p-3 shadow-sm text-indigo-600 hover:bg-slate-50 transition"
+              title="Bank SMS Auto-Tracking"
+            >
+              <MessageSquare size={20} />
+              {pendingSmsTxs.length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm">
+                  {pendingSmsTxs.length}
+                </span>
+              )}
+            </button>
+            <button onClick={() => void signOut()} aria-label="Sign out" className="rounded-full bg-white p-3 shadow-sm text-slate-600 hover:bg-slate-50 transition">
+              <LogOut size={20} />
+            </button>
+          </div>
         </header>
 
         {!online && <p role="status" className="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">You’re offline. Connect to refresh or save expenses.</p>}
+
+        {/* Pending Bank SMS Alert Banner */}
+        {pendingSmsTxs.length > 0 && (
+          <div
+            onClick={() => setSmsModalOpen(true)}
+            role="button"
+            className="mb-5 flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-indigo-50 border border-indigo-200/80 p-4 text-indigo-950 shadow-sm transition hover:bg-indigo-100/60"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-indigo-600 p-2 text-white">
+                <MessageSquare size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold">
+                  {pendingSmsTxs.length} bank {pendingSmsTxs.length === 1 ? 'expense' : 'expenses'} detected
+                </p>
+                <p className="text-[11px] text-indigo-700">Tap to review and add with 1 tap</p>
+              </div>
+            </div>
+            <span className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+              Review
+            </span>
+          </div>
+        )}
+
         {profileLoading ? <p role="status">Loading your profile…</p> : !member ? (
           <div className="rounded-2xl bg-white p-5">
             <p>Your household profile could not be loaded.</p>
@@ -134,9 +254,29 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
           </div>
         )}
       </div>
-      {!adding && <div className="mobile-action fixed inset-x-0 bottom-0 border-t border-slate-100 bg-white/95 px-5 pt-3">
-        <button disabled={!member || profileLoading || !online} onClick={() => { setSaveError(''); setAdding(true) }} className="mx-auto flex min-h-12 w-full max-w-md items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3 font-semibold text-white disabled:opacity-40"><Plus size={20} /> Add expense</button>
-      </div>}
+
+      {!adding && (
+        <div className="mobile-action fixed inset-x-0 bottom-0 border-t border-slate-100 bg-white/95 px-5 pt-3">
+          <button disabled={!member || profileLoading || !online} onClick={() => { setSaveError(''); setAdding(true) }} className="mx-auto flex min-h-12 w-full max-w-md items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3 font-semibold text-white disabled:opacity-40"><Plus size={20} /> Add expense</button>
+        </div>
+      )}
+
+      {/* Bank SMS Auto-Tracking Modal */}
+      <BankSmsTrackerModal
+        isOpen={smsModalOpen}
+        onClose={() => setSmsModalOpen(false)}
+        categories={categories}
+        onSaveExpense={save}
+        pendingTransactions={pendingSmsTxs}
+        onRemoveTransaction={id => setPendingSmsTxs(prev => prev.filter(t => t.id !== id))}
+        onAddTransactions={txs => {
+          setPendingSmsTxs(prev => {
+            const existingIds = new Set(prev.map(t => t.id))
+            const newTxs = txs.filter(t => !existingIds.has(t.id))
+            return [...newTxs, ...prev]
+          })
+        }}
+      />
     </div>
   )
 }

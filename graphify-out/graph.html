@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graphify - Knowledge Graph Visualizer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --primary: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      padding: 16px 24px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: #fff; }
+    header p { font-size: 0.8rem; color: var(--text-muted); }
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    #canvas-container {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: radial-gradient(circle, #1e293b 10%, #0f172a 90%);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .sidebar {
+      width: 360px;
+      background: var(--card-bg);
+      border-left: 1px solid var(--border);
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .card h3 { font-size: 0.95rem; margin-bottom: 6px; }
+    .card p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+    .node-details {
+      margin-top: 10px;
+      font-size: 0.8rem;
+    }
+    .node-details strong { color: #fff; }
+    .tag {
+      display: inline-block;
+      background: #334155;
+      color: #cbd5e1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      margin-right: 4px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Graphify: Bank SMS Auto-Tracking Knowledge Graph</h1>
+      <p>Interactive codebase architecture map for Pocket Expenses APK</p>
+    </div>
+    <span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;">Graphify Standard</span>
+  </header>
+
+  <div class="container">
+    <div id="canvas-container">
+      <canvas id="graphCanvas"></canvas>
+    </div>
+
+    <aside class="sidebar">
+      <div>
+        <h2 style="font-size: 0.9rem; color: #fff; margin-bottom: 10px;">Communities</h2>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="card" id="detailCard">
+        <h3 id="detailTitle">Select a Node</h3>
+        <p id="detailDesc">Click on any node in the graph to inspect its architectural role, connections, tags, and file path.</p>
+        <div class="node-details" id="detailMeta" style="display: none;"></div>
+      </div>
+
+      <div class="card">
+        <h3>Quick Navigation</h3>
+        <p style="margin-bottom: 8px;">Key Entry Points:</p>
+        <ul style="font-size: 0.8rem; color: #818cf8; padding-left: 18px; line-height: 1.6;">
+          <li><code>Mobile.tsx</code> (UI Controller)</li>
+          <li><code>smsParser.ts</code> (Bilingual NLP / Regex)</li>
+          <li><code>bankSms.ts</code> (Capacitor Bridge)</li>
+          <li><code>BankSmsPlugin.java</code> (Native Android Plugin)</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const communities = {
+      c1_mobile_ui: { name: "Mobile UI & Review Flow", color: "#6366f1" },
+      c2_sms_engine: { name: "SMS Engine & Parsing", color: "#10b981" },
+      c3_android_native: { name: "Android Native & Bridge", color: "#f59e0b" },
+      c4_core_data: { name: "Data Models & Storage", color: "#ec4899" }
+    };
+
+    const nodes = [
+      { id: "Mobile.tsx", label: "Mobile.tsx", community: "c1_mobile_ui", x: 260, y: 150, type: "page", desc: "Mobile dashboard view for standalone APK. Handles live SMS events, resume queue flush, and pending banners.", tags: ["ui", "capacitor", "mobile"] },
+      { id: "BankSmsTrackerModal.tsx", label: "BankSmsTrackerModal.tsx", community: "c1_mobile_ui", x: 260, y: 320, type: "component", desc: "Modal for reviewing pending transactions, scanning inbox, and testing SMS parser.", tags: ["ui", "modal", "settings"] },
+      { id: "smsParser.ts", label: "smsParser.ts", community: "c2_sms_engine", x: 500, y: 320, type: "engine", desc: "Bilingual English/Arabic bank SMS extraction engine with digit normalization, currency regexes, and category matcher.", tags: ["nlp", "regex", "arabic", "english"] },
+      { id: "bankSms.ts", label: "bankSms.ts", community: "c2_sms_engine", x: 500, y: 150, type: "service", desc: "TypeScript client bridge to Capacitor plugin, managing deduplication and lifecycle subscriptions.", tags: ["bridge", "service"] },
+      { id: "smsParser.test.mjs", label: "smsParser.test.mjs", community: "c2_sms_engine", x: 680, y: 320, type: "test", desc: "Automated test suite verifying bank SMS formats (Etihad, Arab Bank, Manaseer, CliQ).", tags: ["test", "verification"] },
+      { id: "BankSmsPlugin.java", label: "BankSmsPlugin.java", community: "c3_android_native", x: 740, y: 150, type: "plugin", desc: "Native Capacitor Android plugin exposing permissions, content://sms/inbox scanning, and dispatching events.", tags: ["android", "plugin"] },
+      { id: "SmsBroadcastReceiver.java", label: "SmsBroadcastReceiver.java", community: "c3_android_native", x: 920, y: 150, type: "receiver", desc: "BroadcastReceiver for Telephony.SMS_RECEIVED. Saves offline pending SMS to SharedPreferences.", tags: ["android", "broadcast"] },
+      { id: "AndroidManifest.xml", label: "AndroidManifest.xml", community: "c3_android_native", x: 920, y: 280, type: "config", desc: "Declares RECEIVE_SMS and READ_SMS permissions and receiver filter.", tags: ["android", "manifest"] },
+      { id: "MainActivity.java", label: "MainActivity.java", community: "c3_android_native", x: 740, y: 280, type: "activity", desc: "Registers BankSmsPlugin with Capacitor BridgeActivity.", tags: ["android", "activity"] },
+      { id: "useExpenses.ts", label: "useExpenses.ts", community: "c4_core_data", x: 100, y: 150, type: "hook", desc: "Stateful Supabase hook managing expense insertion with account_type bank.", tags: ["supabase", "crud"] },
+      { id: "useCategories.ts", label: "useCategories.ts", community: "c4_core_data", x: 100, y: 280, type: "hook", desc: "Fetches household categories for category auto-detection.", tags: ["categories", "data"] }
+    ];
+
+    const edges = [
+      { from: "Mobile.tsx", to: "BankSmsTrackerModal.tsx" },
+      { from: "Mobile.tsx", to: "bankSms.ts" },
+      { from: "Mobile.tsx", to: "useExpenses.ts" },
+      { from: "Mobile.tsx", to: "useCategories.ts" },
+      { from: "BankSmsTrackerModal.tsx", to: "bankSms.ts" },
+      { from: "BankSmsTrackerModal.tsx", to: "smsParser.ts" },
+      { from: "bankSms.ts", to: "smsParser.ts" },
+      { from: "bankSms.ts", to: "BankSmsPlugin.java" },
+      { from: "smsParser.test.mjs", to: "smsParser.ts" },
+      { from: "MainActivity.java", to: "BankSmsPlugin.java" },
+      { from: "SmsBroadcastReceiver.java", to: "BankSmsPlugin.java" },
+      { from: "AndroidManifest.xml", to: "SmsBroadcastReceiver.java" }
+    ];
+
+    // Build Legend
+    const legendEl = document.getElementById("legend");
+    Object.entries(communities).forEach(([id, comm]) => {
+      const item = document.createElement("div");
+      item.className = "legend-item";
+      item.innerHTML = `<span class="legend-color" style="background: ${comm.color}"></span><span>${comm.name}</span>`;
+      legendEl.appendChild(item);
+    });
+
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      draw();
+    }
+    window.addEventListener("resize", resize);
+
+    let selectedNode = null;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Edges
+      ctx.lineWidth = 1.5;
+      edges.forEach(edge => {
+        const source = nodes.find(n => n.id === edge.from);
+        const target = nodes.find(n => n.id === edge.to);
+        if (!source || !target) return;
+
+        ctx.strokeStyle = "#334155";
+        ctx.beginPath();
+        ctx.moveTo(source.x, source.y);
+        ctx.lineTo(target.x, target.y);
+        ctx.stroke();
+
+        // Draw arrow
+        const angle = Math.atan2(target.y - source.y, target.x - source.x);
+        const arrowDist = 18;
+        const arrowX = target.x - Math.cos(angle) * arrowDist;
+        const arrowY = target.y - Math.sin(angle) * arrowDist;
+
+        ctx.fillStyle = "#64748b";
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(arrowX - 8 * Math.cos(angle - Math.PI / 6), arrowY - 8 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(arrowX - 8 * Math.cos(angle + Math.PI / 6), arrowY - 8 * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Draw Nodes
+      nodes.forEach(node => {
+        const comm = communities[node.community] || { color: "#6366f1" };
+        const isSelected = selectedNode && selectedNode.id === node.id;
+
+        // Glow if selected
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, 22, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, isSelected ? 16 : 13, 0, Math.PI * 2);
+        ctx.fillStyle = comm.color;
+        ctx.fill();
+        ctx.strokeStyle = isSelected ? "#fff" : "#1e293b";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Label
+        ctx.font = "11px -apple-system, sans-serif";
+        ctx.fillStyle = "#f8fafc";
+        ctx.textAlign = "center";
+        ctx.fillText(node.label, node.x, node.y + 24);
+      });
+    }
+
+    canvas.addEventListener("click", e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      let found = null;
+      for (const node of nodes) {
+        const dist = Math.hypot(node.x - x, node.y - y);
+        if (dist <= 20) {
+          found = node;
+          break;
+        }
+      }
+
+      selectedNode = found;
+      draw();
+
+      if (found) {
+        document.getElementById("detailTitle").innerText = found.label;
+        document.getElementById("detailDesc").innerText = found.desc;
+        const metaEl = document.getElementById("detailMeta");
+        metaEl.style.display = "block";
+        metaEl.innerHTML = `
+          <div style="margin-bottom: 6px;"><strong>Type:</strong> ${found.type}</div>
+          <div style="margin-bottom: 6px;"><strong>Community:</strong> ${communities[found.community].name}</div>
+          <div style="margin-top: 8px;">${found.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div>
+        `;
+      } else {
+        document.getElementById("detailTitle").innerText = "Select a Node";
+        document.getElementById("detailDesc").innerText = "Click on any node in the graph to inspect its architectural role, connections, tags, and file path.";
+        document.getElementById("detailMeta").style.display = "none";
+      }
+    });
+
+    resize();
+  </script>
+</body>
+</html>

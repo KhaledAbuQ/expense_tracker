@@ -48,6 +48,7 @@ public class ExpenseWidgetPlugin extends Plugin {
     @PluginMethod
     public void updateWidget(PluginCall call) {
         String monthTotal = call.getString("monthTotal", "$0.00");
+        String todayTotal = call.getString("todayTotal", "$0.00");
         String subStat = call.getString("subStat", "Tap to view");
         String lastUpdated = call.getString("lastUpdated", "");
 
@@ -58,11 +59,13 @@ public class ExpenseWidgetPlugin extends Plugin {
         );
         prefs.edit()
                 .putString(PocketExpensesWidgetProvider.KEY_MONTH_TOTAL, monthTotal)
+                .putString(QuickActionsWidgetProvider.KEY_TODAY_TOTAL, todayTotal)
                 .putString(PocketExpensesWidgetProvider.KEY_SUB_STAT, subStat)
                 .putString(PocketExpensesWidgetProvider.KEY_LAST_UPDATED, lastUpdated)
                 .apply();
 
         PocketExpensesWidgetProvider.updateAllWidgets(context);
+        QuickActionsWidgetProvider.updateAllWidgets(context);
 
         JSObject ret = new JSObject();
         ret.put("success", true);

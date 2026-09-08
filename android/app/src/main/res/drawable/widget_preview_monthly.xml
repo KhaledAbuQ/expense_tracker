@@ -1,0 +1,35 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="300dp"
+    android:height="150dp"
+    android:viewportWidth="300"
+    android:viewportHeight="150">
+    <!-- Dark card background -->
+    <path
+        android:fillColor="#0F172A"
+        android:strokeColor="#334155"
+        android:strokeWidth="2"
+        android:pathData="M 16,0 H 284 A 16,16 0 0 1 300,16 V 134 A 16,16 0 0 1 284,150 H 16 A 16,16 0 0 1 0,134 V 16 A 16,16 0 0 1 16,0 Z" />
+    <!-- Header title representation -->
+    <path
+        android:fillColor="#818CF8"
+        android:pathData="M 20,20 H 130 V 27 H 20 Z" />
+    <!-- "This month" label -->
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M 20,44 H 90 V 51 H 20 Z" />
+    <!-- Big spending amount -->
+    <path
+        android:fillColor="#F8FAFC"
+        android:pathData="M 20,60 H 160 V 82 H 20 Z" />
+    <!-- Sub-stat line -->
+    <path
+        android:fillColor="#64748B"
+        android:pathData="M 20,95 H 180 V 102 H 20 Z" />
+    <!-- Action button -->
+    <path
+        android:fillColor="#4F46E5"
+        android:pathData="M 205,103 H 275 A 12,12 0 0 1 287,115 V 123 A 12,12 0 0 1 275,135 H 205 A 12,12 0 0 1 193,123 V 115 A 12,12 0 0 1 205,103 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 225,115 H 255 V 123 H 225 Z" />
+</vector>

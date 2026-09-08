@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { App as NativeApp } from '@capacitor/app'
 import { Link } from 'react-router-dom'
-import { Plus, Wallet, RefreshCw, LogOut, ArrowLeft, Fingerprint } from 'lucide-react'
+import { Plus, Wallet, RefreshCw, LogOut, ArrowLeft, Fingerprint, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { useExpenses } from '../hooks/useExpenses'
@@ -12,7 +12,13 @@ import { syncExpenseWidget, ExpenseWidget } from '../lib/widget'
 import { checkBiometricStatus, BiometricAuth, type BiometricAvailability } from '../lib/biometrics'
 import type { ExpenseFormData } from '../types'
 
-export default function Mobile({ standalone = false }: { standalone?: boolean }) {
+export default function Mobile({
+  standalone = false,
+  onLock,
+}: {
+  standalone?: boolean
+  onLock?: () => void
+}) {
   const { member, loading: profileLoading, refreshMember, signOut } = useAuth()
   const [adding, setAdding] = useState(false)
   const [period, setPeriod] = useState<'month' | 'last-month' | 'week'>('month')
@@ -158,6 +164,17 @@ export default function Mobile({ standalone = false }: { standalone?: boolean })
                 }`}
               >
                 <Fingerprint size={20} />
+              </button>
+            )}
+            {onLock && (
+              <button
+                type="button"
+                onClick={onLock}
+                aria-label="Lock app"
+                title="Lock app with biometrics now"
+                className="rounded-full bg-white p-3 shadow-sm text-slate-500 hover:text-indigo-600 transition"
+              >
+                <Lock size={20} />
               </button>
             )}
             <button onClick={() => void signOut()} aria-label="Sign out" className="rounded-full bg-white p-3 shadow-sm"><LogOut size={20} /></button>

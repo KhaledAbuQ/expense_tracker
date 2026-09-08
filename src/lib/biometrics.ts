@@ -18,6 +18,11 @@ export interface BiometricAuthResult {
 export interface BiometricAuthPluginInterface {
   isAvailable(): Promise<BiometricAvailability>
   saveCredentials(options: { email: string; password: string }): Promise<{ success: boolean }>
+  authenticate(options?: {
+    title?: string
+    subtitle?: string
+    cancelText?: string
+  }): Promise<{ success: boolean; canceled?: boolean; error?: string }>
   authenticateAndGetCredentials(options?: {
     title?: string
     subtitle?: string

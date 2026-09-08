@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="300dp"
+    android:height="70dp"
+    android:viewportWidth="300"
+    android:viewportHeight="70">
+    <!-- Dark capsule card background -->
+    <path
+        android:fillColor="#0F172A"
+        android:strokeColor="#334155"
+        android:strokeWidth="2"
+        android:pathData="M 18,0 H 282 A 18,18 0 0 1 300,18 V 52 A 18,18 0 0 1 282,70 H 18 A 18,18 0 0 1 0,52 V 18 A 18,18 0 0 1 18,0 Z" />
+    <!-- Label -->
+    <path
+        android:fillColor="#818CF8"
+        android:pathData="M 18,18 H 105 V 26 H 18 Z" />
+    <!-- Amount -->
+    <path
+        android:fillColor="#F8FAFC"
+        android:pathData="M 18,34 H 110 V 52 H 18 Z" />
+    <!-- Action button -->
+    <path
+        android:fillColor="#4F46E5"
+        android:pathData="M 205,17 H 273 A 12,12 0 0 1 285,29 V 41 A 12,12 0 0 1 273,53 H 205 A 12,12 0 0 1 193,41 V 29 A 12,12 0 0 1 205,17 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 224,31 H 254 V 39 H 224 Z" />
+</vector>

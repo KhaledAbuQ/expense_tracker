@@ -3,6 +3,7 @@ import { registerPlugin } from '@capacitor/core'
 export interface ExpenseWidgetPluginInterface {
   updateWidget(options: {
     monthTotal: string
+    todayTotal?: string
     subStat?: string
     lastUpdated?: string
   }): Promise<{ success: boolean }>
@@ -32,6 +33,7 @@ export async function syncExpenseWidget(data: {
 
     await ExpenseWidget.updateWidget({
       monthTotal: data.monthTotal,
+      todayTotal: data.todayTotal || '$0.00',
       subStat,
       lastUpdated,
     })

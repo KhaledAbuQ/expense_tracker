@@ -228,6 +228,66 @@ public class BiometricAuthPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void authenticate(PluginCall call) {
+        if (!(getActivity() instanceof FragmentActivity)) {
+            call.reject("Activity is not a FragmentActivity.");
+            return;
+        }
+
+        FragmentActivity activity = (FragmentActivity) getActivity();
+        Context context = getContext();
+
+        String title = call.getString("title", "Unlock Pocket Expenses");
+        String subtitle = call.getString("subtitle", "Confirm your fingerprint or face to unlock");
+        String cancelText = call.getString("cancelText", "Use Password");
+
+        activity.runOnUiThread(() -> {
+            try {
+                Executor executor = ContextCompat.getMainExecutor(context);
+                BiometricPrompt biometricPrompt = new BiometricPrompt(activity, executor, new BiometricPrompt.AuthenticationCallback() {
+                    @Override
+                    public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                        super.onAuthenticationError(errorCode, errString);
+                        boolean isCanceled = (errorCode == BiometricPrompt.ERROR_USER_CANCELED ||
+                                errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
+                                errorCode == BiometricPrompt.ERROR_CANCELED);
+                        JSObject ret = new JSObject();
+                        ret.put("success", false);
+                        ret.put("canceled", isCanceled);
+                        ret.put("error", errString.toString());
+                        call.resolve(ret);
+                    }
+
+                    @Override
+                    public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                        super.onAuthenticationSucceeded(result);
+                        JSObject ret = new JSObject();
+                        ret.put("success", true);
+                        call.resolve(ret);
+                    }
+
+                    @Override
+                    public void onAuthenticationFailed() {
+                        super.onAuthenticationFailed();
+                    }
+                });
+
+                BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                        .setTitle(title)
+                        .setSubtitle(subtitle)
+                        .setNegativeButtonText(cancelText)
+                        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                                BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                        .build();
+
+                biometricPrompt.authenticate(promptInfo);
+            } catch (Exception e) {
+                call.reject("Biometric prompt error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
     public void clearCredentials(PluginCall call) {
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit().clear().apply();

@@ -1,5 +1,6 @@
 package com.householdledger.expenses;
 
+import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -7,12 +8,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.provider.Telephony;
 import android.telephony.SmsMessage;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -133,8 +136,16 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
         }
     }
 
+    @SuppressWarnings("MissingPermission")
     private static void showTransactionNotification(Context context, String address, String body, long timestamp, String mode) {
         try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    Log.w(TAG, "POST_NOTIFICATIONS permission not granted, skipping notification");
+                    return;
+                }
+            }
+
             createNotificationChannel(context);
 
             Intent notifyIntent = new Intent(context, MainActivity.class);

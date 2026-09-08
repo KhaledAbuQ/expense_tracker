@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
@@ -8,10 +8,12 @@ import Transfers from './pages/Transfers'
 import Savings from './pages/Savings'
 import Categories from './pages/Categories'
 import AuthPage from './pages/Auth'
+import Mobile from './pages/Mobile'
 import MembersPage from './pages/Members'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth()
+  const location = useLocation()
 
   if (loading && !session) {
     return (
@@ -22,7 +24,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!session) {
-    return <Navigate to="/auth" replace />
+    return <Navigate to={location.pathname === "/mobile" ? "/auth?next=mobile" : "/auth"} replace />
   }
 
   return <>{children}</>
@@ -31,6 +33,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <Routes>
+      <Route path="/mobile" element={<ProtectedRoute><Mobile /></ProtectedRoute>} />
       <Route path="/auth" element={<AuthPage />} />
       <Route
         path="/"

@@ -5,3 +5,9 @@
 body {
   @apply bg-gray-50 text-gray-900;
 }
+
+.mobile-client { padding-top: var(--safe-area-inset-top, env(safe-area-inset-top));
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom)); }
+.mobile-client input, .mobile-client select, .mobile-client textarea { font-size: 16px; min-height: 44px; }
+.mobile-client button { min-height: 44px; }
+.mobile-action { padding-bottom: max(12px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }

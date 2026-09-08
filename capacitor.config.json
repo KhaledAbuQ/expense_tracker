@@ -1,0 +1,9 @@
+{
+  "appId": "com.householdledger.expenses",
+  "appName": "Pocket Expenses",
+  "webDir": "dist-android",
+  "backgroundColor": "#f8fafc",
+  "android": {
+    "allowMixedContent": false
+  }
+}

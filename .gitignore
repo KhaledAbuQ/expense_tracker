@@ -27,3 +27,12 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Android build output and local signing material
+/dist-android/
+/artifacts/
+/.gradle-local/
+/android/.signing/
+/android/local.properties
+/test-results/
+/playwright-report/

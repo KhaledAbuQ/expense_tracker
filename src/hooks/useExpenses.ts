@@ -136,6 +136,7 @@ export function useExpenses(options?: UseExpensesOptions) {
     try {
       const payload = {
         ...formData,
+        category_id: formData.category_id || null,
         member_id: formData.member_id ?? member.id,
       }
 

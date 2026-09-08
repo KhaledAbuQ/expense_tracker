@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -18,12 +18,14 @@ export default function AuthPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [joinMode, setJoinMode] = useState<'create' | 'join'>('create')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const destination = searchParams.get('next') === 'mobile' ? '/mobile' : '/'
   const { session } = useAuth()
 
   // Don't show a login form to someone who is already signed in.
   useEffect(() => {
-    if (session) navigate('/', { replace: true })
-  }, [session, navigate])
+    if (session) navigate(destination, { replace: true })
+  }, [session, navigate, destination])
 
   const title = useMemo(
     () => (mode === 'sign-in' ? 'Welcome back' : 'Create your household'),
@@ -52,7 +54,7 @@ export default function AuthPage() {
           password,
         })
         if (error) throw error
-        navigate('/')
+        navigate(destination)
         return
       }
 
@@ -107,7 +109,7 @@ export default function AuthPage() {
 
       if (data.session) {
         toast.success('Account created')
-        navigate('/')
+        navigate(destination)
         return
       }
 

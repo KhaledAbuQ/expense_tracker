@@ -355,3 +355,65 @@ to find and reassign them.
 ## License
 
 This project is for personal/household use.
+
+## Standalone Android APK
+
+The Android client packages its interface inside the APK and connects directly
+to the **same Supabase project** using the root `.env`. No running web app,
+website, development server, Expo app, or additional backend is required.
+Internet is needed only for Supabase sign-in, refreshing data, and saving.
+
+Install `artifacts/pocket-expenses.apk` on your Android phone (Android 7.0 or
+newer) and sign in with your existing household account. The app remembers your
+session. It includes adding expenses with JOD precision, bank/cash accounts,
+personal/household visibility, date and category, plus spending totals,
+category breakdowns, and the 20 most recent expenses. Totals cover all matching
+expenses. Refresh or return to the app to retrieve changes from another device.
+The client uses existing accounts; account creation remains in the full app.
+
+### Build the APK
+
+Build-time requirements: Node.js 22+, Java 21, Android SDK Platform 36 and Android
+build tools. The phone does not need these tools. Set `JAVA_HOME` and
+`ANDROID_HOME` for your machine; macOS installations in the standard locations
+are detected automatically.
+
+```bash
+npm ci
+npm run android:apk
+```
+
+This builds the mobile bundle, copies it into the Android project, creates a
+local signing key on the first build, runs the Android release build and lint,
+and writes **`artifacts/pocket-expenses.apk`**. The first build downloads Gradle
+and Android build dependencies. Only the Supabase publishable/anon key is
+bundled; builds reject privileged keys. No database migration is required.
+
+**Back up `android/.signing/` privately.** It is ignored by Git and contains the
+key needed to install future updates over this APK. Increase `versionCode` in
+`android/app/build.gradle` for new releases. Losing the key means future builds
+cannot update the installed application without uninstalling it first.
+
+`mobile/index.html` and `src/native/` are the Android entry point; the existing
+web dashboard is built separately by `npm run build`. The Android client reuses
+the expense hooks, form, and authentication provider. Capacitor loads bundled
+assets from `dist-android`; **do not add `server.url`** to its configuration, as
+that would introduce a dependency on a hosted site. No service worker is used.
+
+### Automated Releases via GitHub Actions
+
+The repository includes a GitHub Actions workflow (`.github/workflows/release-apk.yml`)
+that builds the standalone APK and attaches it as a downloadable release asset.
+
+1. Configure GitHub repository secrets (**Settings** -> **Secrets and variables** -> **Actions**):
+   - `VITE_SUPABASE_URL`: Your Supabase HTTPS URL (e.g. `https://xxxx.supabase.co`).
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase publishable/anon key.
+   - `ANDROID_SIGNING_KEYSTORE_BASE64` *(optional)*: Base64-encoded `android/.signing/pocket-expenses.jks` (`base64 -i android/.signing/pocket-expenses.jks | pbcopy`) to sign CI builds with your existing key.
+   - `ANDROID_SIGNING_PASSWORD` *(optional)*: Contents of `android/.signing/password`.
+2. Push a version tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+3. The workflow builds the signed APK and attaches `pocket-expenses.apk` directly to the GitHub Release for download.
+

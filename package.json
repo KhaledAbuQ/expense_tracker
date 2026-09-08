@@ -8,9 +8,15 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "TZ=America/New_York node --test tests/*.test.mjs"
+    "test": "TZ=America/New_York node --test tests/*.test.mjs",
+    "android:sync": "node scripts/check-mobile-env.mjs && tsc && vite build --mode android && cap sync android",
+    "android:apk": "npm run android:sync && node scripts/build-apk.mjs",
+    "test:mobile": "playwright test"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.1",
     "@supabase/supabase-js": "^2.39.0",
     "date-fns": "^3.3.0",
     "lucide-react": "^0.330.0",
@@ -21,6 +27,8 @@
     "recharts": "^2.12.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
+    "@playwright/test": "^1.63.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@typescript-eslint/eslint-plugin": "^7.18.0",

@@ -66,6 +66,7 @@ export default function ExpenseForm({
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">JOD</span>
           <input
             type="number"
+            inputMode="decimal"
             id="amount"
             step="0.001"
             min="0.001"

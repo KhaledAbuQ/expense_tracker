@@ -1,3 +1,4 @@
+import CategoryIcon from './CategoryIcon'
 import { Category } from '../types'
 
 interface CategoryBadgeProps {
@@ -7,7 +8,7 @@ interface CategoryBadgeProps {
 export default function CategoryBadge({ category }: CategoryBadgeProps) {
   if (!category) {
     return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
         Uncategorized
       </span>
     )
@@ -15,12 +16,13 @@ export default function CategoryBadge({ category }: CategoryBadgeProps) {
 
   return (
     <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
       style={{
         backgroundColor: `${category.color}20`,
         color: category.color,
       }}
     >
+      <CategoryIcon name={category.icon} />
       {category.name}
     </span>
   )

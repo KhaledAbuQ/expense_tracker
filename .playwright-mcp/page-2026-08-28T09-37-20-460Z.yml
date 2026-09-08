@@ -1,0 +1,27 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - paragraph [ref=e8]: Household Ledger
+      - heading "Keep every member in sync with shared household spending." [level=1] [ref=e9]
+      - paragraph [ref=e10]: Personal expenses stay private. Household expenses are visible to everyone so the budget stays fair.
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - paragraph [ref=e13]: Private
+        - paragraph [ref=e14]: Personal expenses
+      - generic [ref=e15]:
+        - paragraph [ref=e16]: Shared
+        - paragraph [ref=e17]: Household expenses
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - heading "Welcome back" [level=2] [ref=e21]
+        - paragraph [ref=e22]: Sign in to track expenses together
+      - button "Create account" [ref=e23] [cursor=pointer]
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]: Email
+        - textbox "you@example.com" [ref=e27]: probe@example.com
+      - generic [ref=e28]:
+        - generic [ref=e29]: Password
+        - textbox "••••••••" [ref=e30]: probe-not-a-real-password
+      - button "Working..." [disabled] [ref=e32]

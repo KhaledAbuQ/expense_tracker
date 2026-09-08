@@ -1,3 +1,4 @@
+import { fetchAllRows } from '../lib/pagination'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Transfer, TransferFormData, DateRange } from '../types'
@@ -51,6 +52,7 @@ export function useTransfers(options?: UseTransfersOptions) {
         `)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
 
       if (startDateStr && endDateStr) {
         query = query
@@ -58,9 +60,7 @@ export function useTransfers(options?: UseTransfersOptions) {
           .lte('date', endDateStr)
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
+      const data = await fetchAllRows((from, to) => query.range(from, to))
       if (currentRequest !== requestId.current) return
 
       const scopedTransfers = (data || []).filter(transfer => transfer.member_id === member.id)

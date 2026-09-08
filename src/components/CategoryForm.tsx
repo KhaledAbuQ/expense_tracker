@@ -1,16 +1,18 @@
+import CategoryIcon from './CategoryIcon'
+import { categoryIcons } from '../lib/categoryIcons'
 import { useState, useEffect } from 'react'
 import { Category, CategoryFormData, CategoryType } from '../types'
 
 const PRESET_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#6b7280',
+  '#991b1b', '#c2410c', '#a16207', '#15803d', '#0f766e',
+  '#1d4ed8', '#4338ca', '#7e22ce', '#be185d', '#374151',
+  '#fb7185', '#fb923c', '#facc15', '#a3e635', '#2dd4bf',
+  '#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#a8a29e',
 ]
 
-const PRESET_ICONS = [
-  'tag', 'home', 'car', 'zap', 'heart-pulse', 'shopping-cart',
-  'utensils', 'tv', 'plane', 'gift', 'briefcase', 'book',
-  'laptop', 'trending-up', 'plus-circle',
-]
+const PRESET_ICONS = Object.keys(categoryIcons)
 
 interface CategoryFormProps {
   onSubmit: (data: CategoryFormData) => Promise<void>
@@ -101,6 +103,9 @@ export default function CategoryForm({
             <button
               key={color}
               type="button"
+              aria-label={`Select color ${color}`}
+              aria-pressed={formData.color.toLowerCase() === color}
+              title={color}
               onClick={() => setFormData({ ...formData, color })}
               className={`w-8 h-8 rounded-full border-2 transition-all ${
                 formData.color === color
@@ -110,6 +115,11 @@ export default function CategoryForm({
               style={{ backgroundColor: color }}
             />
           ))}
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <label htmlFor="custom-color" className="text-sm text-gray-700">Custom color</label>
+          <input id="custom-color" type="color" value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-12 h-10 cursor-pointer rounded border border-gray-300" />
+          <span className="text-sm text-gray-500">{formData.color.toUpperCase()}</span>
         </div>
       </div>
 
@@ -122,14 +132,17 @@ export default function CategoryForm({
             <button
               key={icon}
               type="button"
+              aria-label={`Select ${icon.replace(/-/g, ' ')} icon`}
+              aria-pressed={formData.icon === icon}
               onClick={() => setFormData({ ...formData, icon })}
-              className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg transition-colors ${
                 formData.icon === icon
                   ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              {icon}
+              <CategoryIcon name={icon} />
+              {icon.replace(/-/g, ' ')}
             </button>
           ))}
         </div>
@@ -139,12 +152,13 @@ export default function CategoryForm({
         <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
           <span className="text-sm text-gray-500">Preview:</span>
           <span
-            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium"
             style={{
               backgroundColor: `${formData.color}20`,
               color: formData.color,
             }}
           >
+            <CategoryIcon name={formData.icon} />
             {formData.name || 'Category Name'}
           </span>
           <span className="text-xs text-gray-400">

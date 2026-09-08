@@ -1,3 +1,4 @@
+import { fetchAllRows } from '../lib/pagination'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Income, IncomeFormData, DateRange } from '../types'
@@ -72,6 +73,7 @@ export function useIncome(options?: UseIncomeOptions) {
         `)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
 
       if (startDateStr && endDateStr) {
         query = query
@@ -95,9 +97,7 @@ export function useIncome(options?: UseIncomeOptions) {
         query = query.or(`member_id.eq.${member.id},and(visibility.eq.household,member_id.in.(${householdMemberIds.join(',')}))`)
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
+      const data = await fetchAllRows((from, to) => query.range(from, to))
       if (currentRequest !== requestId.current) return
 
       const scopedIncome = (data || []).filter(entry =>

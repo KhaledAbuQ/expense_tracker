@@ -83,8 +83,8 @@ export default function IncomePage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Income</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Income</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             Track all your income sources
           </p>
         </div>
@@ -98,7 +98,7 @@ export default function IncomePage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
           
@@ -107,7 +107,7 @@ export default function IncomePage() {
               <select
                 value={visibilityFilter}
                 onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'private' | 'household')}
-                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 min-w-[130px]"
+                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 min-w-[130px]"
               >
                 <option value="all">All visibility</option>
                 <option value="private">Personal</option>
@@ -117,7 +117,7 @@ export default function IncomePage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 min-w-[130px]"
+                className="flex-1 sm:flex-none px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-green-500 min-w-[130px]"
               >
                 <option value="">All Sources</option>
                 {filterCategories.map((category) => (
@@ -128,10 +128,10 @@ export default function IncomePage() {
               </select>
             </div>
             
-            <div className="text-sm text-gray-500 w-full sm:w-auto text-right sm:text-left font-medium">
-              Total: <span className="font-semibold text-green-600">+{formatCurrency(total)}</span>
+            <div className="text-sm text-gray-500 dark:text-gray-400 w-full sm:w-auto text-right sm:text-left font-medium">
+              Total: <span className="font-semibold text-green-600 dark:text-green-400">+{formatCurrency(total)}</span>
               {savingsPortion > 0 && (
-                <span className="block text-xs text-gray-400">
+                <span className="block text-xs text-gray-400 dark:text-gray-500">
                   incl. {formatCurrency(savingsPortion)} to savings
                 </span>
               )}

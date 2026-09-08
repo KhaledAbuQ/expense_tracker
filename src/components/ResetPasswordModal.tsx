@@ -76,7 +76,7 @@ export default function ResetPasswordModal({
       title={isVoluntary ? 'Change Password' : 'Set New Password'}
     >
       <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 text-indigo-700">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
           <KeyRound className="w-5 h-5 shrink-0" />
           <p className="text-xs">
             {isVoluntary
@@ -86,7 +86,7 @@ export default function ResetPasswordModal({
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2 text-xs text-red-700">
+          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
             <p>{error}</p>
           </div>
@@ -94,7 +94,7 @@ export default function ResetPasswordModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-gray-300 mb-1">
               New Password
             </label>
             <div className="relative">
@@ -105,12 +105,12 @@ export default function ResetPasswordModal({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 pr-10 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3.5 pr-10 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 p-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -118,7 +118,7 @@ export default function ResetPasswordModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-gray-300 mb-1">
               Confirm New Password
             </label>
             <input
@@ -128,7 +128,7 @@ export default function ResetPasswordModal({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900"
             />
           </div>
 
@@ -143,7 +143,7 @@ export default function ResetPasswordModal({
             <button
               type="button"
               onClick={handleClose}
-              className="py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-medium transition"
+              className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-gray-600 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 text-sm font-medium transition"
             >
               Cancel
             </button>

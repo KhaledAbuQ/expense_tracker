@@ -21,10 +21,10 @@ export default function CategoryList({
         {[...Array(6)].map((_, i) => (
           <div
             key={i}
-            className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse"
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 animate-pulse"
           >
-            <div className="h-6 bg-gray-200 rounded w-2/3 mb-2"></div>
-            <div className="h-4 bg-gray-100 rounded w-1/3"></div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-2"></div>
+            <div className="h-4 bg-gray-100 dark:bg-gray-750 rounded w-1/3"></div>
           </div>
         ))}
       </div>
@@ -33,8 +33,8 @@ export default function CategoryList({
 
   if (categories.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-        <p className="text-gray-500">No categories found</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 text-center">
+        <p className="text-gray-500 dark:text-gray-400">No categories found</p>
       </div>
     )
   }
@@ -51,7 +51,7 @@ export default function CategoryList({
       {categories.map((category) => (
         <div
           key={category.id}
-          className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+          className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow"
         >
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
@@ -62,8 +62,8 @@ export default function CategoryList({
                 <CategoryIcon name={category.icon} className="w-5 h-5 shrink-0" />
               </div>
               <div>
-                <h3 className="font-medium text-gray-900">{category.name}</h3>
-                <p className="text-xs text-gray-500">
+                <h3 className="font-medium text-gray-900 dark:text-white">{category.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   {category.is_default ? 'Default' : 'Custom'}
                 </p>
               </div>
@@ -72,7 +72,7 @@ export default function CategoryList({
             <div className="flex items-center gap-1">
               {category.is_default ? (
                 <div
-                  className="p-2 text-gray-300"
+                  className="p-2 text-gray-300 dark:text-gray-600"
                   title="Default categories cannot be modified"
                 >
                   <Lock className="w-4 h-4" />
@@ -81,14 +81,14 @@ export default function CategoryList({
                 <>
                   <button
                     onClick={() => onEdit(category)}
-                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-colors"
                     title="Edit"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(category)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />

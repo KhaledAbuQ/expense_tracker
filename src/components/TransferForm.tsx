@@ -141,14 +141,14 @@ export default function TransferForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <label htmlFor="from_account" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="from_account" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             From
           </label>
           <select
             id="from_account"
             value={formData.from_account}
             onChange={(e) => handleFromAccountChange(e.target.value as TransferAccountType)}
-            className="w-full px-2 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-2 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {accountOptions.map((account) => (
               <option key={account} value={account}>{accountLabels[account]}</option>
@@ -157,18 +157,18 @@ export default function TransferForm({
         </div>
 
         <div className="pt-5 sm:pt-6 shrink-0">
-          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 dark:text-gray-500" />
         </div>
 
         <div className="flex-1 min-w-0">
-          <label htmlFor="to_account" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="to_account" className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             To
           </label>
           <select
             id="to_account"
             value={formData.to_account}
             onChange={(e) => handleToAccountChange(e.target.value as TransferAccountType)}
-            className="w-full px-2 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-2 sm:px-4 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {accountOptions.map((account) => (
               <option key={account} value={account}>{accountLabels[account]}</option>
@@ -178,16 +178,16 @@ export default function TransferForm({
       </div>
 
       {involvesGold && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4 space-y-3">
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/40 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-amber-900">
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
               {isBuyingGold ? 'What are you buying?' : 'What are you selling?'}
             </p>
             <button
               type="button"
               onClick={() => refresh()}
               disabled={refreshing}
-              className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 disabled:opacity-50"
               title="Refresh gold price"
             >
               <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
@@ -196,14 +196,14 @@ export default function TransferForm({
           </div>
 
           <div>
-            <label htmlFor="gold_item" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="gold_item" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Item
             </label>
             <select
               id="gold_item"
               value={itemType}
               onChange={(e) => setItemType(e.target.value as GoldItemType)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
               {(Object.keys(GOLD_ITEM_LABELS) as GoldItemType[]).map((key) => (
                 <option key={key} value={key}>{GOLD_ITEM_LABELS[key]}</option>
@@ -213,7 +213,7 @@ export default function TransferForm({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="gold_quantity" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="gold_quantity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {itemType === 'bullion' ? 'Weight (grams)' : 'Number of coins'}
               </label>
               <input
@@ -223,12 +223,12 @@ export default function TransferForm({
                 min={itemType === 'bullion' ? '0.01' : '1'}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               />
             </div>
 
             <div>
-              <label htmlFor="gold_karat" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="gold_karat" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Carat
               </label>
               {itemType === 'bullion' ? (
@@ -236,14 +236,14 @@ export default function TransferForm({
                   id="gold_karat"
                   value={bullionKarat}
                   onChange={(e) => setBullionKarat(Number(e.target.value) as Karat)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
                   {KARAT_OPTIONS.map((k) => (
                     <option key={k} value={k}>{k}k</option>
                   ))}
                 </select>
               ) : (
-                <div className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600">
+                <div className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                   {COIN_SPECS[itemType].karat}k &middot; {COIN_SPECS[itemType].grams} g each
                 </div>
               )}
@@ -251,7 +251,7 @@ export default function TransferForm({
           </div>
 
           {measurement && (
-            <div className="text-sm text-amber-900 bg-white/70 rounded-lg p-3 space-y-1">
+            <div className="text-sm text-amber-900 dark:text-amber-200 bg-white/70 dark:bg-gray-800/80 rounded-lg p-3 space-y-1">
               <div className="flex justify-between">
                 <span>Total weight</span>
                 <span className="font-medium">{formatGrams(measurement.grams)}</span>
@@ -274,7 +274,7 @@ export default function TransferForm({
           )}
 
           {price && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               {formatCurrency(Number(price.price_24k))}/g for 24k
               {price.source === 'spot_peg' && ' (from world spot)'}
               {' '}&middot; {formatDate(price.fetched_at.slice(0, 10))}
@@ -293,16 +293,16 @@ export default function TransferForm({
       )}
 
       <div>
-        <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Amount *
           {involvesGold && (
-            <span className="font-normal text-gray-500">
+            <span className="font-normal text-gray-500 dark:text-gray-400">
               {' '}&mdash; what actually {isBuyingGold ? 'left' : 'reached'} the account
             </span>
           )}
         </label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">JOD</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 text-sm">JOD</span>
           <input
             type="number"
             id="amount"
@@ -314,12 +314,12 @@ export default function TransferForm({
               setAmountTouched(true)
               setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })
             }}
-            className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-12 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="0.000"
           />
         </div>
         {involvesGold && !amountTouched && marketValue !== null && (
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Prefilled from today&apos;s price. Adjust it to what you really paid, including
             workmanship.
           </p>
@@ -327,7 +327,7 @@ export default function TransferForm({
       </div>
 
       <div>
-        <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Date *
         </label>
         <input
@@ -336,12 +336,12 @@ export default function TransferForm({
           required
           value={formData.date}
           onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Note
         </label>
         <textarea
@@ -349,12 +349,12 @@ export default function TransferForm({
           rows={2}
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
           placeholder="Optional note about this transfer"
         />
       </div>
 
-      <p className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+      <p className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 p-2.5 rounded-lg">
         Transfer from {accountLabels[formData.from_account]} to {accountLabels[formData.to_account]}
       </p>
 
@@ -362,7 +362,7 @@ export default function TransferForm({
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
           Cancel
         </button>

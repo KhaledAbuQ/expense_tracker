@@ -283,8 +283,8 @@ export default function SavingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Savings</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Savings</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
           Track your savings progress over time
         </p>
       </div>
@@ -315,25 +315,25 @@ export default function SavingsPage() {
 
         {/* Gold Holdings, valued at today's rate */}
         {holdsGold && (
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-amber-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-amber-200 dark:border-amber-700/60">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-gray-500 text-sm font-medium">Gold</p>
-                <p className="text-xl font-bold text-amber-700 mt-1">
+                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Gold</p>
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-400 mt-1">
                   {goldLoading && !goldPrice ? '...' : formatCurrency(goldValue)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formatGrams(goldFineGrams)} pure
                   {goldItemCount > 0 && ` · ${goldItemCount} coin${goldItemCount === 1 ? '' : 's'}`}
                 </p>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl">
-                <Coins className="w-6 h-6 text-amber-600" />
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl">
+                <Coins className="w-6 h-6 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-2">
-              <p className="text-xs text-gray-400 truncate">
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 dark:border-gray-700 pt-2">
+              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
                 {goldPrice ? (
                   <>
                     {formatCurrency(Number(goldPrice.price_24k))}/g
@@ -349,7 +349,7 @@ export default function SavingsPage() {
                 type="button"
                 onClick={() => refreshGold()}
                 disabled={goldRefreshing}
-                className="shrink-0 p-1 text-gray-400 hover:text-amber-600 rounded disabled:opacity-50"
+                className="shrink-0 p-1 text-gray-400 dark:text-gray-500 hover:text-amber-600 dark:hover:text-amber-400 rounded disabled:opacity-50"
                 title="Refresh gold price"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${goldRefreshing ? 'animate-spin' : ''}`} />
@@ -357,7 +357,7 @@ export default function SavingsPage() {
             </div>
 
             {isPriceStale(goldPrice) && (
-              <p className="mt-2 text-xs text-red-600">
+              <p className="mt-2 text-xs text-red-600 dark:text-red-400">
                 This price is over a day old, so the value above may be off.
               </p>
             )}
@@ -365,38 +365,38 @@ export default function SavingsPage() {
         )}
 
         {/* This Month */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm font-medium">This Month</p>
-              <p className={`text-xl font-bold mt-1 ${thisMonthSavings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">This Month</p>
+              <p className={`text-xl font-bold mt-1 ${thisMonthSavings >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {loading ? '...' : (thisMonthSavings >= 0 ? '+' : '') + formatCurrency(thisMonthSavings)}
               </p>
             </div>
-            <div className={`p-3 rounded-xl ${thisMonthSavings >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+            <div className={`p-3 rounded-xl ${thisMonthSavings >= 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
               {thisMonthSavings >= 0 ? (
-                <TrendingUp className={`w-6 h-6 ${thisMonthSavings >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                <TrendingUp className={`w-6 h-6 text-green-600 dark:text-green-400`} />
               ) : (
-                <TrendingDown className="w-6 h-6 text-red-600" />
+                <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
               )}
             </div>
           </div>
         </div>
 
         {/* Last Month */}
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm font-medium">Last Month</p>
-              <p className={`text-xl font-bold mt-1 ${lastMonthSavings >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Last Month</p>
+              <p className={`text-xl font-bold mt-1 ${lastMonthSavings >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {loading ? '...' : (lastMonthSavings >= 0 ? '+' : '') + formatCurrency(lastMonthSavings)}
               </p>
             </div>
-            <div className={`p-3 rounded-xl ${lastMonthSavings >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+            <div className={`p-3 rounded-xl ${lastMonthSavings >= 0 ? 'bg-green-50 dark:bg-green-950/40' : 'bg-red-50 dark:bg-red-950/40'}`}>
               {lastMonthSavings >= 0 ? (
-                <TrendingUp className={`w-6 h-6 ${lastMonthSavings >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                <TrendingUp className={`w-6 h-6 text-green-600 dark:text-green-400`} />
               ) : (
-                <TrendingDown className="w-6 h-6 text-red-600" />
+                <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
               )}
             </div>
           </div>
@@ -405,68 +405,68 @@ export default function SavingsPage() {
 
       {/* Gold holdings: what you physically own, and what it is worth today */}
       {holdsGold && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Gold Holdings</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Gold Holdings</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 What you hold, and what it is worth at today&apos;s price
               </p>
             </div>
-            <Coins className="w-5 h-5 text-amber-600 shrink-0" />
+            <Coins className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Item
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Count
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Weight
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Pure gold
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Value
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {goldHoldings.map((holding) => (
-                  <tr key={`${holding.itemType}-${holding.karat}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                  <tr key={`${holding.itemType}-${holding.karat}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900 dark:text-white">
                       {describeHolding(holding)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600 dark:text-gray-300">
                       {holding.itemType === 'bullion' ? '—' : holding.count}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600 dark:text-gray-300">
                       {formatGrams(holding.grams)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-600 dark:text-gray-300">
                       {formatGrams(holding.fineGrams)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-amber-700">
+                    <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-amber-700 dark:text-amber-400">
                       {goldPrice ? formatCurrency(valueOfFineGrams(holding.fineGrams, goldPrice)) : '—'}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-200">
+              <tfoot className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
                 <tr>
-                  <td className="px-4 py-3 font-semibold text-gray-900" colSpan={3}>
+                  <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white" colSpan={3}>
                     Total
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+                  <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                     {formatGrams(goldFineGrams)}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-amber-700 whitespace-nowrap">
+                  <td className="px-4 py-3 text-right font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">
                     {goldPrice ? formatCurrency(goldValue) : '—'}
                   </td>
                 </tr>
@@ -477,15 +477,15 @@ export default function SavingsPage() {
       )}
 
       {/* Savings Overview Chart */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900">Savings Over Time</h2>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Savings Over Time</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Cash moving in and out of savings, month by month. Gold is valued at today&apos;s
           price rather than tracked as a monthly change.
         </p>
         <div className="mt-4">
           {loading ? (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
+            <div className="h-[300px] flex items-center justify-center text-gray-500 dark:text-gray-400">
               Loading savings data...
             </div>
           ) : (
@@ -495,81 +495,81 @@ export default function SavingsPage() {
       </div>
 
       {/* Monthly Breakdown */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Monthly Cash Savings</h2>
-          <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Monthly Cash Savings</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Deposits and transfers into your savings account each month
           </p>
         </div>
         
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading savings data...</div>
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading savings data...</div>
         ) : monthlyData.length === 0 ? (
           <div className="p-8 text-center">
-            <HandCoins className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No savings activity yet</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <HandCoins className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-gray-400">No savings activity yet</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
               Add income to savings or transfer money to your savings account
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Month
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Direct Deposits
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Transfers In
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Transfers Out
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Net Change
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {monthlyData.map((data) => (
-                  <tr key={data.month} className="hover:bg-gray-50 transition-colors">
+                  <tr key={data.month} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className="font-medium text-gray-900">{data.monthLabel}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{data.monthLabel}</span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right">
                       {data.deposits > 0 ? (
-                        <span className="text-green-600 font-medium">
+                        <span className="text-green-600 dark:text-green-400 font-medium">
                           +{formatCurrency(data.deposits)}
                         </span>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right">
                       {data.transfersIn > 0 ? (
-                        <span className="text-green-600 font-medium">
+                        <span className="text-green-600 dark:text-green-400 font-medium">
                           +{formatCurrency(data.transfersIn)}
                         </span>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right">
                       {data.transfersOut > 0 ? (
-                        <span className="text-red-600 font-medium">
+                        <span className="text-red-600 dark:text-red-400 font-medium">
                           -{formatCurrency(data.transfersOut)}
                         </span>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right">
-                      <span className={`font-semibold ${data.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`font-semibold ${data.netChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {data.netChange >= 0 ? '+' : ''}{formatCurrency(data.netChange)}
                       </span>
                     </td>
@@ -582,54 +582,54 @@ export default function SavingsPage() {
       </div>
 
       {/* Savings Goal Calculator */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900">Savings Goal Planner</h2>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Savings Goal Planner</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Set a goal and see how much you need to save each month to reach it.
         </p>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Goal amount</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Goal amount</label>
             <input
               type="number"
               min="0"
               value={goalAmountInput}
               onChange={(e) => setGoalAmountInput(e.target.value)}
               placeholder="e.g. 2000"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Months to reach goal</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Months to reach goal</label>
             <input
               type="number"
               min="1"
               value={monthsInput}
               onChange={(e) => setMonthsInput(e.target.value)}
               placeholder="e.g. 12"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Current savings</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Current savings</label>
             <input
               type="number"
               min="0"
               value={currentSavingsInput}
               onChange={(e) => setCurrentSavingsInput(e.target.value)}
               placeholder={loading ? 'Detecting current savings...' : String(totalSavings.toFixed(3))}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Leave blank to use your total savings balance.
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Monthly income</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly income</label>
             <input
               type="number"
               min="0"
@@ -640,53 +640,53 @@ export default function SavingsPage() {
                   ? String(incomeStats.averageMonthlyIncome.toFixed(3))
                   : 'e.g. 1000'
               }
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Leave blank to use your average monthly income.
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Monthly amount you can save</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly amount you can save</label>
             <input
               type="number"
               min="0"
               value={willingMonthlyInput}
               onChange={(e) => setWillingMonthlyInput(e.target.value)}
               placeholder="e.g. 150"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Optional: enter what you&apos;re comfortable saving each month to see how long it would take.
             </p>
           </div>
         </div>
 
         {goalAmount > 0 && (monthsToGoal > 0 || (willingMonthly > 0 && remainingToGoal > 0)) && (
-          <div className="mt-6 border-t border-gray-100 pt-4">
+          <div className="mt-6 border-t border-gray-100 dark:border-gray-700 pt-4">
             {remainingToGoal <= 0 ? (
-              <p className="text-sm font-medium text-green-600">
+              <p className="text-sm font-medium text-green-600 dark:text-green-400">
                 You have already reached this goal.
               </p>
             ) : (
               <>
                 {monthsToGoal > 0 && (
                   <>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       To reach a goal of <span className="font-semibold">{formatCurrency(goalAmount)}</span> in{' '}
                       <span className="font-semibold">{monthsToGoal}</span> months, starting from{' '}
                       <span className="font-semibold">{formatCurrency(effectiveCurrentSavings)}</span>, you need to
                       save approximately:
                     </p>
-                    <p className="mt-2 text-2xl font-bold text-purple-600">
-                      {formatCurrency(monthlyRequired)} <span className="text-base font-medium text-gray-500">per month</span>
+                    <p className="mt-2 text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {formatCurrency(monthlyRequired)} <span className="text-base font-medium text-gray-500 dark:text-gray-400">per month</span>
                     </p>
 
                     {effectiveMonthlyIncome > 0 && (
-                      <p className="mt-2 text-sm text-gray-600">
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                         Based on a monthly income of{' '}
-                        <span className="font-medium">{formatCurrency(effectiveMonthlyIncome)}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(effectiveMonthlyIncome)}</span>
                         {incomeStats.monthsOfHistory > 0 && monthlyIncomeInput === '' && (
                           <>
                             {' '} (average over {incomeStats.monthsOfHistory} month
@@ -694,17 +694,17 @@ export default function SavingsPage() {
                           </>
                         )}
                         , this is about{' '}
-                        <span className="font-medium">{savingsPercentOfIncome.toFixed(1)}%</span> of your income.
+                        <span className="font-medium text-gray-900 dark:text-white">{savingsPercentOfIncome.toFixed(1)}%</span> of your income.
                       </p>
                     )}
 
                     {expenseStats.monthsOfHistory > 0 && (
-                      <p className="mt-2 text-sm text-gray-600">
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                         Your average monthly expenses are{' '}
-                        <span className="font-medium">{formatCurrency(averageMonthlyExpenses)}</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(averageMonthlyExpenses)}</span>
                         {' '} (based on {expenseStats.monthsOfHistory} month
                         {expenseStats.monthsOfHistory === 1 ? '' : 's'}). That typically leaves about{' '}
-                        <span className="font-medium">{formatCurrency(discretionaryMonthly)}</span> per month after expenses.
+                        <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(discretionaryMonthly)}</span> per month after expenses.
                       </p>
                     )}
 
@@ -727,7 +727,7 @@ export default function SavingsPage() {
 
                 {willingMonthly > 0 && remainingToGoal > 0 && (
                   <>
-                    <p className="mt-4 text-sm text-gray-700">
+                    <p className="mt-4 text-sm text-gray-700 dark:text-gray-300">
                       If you save <span className="font-semibold">{formatCurrency(willingMonthly)}</span> per month toward
                       this goal, starting from{' '}
                       <span className="font-semibold">{formatCurrency(effectiveCurrentSavings)}</span>, it will take

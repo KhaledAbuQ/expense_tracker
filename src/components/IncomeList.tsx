@@ -16,8 +16,8 @@ export default function IncomeList({
 }: IncomeListProps) {
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-8 text-center text-gray-500">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="p-8 text-center text-gray-500 dark:text-gray-400">
           Loading income...
         </div>
       </div>
@@ -26,10 +26,10 @@ export default function IncomeList({
 
   if (income.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="p-8 text-center">
-          <p className="text-gray-500">No income found</p>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-gray-500 dark:text-gray-400">No income found</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
             Add your first income to get started
           </p>
         </div>
@@ -38,9 +38,9 @@ export default function IncomeList({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
       {/* Mobile Card View */}
-      <div className="md:hidden divide-y divide-gray-100">
+      <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-700">
         {income.map((item) => (
           <IncomeCard
             key={item.id}
@@ -55,25 +55,25 @@ export default function IncomeList({
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+            <tr className="bg-gray-50 dark:bg-gray-900/60 border-b border-gray-100 dark:border-gray-700">
+              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Date
               </th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Description
               </th>
-              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">
+              <th className="text-left px-6 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Source
               </th>
-              <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">
+              <th className="text-right px-6 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Amount
               </th>
-              <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">
+              <th className="text-right px-6 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {income.map((item) => (
               <IncomeRow
                 key={item.id}

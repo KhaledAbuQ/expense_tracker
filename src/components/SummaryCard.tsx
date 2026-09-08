@@ -39,25 +39,25 @@ export default function SummaryCard({
 
   return (
     <div 
-      className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 ${hasSecondary ? 'cursor-pointer hover:border-indigo-200 transition-colors' : ''}`}
+      className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 ${hasSecondary ? 'cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-500/50 transition-colors' : ''}`}
       onClick={() => hasSecondary && setShowSecondary(!showSecondary)}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {showSecondary && secondaryLabel ? secondaryLabel : title}
           </p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
             {showSecondary && secondaryValue ? secondaryValue : value}
           </p>
           {subtitle && !showSecondary && (
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
           )}
           {showSecondary && (
-            <p className="text-sm text-gray-500 mt-1">Full month</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Full month</p>
           )}
         </div>
-        <div className="p-3 bg-indigo-50 rounded-lg">
+        <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg">
           {icon}
         </div>
       </div>
@@ -69,13 +69,13 @@ export default function SummaryCard({
             {Math.abs(trend).toFixed(1)}%
           </span>
           {trendLabel && (
-            <span className="text-sm text-gray-500 ml-1">{trendLabel}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">{trendLabel}</span>
           )}
         </div>
       )}
 
       {hasSecondary && (
-        <p className="text-xs text-indigo-400 mt-3">
+        <p className="text-xs text-indigo-400 dark:text-indigo-300 mt-3">
           {showSecondary ? 'Viewing last month' : 'Click for last month'}
         </p>
       )}

@@ -49,10 +49,10 @@ const accountLabels: Record<TransferAccountType, string> = {
 }
 
 const accountColors: Record<TransferAccountType, string> = {
-  bank: 'text-blue-600 bg-blue-50',
-  cash: 'text-green-600 bg-green-50',
-  savings: 'text-purple-600 bg-purple-50',
-  gold: 'text-amber-600 bg-amber-50',
+  bank: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50',
+  cash: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/50',
+  savings: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50',
+  gold: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50',
 }
 
 /** One-line summary of the metal a gold transfer moved, e.g. "2 x English lira (22k, 15.98 g)". */
@@ -306,8 +306,8 @@ export default function TransfersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Transfers</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transfers</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             Move money between your accounts
           </p>
         </div>
@@ -320,14 +320,14 @@ export default function TransfersPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl p-1 shadow-sm border border-gray-100 flex w-full sm:w-fit">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-1 shadow-sm border border-gray-100 dark:border-gray-700 flex w-full sm:w-fit">
         <button
           type="button"
           onClick={() => setActiveTab('activity')}
           className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
             activeTab === 'activity'
               ? 'bg-blue-600 text-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
           Transfer Activity
@@ -338,7 +338,7 @@ export default function TransfersPage() {
           className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
             activeTab === 'history'
               ? 'bg-blue-600 text-white'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
           History & Trends
@@ -347,23 +347,23 @@ export default function TransfersPage() {
 
       {activeTab === 'activity' ? (
         <>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
             <DateRangePicker value={dateRange} onChange={setDateRange} />
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading transfers...</div>
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading transfers...</div>
             ) : transfers.length === 0 ? (
               <div className="p-8 text-center">
-                <ArrowRightLeft className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No transfers found</p>
-                <p className="text-sm text-gray-400 mt-1">
+                <ArrowRightLeft className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400">No transfers found</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
                   Transfer money between your bank, cash, and savings accounts
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-700">
                 {transfers.map((transfer) => {
                   const FromIcon = accountIcons[transfer.from_account]
                   const ToIcon = accountIcons[transfer.to_account]
@@ -371,7 +371,7 @@ export default function TransfersPage() {
                   return (
                     <div
                       key={transfer.id}
-                      className="p-4 hover:bg-gray-50 transition-colors"
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-start sm:items-center gap-3 min-w-0">
@@ -380,7 +380,7 @@ export default function TransfersPage() {
                               <FromIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
 
-                            <ArrowRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <ArrowRight className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" />
 
                             <div className={`p-2 rounded-lg ${accountColors[transfer.to_account]}`}>
                               <ToIcon className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -388,37 +388,37 @@ export default function TransfersPage() {
                           </div>
 
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 text-sm sm:text-base">
+                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
                               {accountLabels[transfer.from_account]} → {accountLabels[transfer.to_account]}
                             </p>
-                            <p className="text-xs sm:text-sm text-gray-500">
+                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                               {formatDate(transfer.date)}
                               {transfer.description && ` • ${transfer.description}`}
                             </p>
                             {describeGold(transfer) && (
-                              <p className="text-xs text-amber-700 mt-0.5">
+                              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                                 {describeGold(transfer)}
                               </p>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                          <span className="font-semibold text-gray-900 text-base sm:text-sm">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-gray-700">
+                          <span className="font-semibold text-gray-900 dark:text-white text-base sm:text-sm">
                             {formatCurrency(transfer.amount)}
                           </span>
 
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleEdit(transfer)}
-                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                               title="Edit transfer"
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => deleteTransfer(transfer.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
                               title="Delete transfer"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -435,41 +435,41 @@ export default function TransfersPage() {
         </>
       ) : (
         <>
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 space-y-5">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Spending Trends Periods</h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Trends Periods</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Pick a month or custom range to analyze category spending trends.
                 </p>
               </div>
 
-              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <input
                   type="checkbox"
                   checked={isComparisonEnabled}
                   onChange={(e) => setIsComparisonEnabled(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
                 />
                 Enable period comparison
               </label>
             </div>
 
             <div className={`grid gap-4 ${isComparisonEnabled ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
-              <div className="rounded-xl border border-gray-200 p-4 space-y-4">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-900">Primary Period</p>
-                  <span className="text-xs text-gray-500">{primaryLabel}</span>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Primary Period</p>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{primaryLabel}</span>
                 </div>
 
-                <div className="inline-flex rounded-lg border border-gray-200 p-1">
+                <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-1">
                   <button
                     type="button"
                     onClick={() => setPrimaryPeriod((prev) => ({ ...prev, mode: 'month' }))}
                     className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                       primaryPeriod.mode === 'month'
                         ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     Month
@@ -480,7 +480,7 @@ export default function TransfersPage() {
                     className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                       primaryPeriod.mode === 'range'
                         ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
                     Custom Range
@@ -492,7 +492,7 @@ export default function TransfersPage() {
                     type="month"
                     value={primaryPeriod.month}
                     onChange={(e) => setPrimaryPeriod((prev) => ({ ...prev, month: e.target.value || getCurrentMonthKey() }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -500,33 +500,33 @@ export default function TransfersPage() {
                       type="date"
                       value={format(primaryPeriod.range.start, 'yyyy-MM-dd')}
                       onChange={(e) => handlePrimaryRangeChange('start', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <input
                       type="date"
                       value={format(primaryPeriod.range.end, 'yyyy-MM-dd')}
                       onChange={(e) => handlePrimaryRangeChange('end', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 )}
               </div>
 
               {isComparisonEnabled && (
-                <div className="rounded-xl border border-gray-200 p-4 space-y-4">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">Comparison Period</p>
-                    <span className="text-xs text-gray-500">{comparisonLabel}</span>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Comparison Period</p>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{comparisonLabel}</span>
                   </div>
 
-                  <div className="inline-flex rounded-lg border border-gray-200 p-1">
+                  <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 p-1">
                     <button
                       type="button"
                       onClick={() => setComparisonPeriod((prev) => ({ ...prev, mode: 'month' }))}
                       className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                         comparisonPeriod.mode === 'month'
                           ? 'bg-blue-600 text-white'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       Month
@@ -537,7 +537,7 @@ export default function TransfersPage() {
                       className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                         comparisonPeriod.mode === 'range'
                           ? 'bg-blue-600 text-white'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       Custom Range
@@ -551,7 +551,7 @@ export default function TransfersPage() {
                       onChange={(e) =>
                         setComparisonPeriod((prev) => ({ ...prev, month: e.target.value || format(subMonths(new Date(), 1), 'yyyy-MM') }))
                       }
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -559,13 +559,13 @@ export default function TransfersPage() {
                         type="date"
                         value={format(comparisonPeriod.range.start, 'yyyy-MM-dd')}
                         onChange={(e) => handleComparisonRangeChange('start', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                       <input
                         type="date"
                         value={format(comparisonPeriod.range.end, 'yyyy-MM-dd')}
                         onChange={(e) => handleComparisonRangeChange('end', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   )}
@@ -575,56 +575,56 @@ export default function TransfersPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Total Spent</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Spent</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
                     {trendsLoading ? '...' : formatCurrency(primaryTotal)}
                   </p>
                 </div>
-                <div className="p-2.5 bg-red-50 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-red-600" />
+                <div className="p-2.5 bg-red-50 dark:bg-red-950/40 rounded-lg">
+                  <BarChart3 className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Daily Average</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Daily Average</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
                     {trendsLoading ? '...' : formatCurrency(primaryAverageDaily)}
                   </p>
                 </div>
-                <div className="p-2.5 bg-blue-50 rounded-lg">
-                  <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 rounded-lg">
+                  <ArrowRightLeft className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Transactions</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Transactions</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
                     {trendsLoading ? '...' : primaryExpenses.length}
                   </p>
                 </div>
-                <div className="p-2.5 bg-emerald-50 rounded-lg">
-                  <GitCompareArrows className="w-5 h-5 text-emerald-600" />
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg">
+                  <GitCompareArrows className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Top Category</p>
-                  <p className="text-lg font-bold text-gray-900 mt-1 truncate max-w-[180px]">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Top Category</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white mt-1 truncate max-w-[180px]">
                     {trendsLoading ? '...' : primaryTopCategory?.name || 'No spending'}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {trendsLoading
                       ? ''
                       : primaryTopCategory
@@ -632,21 +632,21 @@ export default function TransfersPage() {
                         : 'Add expenses to see trends'}
                   </p>
                 </div>
-                <div className="p-2.5 bg-amber-50 rounded-lg">
-                  <HandCoins className="w-5 h-5 text-amber-600" />
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-lg">
+                  <HandCoins className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">Spending Trend for Selected Period</h2>
-            <p className="text-sm text-gray-500 mt-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Trend for Selected Period</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {primaryLabel} • {primaryDays} day{primaryDays === 1 ? '' : 's'} in range
             </p>
             <div className="mt-4">
               {trendsLoading ? (
-                <div className="h-[300px] flex items-center justify-center text-gray-500">Loading spending trend...</div>
+                <div className="h-[300px] flex items-center justify-center text-gray-500 dark:text-gray-400">Loading spending trend...</div>
               ) : (
                 <ExpenseLineChart data={primaryTrendData} />
               )}
@@ -654,36 +654,36 @@ export default function TransfersPage() {
           </div>
 
           <div className={`grid gap-6 ${isComparisonEnabled ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Category Ranking</h2>
-              <p className="text-sm text-gray-500 mt-1">Ordered by highest spending first</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Category Ranking</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Ordered by highest spending first</p>
 
               <div className="mt-4 space-y-3">
                 {trendsLoading ? (
-                  <div className="text-sm text-gray-500">Loading category breakdown...</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading category breakdown...</div>
                 ) : primaryCategoryBreakdown.length === 0 ? (
-                  <div className="text-sm text-gray-500">No expense data found for the selected period.</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">No expense data found for the selected period.</div>
                 ) : (
                   primaryCategoryBreakdown.map((item, index) => {
                     const share = primaryTotal > 0 ? (item.value / primaryTotal) * 100 : 0
 
                     return (
-                      <div key={item.name} className="rounded-lg border border-gray-100 p-3">
+                      <div key={item.name} className="rounded-lg border border-gray-100 dark:border-gray-700 p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <span className="w-6 text-sm font-semibold text-gray-500">#{index + 1}</span>
+                            <span className="w-6 text-sm font-semibold text-gray-500 dark:text-gray-400">#{index + 1}</span>
                             <div
                               className="w-2.5 h-2.5 rounded-full shrink-0"
                               style={{ backgroundColor: item.color || '#6b7280' }}
                             />
-                            <span className="font-medium text-gray-900 truncate">{item.name}</span>
+                            <span className="font-medium text-gray-900 dark:text-white truncate">{item.name}</span>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold text-gray-900">{formatCurrency(item.value)}</p>
-                            <p className="text-xs text-gray-500">{share.toFixed(1)}%</p>
+                            <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(item.value)}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{share.toFixed(1)}%</p>
                           </div>
                         </div>
-                        <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="mt-2 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full"
                             style={{
@@ -700,34 +700,34 @@ export default function TransfersPage() {
             </div>
 
             {isComparisonEnabled && (
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-900">Period Comparison</h2>
-                <p className="text-sm text-gray-500 mt-1">Compare two periods of your choosing</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Period Comparison</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Compare two periods of your choosing</p>
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-lg border border-gray-100 p-3">
-                    <p className="text-xs text-gray-500">Primary</p>
-                    <p className="text-sm font-medium text-gray-700 mt-1 truncate">{primaryLabel}</p>
-                    <p className="text-lg font-bold text-gray-900 mt-1">
+                  <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Primary</p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-1 truncate">{primaryLabel}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
                       {comparisonLoading ? '...' : formatCurrency(primaryTotal)}
                     </p>
                   </div>
 
-                  <div className="rounded-lg border border-gray-100 p-3">
-                    <p className="text-xs text-gray-500">Comparison</p>
-                    <p className="text-sm font-medium text-gray-700 mt-1 truncate">{comparisonLabel}</p>
-                    <p className="text-lg font-bold text-gray-900 mt-1">
+                  <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Comparison</p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-1 truncate">{comparisonLabel}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
                       {comparisonLoading ? '...' : formatCurrency(comparisonTotal)}
                     </p>
                   </div>
 
-                  <div className="rounded-lg border border-gray-100 p-3">
-                    <p className="text-xs text-gray-500">Difference</p>
-                    <p className={`text-lg font-bold mt-1 ${totalComparisonDiff > 0 ? 'text-red-600' : totalComparisonDiff < 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Difference</p>
+                    <p className={`text-lg font-bold mt-1 ${totalComparisonDiff > 0 ? 'text-red-600 dark:text-red-400' : totalComparisonDiff < 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
                       {comparisonLoading ? '...' : `${totalComparisonDiff >= 0 ? '+' : ''}${formatCurrency(totalComparisonDiff)}`}
                     </p>
                     {!comparisonLoading && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {totalComparisonPercent >= 0 ? '+' : ''}{totalComparisonPercent.toFixed(1)}%
                       </p>
                     )}
@@ -736,27 +736,27 @@ export default function TransfersPage() {
 
                 <div className="mt-4">
                   {comparisonLoading ? (
-                    <div className="text-sm text-gray-500">Loading category comparison...</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Loading category comparison...</div>
                   ) : categoryComparisonRows.length === 0 ? (
-                    <div className="text-sm text-gray-500">No category data to compare yet.</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">No category data to compare yet.</div>
                   ) : (
                     <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
                       {categoryComparisonRows.map((row) => (
-                        <div key={row.name} className="rounded-lg border border-gray-100 p-3">
+                        <div key={row.name} className="rounded-lg border border-gray-100 dark:border-gray-700 p-3">
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 min-w-0">
                               <div
                                 className="w-2.5 h-2.5 rounded-full shrink-0"
                                 style={{ backgroundColor: row.color || '#6b7280' }}
                               />
-                              <span className="font-medium text-gray-900 truncate">{row.name}</span>
+                              <span className="font-medium text-gray-900 dark:text-white truncate">{row.name}</span>
                             </div>
-                            <span className={`text-sm font-semibold ${row.difference > 0 ? 'text-red-600' : row.difference < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                            <span className={`text-sm font-semibold ${row.difference > 0 ? 'text-red-600 dark:text-red-400' : row.difference < 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}>
                               {row.difference >= 0 ? '+' : ''}{formatCurrency(row.difference)}
                             </span>
                           </div>
 
-                          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                          <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                             <span>Primary: {formatCurrency(row.periodA)}</span>
                             <span>Comparison: {formatCurrency(row.periodB)}</span>
                             <span>

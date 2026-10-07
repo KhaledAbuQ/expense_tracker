@@ -1,3 +1,4 @@
+import { cachedFinance, invalidateFinance, subscribeFinance } from '../lib/financeCache'
 import { fetchAllRows } from '../lib/pagination'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
@@ -50,7 +51,7 @@ export function useExpenses(options?: UseExpensesOptions) {
     return true
   }, [member, householdMemberIds, startDateStr, endDateStr, categoryId, visibility])
 
-  const fetchExpenses = useCallback(async () => {
+  const fetchExpenses = useCallback(async (force: unknown = true) => {
     if (!isSupabaseConfigured || !member || householdMemberIds.length === 0) {
       setExpenses([])
       setError(null)
@@ -97,7 +98,7 @@ export function useExpenses(options?: UseExpensesOptions) {
         query = query.or(`member_id.eq.${member.id},and(visibility.eq.household,member_id.in.(${householdMemberIds.join(',')}))`)
       }
 
-      const data = await fetchAllRows((from, to) => query.range(from, to))
+      const data = await cachedFinance('expenses:' + JSON.stringify([member.id, memberIdsKey, startDateStr, endDateStr, categoryId, visibility]), () => fetchAllRows((from, to) => query.range(from, to)), force !== false)
       if (currentRequest !== requestId.current) return
 
       const scopedExpenses = (data || []).filter(expense =>
@@ -124,12 +125,13 @@ export function useExpenses(options?: UseExpensesOptions) {
   }, [startDateStr, endDateStr, categoryId, visibility, member, memberIdsKey])
 
   useEffect(() => {
-    fetchExpenses()
+    void fetchExpenses(false)
+    return subscribeFinance(resource => { if (resource === 'expenses') void fetchExpenses(false) })
   }, [fetchExpenses])
 
-  const addExpense = async (formData: ExpenseFormData) => {
+  const addExpense = async (formData: ExpenseFormData, options: { silent?: boolean } = {}) => {
     if (!isSupabaseConfigured || !member) {
-      toast.error('Please configure Supabase first')
+      if (!options.silent) toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
 
@@ -151,17 +153,18 @@ export function useExpenses(options?: UseExpensesOptions) {
         .single()
 
       if (error) throw error
+      invalidateFinance('expenses')
       // Only show it here if it actually belongs in the current view. Otherwise
       // an expense dated outside the selected range would appear in the list and
       // in the total until the next refresh.
       if (matchesFilters(data)) {
         setExpenses(prev => [data, ...prev])
       }
-      toast.success('Expense added successfully')
+      if (!options.silent) toast.success('Expense added successfully')
       return data
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to add expense'
-      toast.error(message)
+      if (!options.silent) toast.error(message)
       throw err
     }
   }
@@ -185,6 +188,7 @@ export function useExpenses(options?: UseExpensesOptions) {
         .single()
 
       if (error) throw error
+      invalidateFinance('expenses')
       // An edit can move a row out of the active filter (new date, new category,
       // new visibility), in which case it should drop out of the list.
       setExpenses(prev =>
@@ -214,6 +218,7 @@ export function useExpenses(options?: UseExpensesOptions) {
         .eq('id', id)
 
       if (error) throw error
+      invalidateFinance('expenses')
       setExpenses(prev => prev.filter(e => e.id !== id))
       toast.success('Expense deleted successfully')
     } catch (err) {

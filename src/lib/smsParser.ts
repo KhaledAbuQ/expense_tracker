@@ -28,7 +28,47 @@ export interface ParsedBankTransaction {
   availableBalance?: number
 }
 
-const LEARNED_MERCHANTS_KEY = 'pocket_expenses_merchant_categories'
+// The old cache mixed automatic guesses with explicit corrections.
+const LEARNED_MERCHANTS_KEY = 'pocket_expenses_merchant_categories_v2'
+const LEARNED_MESSAGES_KEY = 'pocket_expenses_message_categories_v3'
+
+function messageKeys(merchant: string, body: string, type: TransactionType, sender: string): string[] {
+  const stableMerchant = normalizeText(merchant.replace(/[\d٠-٩۰-۹]+(?:[.,:/-][\d٠-٩۰-۹]+)*/g, ' '))
+  const template = normalizeText(body.replace(/[\d٠-٩۰-۹]+(?:[.,:/-][\d٠-٩۰-۹]+)*/g, ' ').replace(/[*•]+/g, ' '))
+  const keys: string[] = []
+  if (stableMerchant.length > 2 && !/^(bank|bank transaction|cliq received|cliq transfer|بنك|مصرف)$/.test(stableMerchant) && stableMerchant !== normalizeText(sender)) keys.push(`${type}:merchant:${stableMerchant}`)
+  if (template.length > 15) keys.push(`${type}:sender:${normalizeText(sender)}:template:${template}`)
+  return keys
+}
+
+/** Explicit category choices survive restarts and ignore changing amounts/dates. */
+export function rememberSmsCategory(tx: ParsedBankTransaction, categoryId: string, merchant = tx.merchant): void {
+  if (!categoryId) return
+  try {
+    const map = JSON.parse(localStorage.getItem(LEARNED_MESSAGES_KEY) || '{}')
+    for (const key of new Set([...messageKeys(tx.merchant, tx.rawBody, tx.type, tx.sender), ...messageKeys(merchant, tx.rawBody, tx.type, tx.sender)])) map[key] = categoryId
+    localStorage.setItem(LEARNED_MESSAGES_KEY, JSON.stringify(map))
+  } catch { /* Storage may be unavailable. */ }
+}
+
+function learnedMessageCategory(merchant: string, body: string, type: TransactionType, sender: string): string | undefined {
+  try {
+    const map = JSON.parse(localStorage.getItem(LEARNED_MESSAGES_KEY) || '{}')
+    return messageKeys(merchant, body, type, sender).map(key => map[key]).find(Boolean)
+  } catch { return undefined }
+}
+
+function normalizeText(text: string): string {
+  return normalizeDigits(text).toLowerCase().normalize('NFKD')
+    .replace(/[\u0300-\u036f\u064b-\u065f\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ')
+}
+
+function hasTerm(text: string, term: string): boolean {
+  const normalized = normalizeText(term)
+  return normalized.length > 0 && ` ${normalizeText(text)} `.includes(` ${normalized} `)
+}
 
 /**
  * Gets a learned category ID for a specific merchant if previously saved/approved by the user.
@@ -39,7 +79,7 @@ export function getLearnedCategory(merchant: string): string | undefined {
     const raw = localStorage.getItem(LEARNED_MERCHANTS_KEY)
     if (!raw) return undefined
     const map = JSON.parse(raw)
-    const norm = merchant.trim().toLowerCase()
+    const norm = normalizeText(merchant)
     return map[norm]
   } catch {
     return undefined
@@ -54,8 +94,8 @@ export function saveLearnedCategory(merchant: string, categoryId: string): void 
     if (typeof localStorage === 'undefined') return
     const raw = localStorage.getItem(LEARNED_MERCHANTS_KEY)
     const map = raw ? JSON.parse(raw) : {}
-    const norm = merchant.trim().toLowerCase()
-    if (norm.length > 1 && categoryId) {
+    const norm = normalizeText(merchant)
+    if (norm.length > 1 && categoryId && !/bank|بنك|مصرف|^cliq (received|transfer)$/.test(norm)) {
       map[norm] = categoryId
       localStorage.setItem(LEARNED_MERCHANTS_KEY, JSON.stringify(map))
     }
@@ -94,6 +134,8 @@ const IGNORE_PATTERNS = [
   /رمز\s*الأمان/i,
   /secret\s*code/i,
   /do\s*not\s*share/i,
+  /\b(?:declined|unsuccessful|rejected|insufficient\s+funds)\b/i,
+  /(?:تم\s*رفض|فشلت\s*العملية|رصيد\s*غير\s*كاف)/i,
 ]
 
 // Category keywords for intelligent matching across Jordanian & regional banks
@@ -316,40 +358,22 @@ export function extractAmountAndCurrency(text: string): { amount: number; curren
  * Extracts merchant, store, or party name from SMS text.
  */
 export function extractMerchant(text: string, sender: string, type: TransactionType = 'expense'): string {
-  // 1. "from [MERCHANT] has been debited" / "from [PARTY] as CliQ transfer"
-  const fromPatterns = [
-    /from\s+([A-Za-z0-9\s&'-]{2,35}?)(?:\s+(?:has\s+been|was|as\s+CliQ|via\s+CliQ|as\s+transfer|Balance\b|on\b|using|with)|$)/i,
-    /(?:لدى|من)\s+([A-Za-z0-9\u0600-\u06FF\s&'-]{2,35}?)(?:\s+(?:بتاريخ|بواسطة|عبر|بطاقة|الرصيد|كحوالة|\.)|$)/i,
+  // Merchant fields outrank account/from clauses. Keep punctuation in brands
+  // such as TALABAT.COM and H&M, and stop before bank metadata.
+  const merchantPatterns = [
+    /(?:\bat\s+|@\s*)(.+?)(?=\s+(?:on|with|using|card|ref|avl|avail|bal(?:ance)?|date)\b|[.;]\s*(?:available|balance)|$)/iu,
+    /(?:لدى|عند)\s+(.+?)(?=\s+(?:بتاريخ|بواسطة|عبر|بطاقة|الرصيد)|$)/u,
+    /from\s+(.+?)(?=\s+(?:has\s+been|was|as\s+cliq|via\s+cliq|as\s+transfer|balance|on|using|with)\b|$)/iu,
+    /(?:paid\s+to|transferred\s+to|\bto)\s+(.+?)(?=\s+(?:on|via|ref|bal(?:ance)?)\b|$)/iu,
+    /(?:من|إلى|الى)\s+(.+?)(?=\s+(?:بتاريخ|بواسطة|عبر|بطاقة|الرصيد|كحوالة)|$)/u,
   ]
-
-  for (const regex of fromPatterns) {
-    const match = text.match(regex)
-    if (match && match[1]) {
-      const candidate = match[1].trim()
-      if (!/^(the|card|bank|account|date|ref|atm|your\s+card|your\s+account)$/i.test(candidate) && candidate.length > 2) {
-        return candidate
-      }
-    }
-  }
-
-  // 2. "at [MERCHANT] on [DATE]"
-  const atMatch = text.match(/(?:at|@)\s+([A-Za-z0-9\s&'-]{2,35}?)(?:\s+(?:on|with|using|card|ref|avl|avail|bal|date|\.)|$)/i)
-  if (atMatch && atMatch[1]) {
-    const candidate = atMatch[1].trim()
-    if (!/^(the|card|bank|account|date|ref|atm)$/i.test(candidate) && candidate.length > 2) {
+  for (const pattern of merchantPatterns) {
+    const candidate = text.match(pattern)?.[1]?.trim().replace(/[.,;]+$/, '')
+    if (candidate && candidate.length > 2 && candidate.length <= 100 &&
+        !/^(?:the\b|your\b|card\b|bank\b|account\b|date\b|ref\b|atm\b|حساب|بطاقة|[\d*])/i.test(candidate)) {
       return candidate
     }
   }
-
-  // 3. "to [RECIPIENT] on [DATE]" / "paid to [RECIPIENT]"
-  const toMatch = text.match(/(?:paid\s+to|transferred\s+to|to)\s+([A-Za-z0-9\s&'-]{2,35}?)(?:\s+(?:on|via|ref|bal|\.)|$)/i)
-  if (toMatch && toMatch[1]) {
-    const candidate = toMatch[1].trim()
-    if (!/^(the|card|bank|account|your\s+account|your\s+card|date|ref|atm)$/i.test(candidate) && candidate.length > 2) {
-      return candidate
-    }
-  }
-
   // 4. Check for CliQ transfer indication
   if (/cliq/i.test(text)) {
     return type === 'income' ? 'CliQ Received' : 'CliQ Transfer'
@@ -436,19 +460,18 @@ export function matchCategory(
   merchant: string,
   rawText: string,
   type: TransactionType,
-  categories: Category[] = []
+  categories: Category[] = [],
+  sender = ''
 ): { categoryGuess: string; categoryId?: string; isAutoDetected: boolean } {
-  const combined = `${merchant} ${rawText}`.toLowerCase()
-
-  // Filter categories compatible with this transaction type
+  // Only exact names and aliases map to existing categories. A word such as
+  // "income" must not make "Other Income" look like the Salary category.
   const compatibleCategories = categories.filter(c =>
     type === 'income'
       ? c.category_type === 'income' || c.category_type === 'both'
       : c.category_type === 'expense' || c.category_type === 'both' || !c.category_type
   )
 
-  // 1. Check user-learned merchant categories (from past approvals/edits)
-  const learnedId = getLearnedCategory(merchant)
+  const learnedId = learnedMessageCategory(merchant, rawText, type, sender) || getLearnedCategory(merchant)
   if (learnedId) {
     const matchedCategory = compatibleCategories.find(c => c.id === learnedId)
     if (matchedCategory) {
@@ -460,58 +483,71 @@ export function matchCategory(
     }
   }
 
-  // 2. Direct match with user categories first if an exact or substring match exists
-  for (const cat of compatibleCategories) {
-    const catLower = cat.name.trim().toLowerCase()
-    if (catLower.length >= 3 && combined.includes(catLower)) {
-      return {
-        categoryGuess: cat.name,
-        categoryId: cat.id,
-        isAutoDetected: true,
-      }
+  const resolve = (name: string, aliases: string[], detected = true) => {
+    const names = [name, ...aliases].map(normalizeText)
+    const category = compatibleCategories.find(c => normalizeText(c.name) === normalizeText(name))
+      || compatibleCategories.find(c => names.includes(normalizeText(c.name)))
+    return { categoryGuess: category?.name || name, categoryId: category?.id, isAutoDetected: detected }
+  }
+  const fallback = () => resolve(
+    type === 'income' ? 'Other Income' : 'Other',
+    type === 'income' ? ['general income', 'دخل اخر', 'دخل آخر'] : ['general', 'uncategorized', 'اخرى', 'أخرى', 'عام'],
+    false,
+  )
+
+  // Credits and CliQ receipts are not salaries unless the SMS actually says so.
+  if (type === 'income') {
+    if (['salary', 'payroll', 'wage', 'راتب', 'رواتب'].some(term => hasTerm(rawText, term))) {
+      return resolve('Salary & Income', ['salary', 'راتب', 'رواتب'])
     }
+    if (['freelance', 'عمل حر'].some(term => hasTerm(rawText, term))) {
+      return resolve('Freelance', ['freelancing', 'عمل حر'])
+    }
+    if (['dividend', 'interest', 'ارباح', 'أرباح'].some(term => hasTerm(rawText, term))) {
+      return resolve('Investments', ['investment income', 'استثمارات'])
+    }
+    return fallback()
+  }
+  if (type !== 'expense') return fallback()
+
+  // Rank merchant evidence before SMS wording. Generic terms carry less weight
+  // than merchant brands; "Carrefour City Mall" remains groceries.
+  const genericTerms = new Set([
+    'market', 'mart', 'bakery', 'meat', 'fruits', 'vegetables', 'gas', 'station', 'total', 'oil', 'rj',
+    'bill', 'water', 'mobile', 'lab', 'drug', 'store', 'mall', 'prime', 'park', 'game', 'care',
+    'miles', 'kareem', 'metro', 'ju', 'just', 'ace', 'books', 'library', 'housing',
+    'city mall', 'abdali mall', 'mecca mall', 'taj mall', 'galleria', 'تاج مول', 'سيتي مول', 'مكة مول', 'العبدلي مول',
+    'مول', 'ماركت', 'غسيل', 'محطة', 'مياه',
+  ].map(normalizeText))
+  const score = (rule: typeof CATEGORY_RULES[number], text: string) => Math.max(0,
+    ...rule.keywords.filter(term => hasTerm(text, term)).map(term =>
+      genericTerms.has(normalizeText(term)) ? 10 : 100 + normalizeText(term).length,
+    ),
+  )
+  const expenseRules = CATEGORY_RULES.filter(rule => rule.category !== 'Salary & Income')
+  const merchantScores = expenseRules.map(rule => ({ rule, score: score(rule, merchant) }))
+  // Remove bank metadata before using the body as a fallback signal.
+  const context = rawText.split(/available\s*balance|avail\s*bal|balance|الرصيد/i)[0]
+    .replace(/\b(?:credit|debit)\s+card\b/gi, 'card')
+  const candidates = (merchantScores.some(item => item.score > 0)
+    ? merchantScores
+    : expenseRules.map(rule => ({ rule, score: score(rule, context) })))
+    .filter(item => item.score > 10).sort((a, b) => b.score - a.score)
+
+  const top = candidates[0]
+  // Shared keywords (for example housing) are ambiguous, so require review.
+  if (top && (!candidates[1] || top.score > candidates[1].score)) {
+    return resolve(top.rule.category, top.rule.aliases)
   }
 
-  // 3. Prioritize rules matching transaction type
-  const sortedRules = [...CATEGORY_RULES].sort((a, b) => {
-    if (type === 'income') {
-      if (a.category === 'Salary & Income') return -1
-      if (b.category === 'Salary & Income') return 1
-    } else {
-      if (a.category === 'Salary & Income') return 1
-      if (b.category === 'Salary & Income') return -1
-    }
-    return 0
-  })
-
-  for (const rule of sortedRules) {
-    const matchedKw = rule.keywords.find(kw => combined.includes(kw.toLowerCase()))
-    if (matchedKw) {
-      // Find matching user category by name or aliases
-      const matchingCategory = compatibleCategories.find(c => {
-        const cName = c.name.toLowerCase().trim()
-        if (cName === rule.category.toLowerCase() || cName.includes(rule.category.toLowerCase()) || rule.category.toLowerCase().includes(cName)) {
-          return true
-        }
-        return rule.aliases.some(alias => cName === alias.toLowerCase() || cName.includes(alias.toLowerCase()) || alias.toLowerCase().includes(cName))
-      })
-
-      return {
-        categoryGuess: matchingCategory?.name || rule.category,
-        categoryId: matchingCategory?.id,
-        isAutoDetected: true,
-      }
-    }
+  // Allow an explicit custom category phrase, but never a substring or "Other".
+  const custom = compatibleCategories.filter(c => !c.is_default &&
+    !['other', 'general', 'uncategorized'].includes(normalizeText(c.name)) &&
+    hasTerm(merchant, c.name))
+  if (custom.length === 1) {
+    return { categoryGuess: custom[0].name, categoryId: custom[0].id, isAutoDetected: true }
   }
-
-  // 4. Fallback to first compatible category or general
-  const fallbackCategory = compatibleCategories.find(c => /other|general|أخرى|عام/i.test(c.name)) || compatibleCategories[0]
-
-  return {
-    categoryGuess: fallbackCategory?.name || (type === 'income' ? 'Income' : 'General'),
-    categoryId: fallbackCategory?.id,
-    isAutoDetected: false,
-  }
+  return fallback()
 }
 
 /**
@@ -532,10 +568,9 @@ export function parseBankSms(
 
   // 3. Determine transaction type (expense vs income vs other)
   const lowerBody = body.toLowerCase()
-  const isExpenseKeyword = EXPENSE_KEYWORDS_EN.some(kw => lowerBody.includes(kw)) ||
-    EXPENSE_KEYWORDS_AR.some(kw => body.includes(kw))
-  const isIncomeKeyword = INCOME_KEYWORDS_EN.some(kw => lowerBody.includes(kw)) ||
-    INCOME_KEYWORDS_AR.some(kw => body.includes(kw))
+  const directionText = lowerBody.replace(/\bcredit\s+card\b/g, 'card')
+  const isExpenseKeyword = [...EXPENSE_KEYWORDS_EN, ...EXPENSE_KEYWORDS_AR].some(kw => hasTerm(directionText, kw))
+  const isIncomeKeyword = [...INCOME_KEYWORDS_EN, ...INCOME_KEYWORDS_AR].some(kw => hasTerm(directionText, kw))
 
   let type: TransactionType = 'other'
   if (!isOtp && financialData) {
@@ -547,8 +582,8 @@ export function parseBankSms(
       // e.g. "credited"
       type = 'income'
     } else {
-      // Default to expense if financial amount is present
-      type = 'expense'
+      // A currency amount alone may be an offer or a balance notice.
+      type = 'other'
     }
   }
 
@@ -558,7 +593,7 @@ export function parseBankSms(
   const accountEnding = extractAccountEnding(body)
 
   // 5. Category matching
-  const { categoryGuess, categoryId, isAutoDetected } = matchCategory(merchant, body, type, categories)
+  const { categoryGuess, categoryId, isAutoDetected } = matchCategory(merchant, body, type, categories, sender)
 
   // 6. Confidence scoring
   let confidence: 'high' | 'medium' | 'low' = 'low'

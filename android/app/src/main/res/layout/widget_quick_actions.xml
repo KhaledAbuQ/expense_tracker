@@ -24,7 +24,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="TODAY'S SPENT"
-            android:textColor="#818cf8"
+            android:textColor="#5267f5"
             android:textSize="10sp"
             android:textStyle="bold"
             android:letterSpacing="0.06" />
@@ -35,7 +35,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="1dp"
             android:text="$0.00"
-            android:textColor="#f8fafc"
+            android:textColor="#1b1c1f"
             android:textSize="18sp"
             android:textStyle="bold"
             android:maxLines="1" />

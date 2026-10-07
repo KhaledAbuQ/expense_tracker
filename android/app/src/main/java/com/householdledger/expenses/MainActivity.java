@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BankSmsPlugin.class);
         registerPlugin(ExpenseWidgetPlugin.class);
         registerPlugin(BiometricAuthPlugin.class);
+        registerPlugin(HapticFeedbackPlugin.class);
         super.onCreate(savedInstanceState);
     }
 

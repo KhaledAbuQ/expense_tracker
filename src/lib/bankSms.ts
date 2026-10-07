@@ -17,11 +17,25 @@ export interface SmsTrackingSettings {
 
 const SETTINGS_STORAGE_KEY = 'pocket_expenses_sms_settings'
 const PROCESSED_IDS_STORAGE_KEY = 'pocket_expenses_processed_sms_ids'
+const PENDING_STORAGE_KEY = 'pocket_expenses_pending_transactions'
+
+export function getPendingSmsTransactions(): ParsedBankTransaction[] {
+  try {
+    const items = JSON.parse(localStorage.getItem(PENDING_STORAGE_KEY) || '[]')
+    return Array.isArray(items) ? items.filter(item => item && typeof item.smsId === 'string' && typeof item.rawBody === 'string' && !isTransactionProcessed(item.smsId)).slice(-200) : []
+  } catch { return [] }
+}
+
+export function savePendingSmsTransactions(items: ParsedBankTransaction[]): void {
+  try { localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(items.slice(0, 200))) } catch { /* Keep the current review list if storage is full. */ }
+}
 
 interface NativeBankSmsPlugin {
   isAvailable(): Promise<{ available: boolean; platform: string }>
   checkSmsPermissions(): Promise<{ granted: boolean; receiveSms: boolean; readSms: boolean }>
   requestSmsPermissions(): Promise<{ granted: boolean; receiveSms: boolean; readSms: boolean }>
+  checkNotificationPermission(): Promise<{ granted: boolean }>
+  requestNotificationPermission(): Promise<{ granted: boolean }>
   getRecentSms(options: { limit?: number; days?: number }): Promise<{ messages: RawSms[]; count: number }>
   getPendingReceivedSms(): Promise<{ messages: RawSms[]; count: number }>
   clearPendingReceivedSms(): Promise<{ success: boolean }>
@@ -32,6 +46,14 @@ interface NativeBankSmsPlugin {
 }
 
 const BankSms = registerPlugin<NativeBankSmsPlugin>('BankSms')
+
+function parseTrackedSms(msg: RawSms, categories: Category[]): ParsedBankTransaction {
+  const parsed = parseBankSms(msg, categories)
+  if (!getSmsSettings().autoDetectCategory) {
+    return { ...parsed, suggestedCategoryId: undefined, categoryGuess: 'Choose a category', isAutoDetected: false }
+  }
+  return parsed
+}
 
 /**
  * Returns user settings for SMS auto-tracking from localStorage.
@@ -179,6 +201,24 @@ export async function requestSmsPermissions(): Promise<{ granted: boolean; recei
   }
 }
 
+export async function checkNotificationPermission(): Promise<boolean> {
+  try {
+    const res = await BankSms.checkNotificationPermission()
+    return !!res?.granted
+  } catch {
+    return false
+  }
+}
+
+export async function requestNotificationPermission(): Promise<boolean> {
+  try {
+    const res = await BankSms.requestNotificationPermission()
+    return !!res?.granted
+  } catch {
+    return false
+  }
+}
+
 /**
  * Scans recent SMS from device inbox and filters for financial bank transactions.
  */
@@ -197,7 +237,7 @@ export async function scanRecentBankTransactions(
     for (const msg of res.messages) {
       if (processed.has(msg.id)) continue
 
-      const parsed = parseBankSms(msg, categories)
+      const parsed = parseTrackedSms(msg, categories)
       if (parsed.isFinancial && (parsed.type === 'expense' || parsed.type === 'income')) {
         transactions.push(parsed)
       }
@@ -228,7 +268,7 @@ export async function fetchPendingBackgroundTransactions(
     for (const msg of res.messages) {
       if (processed.has(msg.id)) continue
 
-      const parsed = parseBankSms(msg, categories)
+      const parsed = parseTrackedSms(msg, categories)
       if (parsed.isFinancial && (parsed.type === 'expense' || parsed.type === 'income')) {
         transactions.push(parsed)
       }
@@ -251,14 +291,14 @@ export async function fetchPendingBackgroundTransactions(
  */
 export function subscribeToIncomingSms(
   onTransaction: (tx: ParsedBankTransaction) => void,
-  categories: Category[] = []
+  categories: Category[] | (() => Category[]) = []
 ): () => void {
   let removeHandle: (() => void) | null = null
 
   void BankSms.addListener('smsReceived', (data: RawSms) => {
     if (isTransactionProcessed(data.id)) return
 
-    const parsed = parseBankSms(data, categories)
+    const parsed = parseTrackedSms(data, typeof categories === 'function' ? categories() : categories)
     if (parsed.isFinancial && (parsed.type === 'expense' || parsed.type === 'income')) {
       onTransaction(parsed)
     }

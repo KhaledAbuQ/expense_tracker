@@ -113,7 +113,7 @@ export default function MembersPage() {
           {isAdmin && (
             <button
               type="button"
-              onClick={handleRotate}
+              data-haptic="impact" onClick={handleRotate}
               disabled={!inviteCode || rotating}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             >
@@ -160,7 +160,7 @@ export default function MembersPage() {
                       />
                       <button
                         type="button"
-                        onClick={() => saveName(memberItem.id)}
+                        data-haptic="impact" onClick={() => saveName(memberItem.id)}
                         className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg"
                         title="Save"
                       >
@@ -209,7 +209,7 @@ export default function MembersPage() {
                         {canEdit && (
                           <button
                             type="button"
-                            onClick={() => handleRemove(memberItem.id, memberItem.name)}
+                            data-haptic="impact" onClick={() => handleRemove(memberItem.id, memberItem.name)}
                             className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
                             title={isSelf ? 'Leave household' : 'Remove member'}
                           >

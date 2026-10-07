@@ -1,3 +1,4 @@
+import { cachedFinance, invalidateFinance, subscribeFinance } from '../lib/financeCache'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { Category, CategoryFormData } from '../types'
@@ -23,7 +24,7 @@ export function useCategories() {
   const requestId = useRef(0)
   const { member, user } = useAuth()
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (force: unknown = true) => {
     if (!isSupabaseConfigured) {
       setLoading(false)
       return
@@ -48,9 +49,11 @@ export function useCategories() {
         query = query.eq('is_default', true)
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
+      const data = await cachedFinance('categories:' + JSON.stringify([uid, member?.household_id]), async () => {
+        const result = await query
+        if (result.error) throw result.error
+        return result.data
+      }, force !== false)
       if (currentRequest !== requestId.current) return
 
       setCategories(data || [])
@@ -72,7 +75,8 @@ export function useCategories() {
   }, [user?.id, member?.user_id])
 
   useEffect(() => {
-    fetchCategories()
+    void fetchCategories(false)
+    return subscribeFinance(resource => { if (resource === 'categories') void fetchCategories(false) })
   }, [fetchCategories])
 
   const addCategory = async (formData: CategoryFormData) => {
@@ -100,6 +104,7 @@ export function useCategories() {
         .single()
 
       if (error) throw error
+      invalidateFinance('categories')
       setCategories(prev => [...prev, data])
       toast.success('Category added successfully')
       return data
@@ -131,6 +136,7 @@ export function useCategories() {
         .single()
 
       if (error) throw error
+      invalidateFinance('categories')
       setCategories(prev => prev.map(c => (c.id === id ? data : c)))
       toast.success('Category updated successfully')
       return data
@@ -162,6 +168,7 @@ export function useCategories() {
         .eq('id', id)
 
       if (error) throw error
+      invalidateFinance('categories')
       setCategories(prev => prev.filter(c => c.id !== id))
       toast.success('Category deleted successfully')
     } catch (err) {

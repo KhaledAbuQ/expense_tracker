@@ -18,7 +18,7 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function getStoredTheme(): Theme {
+function getStoredTheme(defaultTheme: Theme = 'system'): Theme {
   if (typeof window === 'undefined') return 'system'
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
@@ -28,11 +28,11 @@ function getStoredTheme(): Theme {
   } catch {
     // Ignore localStorage errors
   }
-  return 'system'
+  return defaultTheme
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(getStoredTheme)
+export function ThemeProvider({ children, defaultTheme = 'system' }: { children: React.ReactNode; defaultTheme?: Theme }) {
+  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme(defaultTheme))
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme)
 
   // Listen to system theme changes

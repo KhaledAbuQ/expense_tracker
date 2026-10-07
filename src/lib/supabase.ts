@@ -1,3 +1,4 @@
+import { clearFinanceCache } from './financeCache'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const SUPABASE_STORAGE_URL_KEY = 'expense_tracker_supabase_url'
@@ -73,7 +74,12 @@ export const supabase: SupabaseClient = activeConfig
   ? createClient(activeConfig.url, activeConfig.anonKey)
   : createClient('https://placeholder.supabase.co', 'placeholder-key')
 
+supabase.auth.onAuthStateChange(event => {
+  if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') clearFinanceCache()
+})
+
 function clearAuthStorage(): void {
+  clearFinanceCache()
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i)

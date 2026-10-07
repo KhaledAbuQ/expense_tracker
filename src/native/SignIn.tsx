@@ -6,6 +6,7 @@ import { supabase, isSupabaseConfigured, getActiveSupabaseConfig } from '../lib/
 import ServerConfigForm from '../components/ServerConfigForm'
 import { BiometricAuth, checkBiometricStatus, type BiometricAvailability } from '../lib/biometrics'
 import ThemeToggle from '../components/ThemeToggle'
+import MobileWelcome from '../components/MobileWelcome'
 
 const PENDING_ONBOARDING_KEY = 'expense_tracker_pending_onboarding'
 
@@ -13,6 +14,7 @@ export default function NativeSignIn() {
   const activeConfig = getActiveSupabaseConfig()
   const [showServerConfig, setShowServerConfig] = useState(!isSupabaseConfigured)
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in')
+  const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('pocket_expenses_welcome_seen') !== 'yes')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -200,6 +202,14 @@ export default function NativeSignIn() {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (showWelcome) {
+    return <MobileWelcome onContinue={nextMode => {
+      localStorage.setItem('pocket_expenses_welcome_seen', 'yes')
+      setMode(nextMode)
+      setShowWelcome(false)
+    }} />
   }
 
   if (showServerConfig || !isSupabaseConfigured) {

@@ -18,13 +18,15 @@ import {
 } from 'lucide-react'
 import {
   ParsedBankTransaction,
-  parseBankSms,
-  saveLearnedCategory,
+  rememberSmsCategory,
+  matchCategory,
 } from '../lib/smsParser'
 import {
   isNativeSmsAvailable,
   checkSmsPermissions,
   requestSmsPermissions,
+  checkNotificationPermission,
+  requestNotificationPermission,
   scanRecentBankTransactions,
   getSmsSettings,
   saveSmsSettings,
@@ -44,7 +46,7 @@ interface BankSmsTrackerModalProps {
   pendingTransactions: ParsedBankTransaction[]
   onRemoveTransaction: (id: string) => void
   onAddTransactions: (txs: ParsedBankTransaction[]) => void
-  initialTab?: 'pending' | 'settings' | 'test'
+  initialTab?: 'pending' | 'settings'
 }
 
 function formatGroupDateHeader(dateStr: string): string {
@@ -79,7 +81,7 @@ export default function BankSmsTrackerModal({
   onAddTransactions,
   initialTab = 'pending',
 }: BankSmsTrackerModalProps) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'settings' | 'test'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'pending' | 'settings'>(initialTab)
 
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -89,6 +91,7 @@ export default function BankSmsTrackerModal({
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'income'>('all')
   const [isNative, setIsNative] = useState(false)
   const [permissionsGranted, setPermissionsGranted] = useState(false)
+  const [notificationsGranted, setNotificationsGranted] = useState(false)
   const [checkingPerms, setCheckingPerms] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [settings, setSettings] = useState<SmsTrackingSettings>(getSmsSettings())
@@ -101,16 +104,12 @@ export default function BankSmsTrackerModal({
       merchant: string
       amount: number
       categoryId: string
+      categoryChanged: boolean
       visibility: Visibility
       date: string
       showRaw: boolean
     }
   }>({})
-
-  // Test parser state with Jordanian bank examples
-  const [testText, setTestText] = useState('')
-  const [testSender, setTestSender] = useState('Bank')
-  const [testResult, setTestResult] = useState<ParsedBankTransaction | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -118,8 +117,9 @@ export default function BankSmsTrackerModal({
     void isNativeSmsAvailable().then(avail => {
       setIsNative(avail)
       if (avail) {
-        void checkSmsPermissions().then(status => {
+        void Promise.all([checkSmsPermissions(), checkNotificationPermission()]).then(([status, notificationsAllowed]) => {
           setPermissionsGranted(status.granted)
+          setNotificationsGranted(notificationsAllowed)
         })
       }
     })
@@ -127,25 +127,26 @@ export default function BankSmsTrackerModal({
 
   // Sync editing items when pendingTransactions change
   useEffect(() => {
-    const nextEditing = { ...editingTxs }
-    for (const tx of pendingTransactions) {
-      if (!nextEditing[tx.id]) {
-        const appropriateCategories = categories.filter(c =>
-          tx.type === 'income' ? c.category_type !== 'expense' : c.category_type !== 'income'
-        )
-        nextEditing[tx.id] = {
-          merchant: tx.merchant,
-          amount: tx.amount,
-          categoryId: tx.suggestedCategoryId || appropriateCategories[0]?.id || '',
-          visibility: settings.defaultVisibility,
-          date: tx.date,
-          showRaw: false,
+    setEditingTxs(current => {
+      const nextEditing = { ...current }
+      for (const tx of pendingTransactions) {
+        if (!nextEditing[tx.id]) {
+          nextEditing[tx.id] = {
+            merchant: tx.merchant,
+            amount: tx.amount,
+            categoryId: tx.suggestedCategoryId || '',
+            categoryChanged: false,
+            visibility: settings.defaultVisibility,
+            date: tx.date,
+            showRaw: false,
+          }
+        } else if (!nextEditing[tx.id].categoryChanged) {
+          nextEditing[tx.id] = { ...nextEditing[tx.id], categoryId: tx.suggestedCategoryId || '' }
         }
       }
-    }
-    setEditingTxs(nextEditing)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingTransactions, categories])
+      return nextEditing
+    })
+  }, [pendingTransactions, settings.defaultVisibility])
 
   // Filter pending transactions by type
   const filteredTransactions = useMemo(() => {
@@ -173,9 +174,13 @@ export default function BankSmsTrackerModal({
     setCheckingPerms(true)
     try {
       const res = await requestSmsPermissions()
+      const notificationsAllowed = await requestNotificationPermission()
       setPermissionsGranted(res.granted)
-      if (res.granted) {
-        toast.success('SMS permissions granted!')
+      setNotificationsGranted(notificationsAllowed)
+      if (res.granted && notificationsAllowed) {
+        toast.success('SMS tracking and notifications are ready')
+      } else if (res.granted) {
+        toast.error('SMS tracking is ready, but Android notifications are disabled')
       } else {
         toast.error('SMS permissions denied. Enable them in Android App Settings.')
       }
@@ -231,8 +236,8 @@ export default function BankSmsTrackerModal({
         })
         toast.success(`Saved Expense: ${edit.merchant}`)
       }
-      if (edit.categoryId && edit.merchant) {
-        saveLearnedCategory(edit.merchant, edit.categoryId)
+      if (edit.categoryChanged && edit.categoryId && edit.merchant) {
+        rememberSmsCategory(tx, edit.categoryId, edit.merchant)
       }
       markTransactionProcessed(tx.smsId)
       onRemoveTransaction(tx.id)
@@ -272,8 +277,8 @@ export default function BankSmsTrackerModal({
             account_type: 'bank',
           })
         }
-        if (edit.categoryId && edit.merchant) {
-          saveLearnedCategory(edit.merchant, edit.categoryId)
+        if (edit.categoryChanged && edit.categoryId && edit.merchant) {
+          rememberSmsCategory(tx, edit.categoryId, edit.merchant)
         }
         markTransactionProcessed(tx.smsId)
         onRemoveTransaction(tx.id)
@@ -292,43 +297,8 @@ export default function BankSmsTrackerModal({
     onRemoveTransaction(tx.id)
   }
 
-  const handleRunTest = () => {
-    if (!testText.trim()) return
-    const result = parseBankSms(
-      {
-        id: 'test-' + Date.now(),
-        address: testSender,
-        body: testText,
-        date: Date.now(),
-      },
-      categories
-    )
-    setTestResult(result)
-  }
-
-  const loadPresetTest = (type: 'cliq' | 'deposit' | 'osaka' | 'arabic_carrefour') => {
-    switch (type) {
-      case 'cliq':
-        setTestSender('Bank')
-        setTestText('JOD6.200 has been credited to 0145*500from KHALED ISSA SABRI ABU QUTISH as CliQ transfer Balance 923.186JOD')
-        break
-      case 'deposit':
-        setTestSender('Bank')
-        setTestText('30.000 JOD has been credited to your account on 08/09 01:22. Available balance 47.744 JOD.')
-        break
-      case 'osaka':
-        setTestSender('Bank')
-        setTestText('A purchase transaction of 4.000 JOD from UNCLE OSAKA ALRABIEH has been debited from your card XXXX5061 on 06-09-2026. Available balance 17.744 JOD.')
-        break
-      case 'arabic_carrefour':
-        setTestSender('ArabBank')
-        setTestText('تمت عملية شراء بقيمة 42.000 د.أ لدى كارفور بواسطة بطاقة تنتهي بـ 5678 بتاريخ 2026-09-08. الرصيد 120.00 د.أ')
-        break
-    }
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-labelledby="bank-sms-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-3xl bg-white shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
@@ -337,7 +307,7 @@ export default function BankSmsTrackerModal({
               <MessageSquare size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Bank SMS Auto-Tracking</h2>
+              <h2 id="bank-sms-title" className="text-lg font-bold text-slate-900">Bank SMS Auto-Tracking</h2>
               <p className="text-xs text-slate-500">Scan & auto-track bank debit/credit messages by date</p>
             </div>
           </div>
@@ -379,36 +349,27 @@ export default function BankSmsTrackerModal({
             Settings
           </button>
 
-          <button
-            onClick={() => setActiveTab('test')}
-            className={`flex items-center gap-1.5 px-3 py-3 ${
-              activeTab === 'test'
-                ? 'text-indigo-600 border-b-2 border-indigo-600 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Test Parser
-          </button>
+
         </div>
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Permission warning banner if on native and not granted */}
-          {isNative && !permissionsGranted && (
+          {isNative && (!permissionsGranted || !notificationsGranted) && (
             <div className="rounded-2xl bg-amber-50 p-4 text-amber-900 border border-amber-200">
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 shrink-0 text-amber-600" size={18} />
                 <div className="text-xs">
-                  <p className="font-semibold">SMS Permission Required</p>
+                  <p className="font-semibold">Enable bank alerts</p>
                   <p className="mt-1 text-amber-700">
-                    Grant SMS permissions so Pocket Expenses can scan your bank messages and organize them by date.
+                    Grant SMS access to detect bank transactions and allow notifications so alerts appear in Android’s notification shade.
                   </p>
                   <button
                     disabled={checkingPerms}
                     onClick={() => void handleRequestPerms()}
                     className="mt-3 inline-flex items-center gap-1 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700"
                   >
-                    <ShieldCheck size={14} /> Grant SMS Permissions
+                    <ShieldCheck size={14} /> Enable SMS & Notifications
                   </button>
                 </div>
               </div>
@@ -472,8 +433,8 @@ export default function BankSmsTrackerModal({
                     </div>
 
                     <button
-                      disabled={savingAll}
-                      onClick={() => void handleSaveAll()}
+                      disabled={savingAll || savingIndex !== null}
+                      data-haptic="impact" onClick={() => void handleSaveAll()}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
                     >
                       {savingAll ? <RefreshCw size={13} className="animate-spin" /> : <Zap size={13} />}
@@ -516,6 +477,7 @@ export default function BankSmsTrackerModal({
                                 merchant: tx.merchant,
                                 amount: tx.amount,
                                 categoryId: tx.suggestedCategoryId || '',
+                                categoryChanged: false,
                                 visibility: settings.defaultVisibility,
                                 date: tx.date,
                                 showRaw: false,
@@ -599,7 +561,7 @@ export default function BankSmsTrackerModal({
                                         <label className="text-[10px] font-medium text-slate-500">
                                           Category
                                         </label>
-                                        {tx.isAutoDetected && (
+                                        {tx.isAutoDetected && !edit.categoryChanged && (
                                           <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                                             <Sparkles size={9} /> Auto-detected
                                           </span>
@@ -608,10 +570,17 @@ export default function BankSmsTrackerModal({
                                       <select
                                         value={edit.categoryId}
                                         onChange={e => {
-                                          setEditingTxs(prev => ({
-                                            ...prev,
-                                            [tx.id]: { ...prev[tx.id], categoryId: e.target.value },
-                                          }))
+                                          const categoryId = e.target.value
+                                          rememberSmsCategory(tx, categoryId, edit.merchant)
+                                          setEditingTxs(prev => {
+                                            const next = { ...prev, [tx.id]: { ...prev[tx.id], categoryId, categoryChanged: true } }
+                                            if (categoryId) for (const other of pendingTransactions) {
+                                              if (other.id === tx.id || !next[other.id] || next[other.id].categoryChanged) continue
+                                              const match = matchCategory(other.merchant, other.rawBody, other.type, categories, other.sender)
+                                              if (match.categoryId) next[other.id] = { ...next[other.id], categoryId: match.categoryId }
+                                            }
+                                            return next
+                                          })
                                         }}
                                         className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 bg-white"
                                       >
@@ -622,6 +591,7 @@ export default function BankSmsTrackerModal({
                                           </option>
                                         ))}
                                       </select>
+                                      {edit.categoryChanged && edit.categoryId && <p className="mt-1 text-[10px] text-indigo-600">Remembered for similar future messages</p>}
                                     </div>
                                   </div>
 
@@ -683,14 +653,14 @@ export default function BankSmsTrackerModal({
                                   {/* Action Buttons */}
                                   <div className="flex items-center justify-end gap-2 pt-1">
                                     <button
-                                      onClick={() => handleDismiss(tx)}
+                                      data-haptic="impact" onClick={() => handleDismiss(tx)}
                                       className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
                                     >
                                       <Trash2 size={13} /> Dismiss
                                     </button>
                                     <button
-                                      disabled={savingIndex === tx.id}
-                                      onClick={() => void handleSaveOne(tx)}
+                                      disabled={savingAll || savingIndex !== null}
+                                      data-haptic="impact" onClick={() => void handleSaveOne(tx)}
                                       className={`inline-flex items-center gap-1 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm disabled:opacity-50 ${
                                         isIncome
                                           ? 'bg-emerald-600 hover:bg-emerald-700'
@@ -767,7 +737,7 @@ export default function BankSmsTrackerModal({
 
                 {!isNative && (
                   <div className="rounded-xl bg-white/80 p-2.5 text-[11px] text-slate-500 border border-indigo-100">
-                    💡 Running in web preview. Use the <strong>Test Parser</strong> tab to test SMS samples!
+                    Bank SMS scanning is available in the Android app.
                   </div>
                 )}
               </div>
@@ -820,7 +790,7 @@ export default function BankSmsTrackerModal({
                     <div>
                       <span className="font-semibold text-slate-800">Zero-Click Auto-Save</span>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Directly records the transaction into your ledger with automatically detected category whenever a bank SMS arrives.
+                        Saves transactions with a recognized category when the app is active. Uncertain matches stay in the review inbox.
                       </p>
                     </div>
                   </label>
@@ -832,7 +802,7 @@ export default function BankSmsTrackerModal({
                   <div>
                     <span className="font-semibold text-slate-800">Automatic Category Detection Active</span>
                     <p className="text-slate-500 mt-0.5">
-                      Intelligently matches Jordanian bank merchants and CliQ transfers to categories. Manual category changes are remembered for future transactions.
+                      Intelligently matches Jordanian bank merchants and CliQ transfers to categories. Your category choices are remembered for future messages from the same merchant or SMS pattern.
                     </p>
                   </div>
                 </div>
@@ -858,124 +828,6 @@ export default function BankSmsTrackerModal({
             </div>
           )}
 
-          {/* TAB 4: TEST PARSER PLAYGROUND */}
-          {activeTab === 'test' && (
-            <div className="space-y-4 text-xs">
-              <div>
-                <p className="text-slate-500">
-                  Test the parser with your bank SMS examples (CliQ, Uncle Osaka purchase, account deposits).
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => loadPresetTest('osaka')}
-                    className="rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
-                  >
-                    Uncle Osaka (Debit 4.000 JOD)
-                  </button>
-                  <button
-                    onClick={() => loadPresetTest('cliq')}
-                    className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
-                  >
-                    CliQ Credited (JOD6.200)
-                  </button>
-                  <button
-                    onClick={() => loadPresetTest('deposit')}
-                    className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
-                  >
-                    Account Credited (30.000 JOD)
-                  </button>
-                  <button
-                    onClick={() => loadPresetTest('arabic_carrefour')}
-                    className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] text-slate-700 hover:bg-slate-200"
-                  >
-                    Arabic Bank (42.000 د.أ)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">Bank / Sender</label>
-                <input
-                  type="text"
-                  value={testSender}
-                  onChange={e => setTestSender(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 p-2 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">SMS Message Body</label>
-                <textarea
-                  rows={3}
-                  value={testText}
-                  onChange={e => setTestText(e.target.value)}
-                  placeholder="Paste bank SMS text here…"
-                  className="w-full rounded-xl border border-slate-200 p-2 text-xs font-mono"
-                />
-              </div>
-
-              <button
-                onClick={handleRunTest}
-                className="w-full rounded-xl bg-indigo-600 py-2.5 font-semibold text-white shadow-sm hover:bg-indigo-700"
-              >
-                Parse Bank SMS
-              </button>
-
-              {testResult && (
-                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800">Parsed Result:</span>
-                    <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        testResult.type === 'income'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : testResult.isFinancial
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {testResult.type === 'income'
-                        ? 'Income / Credit'
-                        : testResult.type === 'expense'
-                        ? 'Expense / Debit'
-                        : 'Ignored'}
-                    </span>
-                  </div>
-
-                  {testResult.isFinancial && (
-                    <div className="grid grid-cols-2 gap-2 text-slate-700 pt-2 border-t border-slate-200">
-                      <div>
-                        <span className="text-slate-400">Amount:</span>{' '}
-                        <span className="font-bold text-indigo-600">{formatCurrency(testResult.amount)}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Date:</span>{' '}
-                        <span className="font-medium">{testResult.date}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Merchant/Source:</span>{' '}
-                        <span className="font-medium">{testResult.merchant}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Category:</span>{' '}
-                        <span className="font-medium">{testResult.categoryGuess}</span>
-                      </div>
-                      {testResult.accountEnding && (
-                        <div>
-                          <span className="text-slate-400">Account/Card:</span> •{testResult.accountEnding}
-                        </div>
-                      )}
-                      {testResult.availableBalance !== undefined && (
-                        <div>
-                          <span className="text-slate-400">Balance:</span> {formatCurrency(testResult.availableBalance)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Modal Footer */}

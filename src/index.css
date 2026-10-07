@@ -25,3 +25,509 @@ body {
     font-size: 16px;
   }
 }
+
+/* Mobile palette sampled from the supplied white / charcoal / lavender references. */
+:is(.pocket-native, .mobile-client) {
+  --pocket-ink: #18191b;
+  --pocket-paper: #ffffff;
+  --pocket-muted: #797a80;
+  --pocket-lavender: #f0eeff;
+  --pocket-accent: #5267f5;
+  --pocket-line: #ebebef;
+  background: #f5f5f7;
+  color: var(--pocket-ink);
+}
+.dark :is(.pocket-native, .mobile-client) {
+  --pocket-ink: #fafafa;
+  --pocket-paper: #181818;
+  --pocket-muted: #a6a6a6;
+  --pocket-lavender: #292830;
+  --pocket-accent: #a0aaff;
+  --pocket-line: #333333;
+  background: #101010;
+}
+:is(.pocket-native, .mobile-client) :is([class~="text-slate-900"], [class~="text-slate-950"], [class~="text-gray-900"]) { color: var(--pocket-ink); }
+:is(.pocket-native, .mobile-client) :is([class~="text-slate-500"], [class~="text-gray-500"]) { color: var(--pocket-muted); }
+:is(.pocket-native, .mobile-client) :is([class~="bg-white"], [class~="bg-slate-50"], [class~="bg-gray-50"]) { background-color: var(--pocket-paper); }
+:is(.pocket-native, .mobile-client) :is([class~="bg-indigo-50"], [class~="bg-purple-50"], [class~="bg-blue-50"]) { background-color: var(--pocket-lavender); }
+:is(.pocket-native, .mobile-client) :is([class~="text-indigo-600"], [class~="text-purple-600"], [class~="text-blue-600"]) { color: var(--pocket-accent); }
+:is(.pocket-native, .mobile-client) :is([class~="bg-emerald-50"], [class~="bg-green-50"]) { background-color: #eaf8f1; }
+:is(.pocket-native, .mobile-client) :is([class~="text-emerald-600"], [class~="text-green-600"]) { color: #249d6c; }
+:is(.pocket-native, .mobile-client) :is([class~="bg-rose-50"], [class~="bg-red-50"], [class~="bg-amber-50"]) { background-color: #fff1eb; }
+:is(.pocket-native, .mobile-client) :is([class~="text-rose-600"], [class~="text-red-600"]) { color: #e95235; }
+:is(.pocket-native, .mobile-client) :is(button[class~="bg-indigo-600"], button[class~="bg-blue-600"], button[class~="bg-emerald-600"], button[class~="bg-green-600"], button[class~="bg-purple-600"]) {
+  background: #1b1c1f;
+  color: #fff;
+  box-shadow: 0 3px 8px #00000012;
+}
+:is(.pocket-native, .mobile-client) :is(button[class~="bg-indigo-600"], button[class~="bg-blue-600"], button[class~="bg-emerald-600"]):hover { background: #303136; }
+:is(.pocket-native, .mobile-client) :is([class~="border-gray-100"], [class~="border-slate-100"], [class~="border-gray-200"], [class~="border-slate-200"], [class~="border-indigo-200"]) { border-color: var(--pocket-line); }
+:is(.pocket-native, .mobile-client) :is(section[class~="bg-white"], div[class~="bg-white"][class~="rounded-xl"], div[class~="bg-white"][class~="rounded-2xl"]) { border-radius: 24px; }
+.mobile-client .pocket-spend-card { background: var(--pocket-paper); color: var(--pocket-ink); border-color: var(--pocket-line); box-shadow: 0 6px 22px #00000005; }
+.mobile-client .pocket-spend-card p { color: var(--pocket-ink); }
+.mobile-client .pocket-category-chip { background: var(--pocket-lavender); color: var(--pocket-accent); }
+.mobile-client .pocket-category-chip:nth-child(2) { background: #fff0ea; color: #e95235; }
+.mobile-client .pocket-category-chip strong { color: var(--pocket-ink); }
+.mobile-client [class~="from-purple-600"] { background: var(--pocket-lavender); color: var(--pocket-ink); box-shadow: none; }
+.mobile-client [class~="from-purple-600"] :is([class~="text-purple-100"], [class~="text-white"]) { color: var(--pocket-ink); }
+:is(.pocket-native, .mobile-client) svg [stroke="#6366f1"] { stroke: var(--pocket-accent); }
+:is(.pocket-native, .mobile-client) svg [fill="#6366f1"] { fill: var(--pocket-accent); }
+:is(.pocket-native, .mobile-client) svg stop[stop-color="#6366f1"] { stop-color: var(--pocket-accent); }
+:is(.pocket-native, .mobile-client) svg stop[stop-color="#a855f7"] { stop-color: #dcdfff; }
+.dark .mobile-client :is([class~="bg-emerald-50"], [class~="bg-green-50"]) { background-color: #203a30; }
+.dark .mobile-client :is([class~="bg-rose-50"], [class~="bg-red-50"], [class~="bg-amber-50"]) { background-color: #422c26; }
+.mobile-client .pocket-bottom-nav { background: transparent; border: 0; box-shadow: none; padding: 8px 16px max(12px, env(safe-area-inset-bottom)); }
+.mobile-client .pocket-bottom-nav > div { background: #eeeef1; border: 1px solid #e5e5e9; border-radius: 26px; padding: 6px; gap: 4px; }
+.mobile-client .pocket-bottom-nav button { border-radius: 20px; color: #85868e; min-height: 52px; }
+.mobile-client .pocket-bottom-nav button[aria-current="page"] { background: var(--pocket-paper); color: var(--pocket-ink); box-shadow: 0 2px 6px #0000000c; }
+.mobile-client .pocket-bottom-nav button:last-child { background: #1b1c1f; color: white; }
+.dark .mobile-client .pocket-bottom-nav > div { background: #28292e; border-color: #35363c; }
+.mobile-client button:active { transform: scale(0.98); }
+.pocket-native input[type="checkbox"], .pocket-native input[type="radio"], .mobile-client input[type="checkbox"], .mobile-client input[type="radio"] { accent-color: #5267f5; }
+@media (prefers-reduced-motion: reduce) { .mobile-client button:active { transform: none; } }
+
+/* Reference layout: connected white sheets over a charcoal account strip. */
+.mobile-client.monetra-home-screen { background: #252527; }
+.mobile-client .monetra-shell { padding: 0 0 100px; max-width: 540px; }
+.mobile-client .monetra-header { margin: 0; padding: 26px 18px 18px; background: var(--pocket-paper); }
+.mobile-client .monetra-header > div:first-child > span { width: 28px; height: 28px; }
+.mobile-client .monetra-header p { font-size: 16px; letter-spacing: -.6px; }
+.mobile-client .monetra-header button { width: 36px; height: 36px; min-height: 36px; background: #f6f6f6; color: #656568; }
+.monetra-overview { background: var(--pocket-paper); border-radius: 0 0 26px 26px; overflow: hidden; }
+.monetra-stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 18px 24px; gap: 12px; }
+.monetra-stat p { color: var(--pocket-muted); font-size: 12px; margin-bottom: 3px; }
+.monetra-stat h1 { font-size: clamp(25px, 7vw, 34px); font-weight: 650; letter-spacing: -1.2px; line-height: 1.15; }
+.monetra-stat-aside { text-align: right; display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.monetra-stat-aside strong { color: #249d6c; font-size: 12px; font-weight: 500; }
+.monetra-stat-aside :is(span, small) { color: var(--pocket-muted); font-size: 10px; }
+.monetra-bars { display: flex; gap: 10px; height: 194px; padding: 0 16px 18px; background: repeating-linear-gradient(to top, transparent 0, transparent 36px, #f7f7f9 37px, transparent 38px); }
+.mobile-client .monetra-month { display: flex; flex: 1; flex-direction: column; align-items: center; min-width: 0; gap: 10px; padding: 0; background: transparent; border: 0; }
+.monetra-bar-track { display: flex; width: 100%; height: 154px; align-items: flex-end; }
+.monetra-bar { width: 100%; background: linear-gradient(#efefff, #d7dcff); border: 1px solid #e1e2f0; border-radius: 11px 11px 0 0; min-height: 3px; }
+.is-selected .monetra-bar { background: linear-gradient(135deg, #c4ceff 0%, #667dfc 38%, #2848f2 100%); border-color: #6b80f4; box-shadow: inset 0 1px 2px #ffffffdd, inset 0 0 0 2px #ffffff35; }
+.monetra-month-label { color: #96969e; font-size: 10px; }
+.is-selected .monetra-month-label { color: var(--pocket-ink); font-weight: 600; }
+.mobile-client .monetra-report-link { display: flex; width: 100%; align-items: center; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--pocket-line); font-size: 13px; font-weight: 500; text-align: left; }
+.monetra-report-link > svg:last-child { margin-left: auto; }
+.monetra-outline-icon { border: 1px solid var(--pocket-line); border-radius: 9px; padding: 8px; color: #69696e; }
+.monetra-action-strip { display: flex; gap: 9px; padding: 15px 16px; background: linear-gradient(110deg, #303031, #202021); overflow-x: auto; scrollbar-width: none; }
+.mobile-client .monetra-action-strip button { min-height: 40px; white-space: nowrap; flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 24px; border: 1px solid #565658; background: linear-gradient(#363637, #272728); box-shadow: inset 0 0 0 3px #ffffff05, 0 2px 3px #00000020; font-size: 12px; color: white; }
+.monetra-action-strip button > span { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #ffffff16; width: 25px; height: 25px; }
+.monetra-activity { background: var(--pocket-paper); border-radius: 26px 26px 0 0; padding: 6px 16px 28px; min-height: 300px; }
+.monetra-sheet-handle { width: 39px; height: 4px; border-radius: 10px; background: #dedee0; margin: 0 auto 17px; }
+.mobile-client .monetra-category-review { display: flex; align-items: center; width: 100%; gap: 12px; border: 1px solid var(--pocket-line); background: #fafafa; padding: 12px 10px; border-radius: 15px; text-align: left; margin-bottom: 12px; }
+.monetra-review-icon { color: #687bda; border-radius: 10px; padding: 7px; background: linear-gradient(#fff, #ececf0); }
+.monetra-category-review strong { display: block; font-size: 13px; font-weight: 600; }
+.monetra-category-review small { display: block; font-size: 11px; color: var(--pocket-muted); margin-top: 3px; }
+.monetra-category-review > svg:last-child { margin-left: auto; color: #727278; }
+.mobile-client .monetra-transaction { display: flex; width: 100%; gap: 10px; align-items: center; padding: 13px 0; text-align: left; border-bottom: 1px dashed #f0f0f3; }
+.monetra-transaction-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 34px; height: 34px; border-radius: 10px; color: white; box-shadow: inset 0 1px 2px #ffffff88; }
+.tint-0 { background: linear-gradient(#f3a4e3, #dd5dc5); }
+.tint-1 { background: linear-gradient(#cab2ff, #a276e9); }
+.tint-2 { background: linear-gradient(#aacbff, #699de9); }
+.tint-3 { background: linear-gradient(#a1e8c0, #5abc82); }
+.monetra-transaction-name { min-width: 0; flex: 1; }
+.monetra-transaction-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 550; }
+.monetra-transaction small { display: block; color: #93939d; font-size: 10px; margin-top: 4px; }
+.monetra-transaction-amount { text-align: right; flex-shrink: 0; }
+.monetra-transaction-amount strong { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 12px; font-weight: 500; }
+.monetra-transaction-amount.expense strong { color: #e65c6b; }
+.monetra-transaction-amount.income strong { color: #249d6c; }
+.monetra-empty { padding: 24px 0; text-align: center; color: var(--pocket-muted); font-size: 13px; }
+.monetra-empty button { display: inline-flex; gap: 5px; align-items: center; margin-top: 8px; color: var(--pocket-ink); }
+.monetra-home-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 18px 0 24px; }
+.mobile-client .monetra-home-insights button { position: relative; min-width: 0; padding: 16px 14px; text-align: left; background: var(--pocket-lavender); border: 1px solid var(--pocket-line); border-radius: 20px; color: var(--pocket-ink); }
+.monetra-home-insights small { display: block; font-size: 12px; color: var(--pocket-muted); }
+.monetra-home-insights strong { display: block; font-size: 20px; font-weight: 650; letter-spacing: -.5px; margin: 7px 0; overflow-wrap: anywhere; }
+.monetra-home-insights span { display: block; font-size: 10px; line-height: 1.5; color: var(--pocket-muted); }
+.monetra-home-insights .monetra-home-top-category { grid-column: 1 / -1; padding-right: 38px; }
+.monetra-home-top-category > svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--pocket-muted); }
+.monetra-upcoming-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.monetra-upcoming-heading h2 { font-size: 17px; font-weight: 650; color: var(--pocket-ink); }
+.monetra-upcoming-heading > span { font-size: 11px; color: var(--pocket-muted); }
+.mobile-client .bills-clear-day { float: right; padding: 6px 10px; margin: 0 0 8px 8px; border-radius: 12px; background: var(--pocket-lavender); color: var(--pocket-ink); font-size: 12px; }
+.monetra-all-activity { display: flex; gap: 5px; align-items: center; margin: 10px auto 0; font-size: 11px; color: var(--pocket-muted); }
+.monetra-full-report { margin-top: 25px; }
+.monetra-data-error { margin: 0 18px 10px; color: #d64e4e; font-size: 12px; }
+.mobile-client.monetra-tool-screen .monetra-shell { padding: 0 16px 100px; }
+.mobile-client.monetra-tool-screen .monetra-header { margin: 0 -16px 20px; }
+.mobile-client .pocket-bottom-nav { background: linear-gradient(transparent, var(--pocket-paper) 35%); padding: 12px 18px max(18px, env(safe-area-inset-bottom)); backdrop-filter: none; }
+.mobile-client .pocket-bottom-nav > .monetra-nav-inner { background: transparent; border: 0; border-radius: 0; padding: 0; max-width: 504px; }
+.monetra-nav-capsule { display: flex; align-items: center; padding: 4px; border-radius: 20px; background: #f5f5f6; gap: 4px; }
+.mobile-client .monetra-nav-capsule button { flex-direction: row; flex: 0 0 auto; gap: 7px; padding: 0 11px; min-height: 40px; border-radius: 15px; background: transparent; color: #a0a0a6; }
+.mobile-client .monetra-nav-capsule button svg { width: 17px; height: 17px; }
+.monetra-nav-capsule button span { display: none; margin: 0; font-size: 12px; }
+.monetra-nav-capsule button[aria-current="page"] span { display: inline; }
+.mobile-client .monetra-nav-inner > button { flex: 0 0 46px; width: 46px; min-height: 46px; height: 46px; border-radius: 15px; background: linear-gradient(135deg, #303131, #111213); color: white; border: 1px solid #0c0c0d; box-shadow: 0 3px 6px #00000018; }
+.monetra-nav-inner > button > span:last-child { display: none; }
+.dark .monetra-category-review { background: #252529; }
+.dark .monetra-nav-capsule { background: #303034; }
+.dark .monetra-bars { background: none; }
+.mobile-client.monetra-welcome { background: #101010; color: white; display: flex; flex-direction: column; min-height: 100dvh; overflow: hidden; }
+.monetra-welcome-top { display: flex; justify-content: space-between; align-items: center; padding: 26px 18px 0; font-size: 12px; }
+.monetra-welcome-top > span { display: flex; gap: 4px; }
+.monetra-welcome-top i { width: 6px; height: 6px; border-radius: 20px; background: #555; }
+.monetra-welcome-top i:first-child { width: 25px; background: white; }
+.monetra-phone-preview { border: 3px solid #777; outline: 2px solid #292929; box-shadow: inset 0 0 0 3px #eee, 0 15px 40px #000; border-radius: 39px; width: 218px; margin: 25px auto -12px; padding: 10px; background: #fff; color: #171719; transform: rotate(-1deg); height: 337px; flex-shrink: 0; overflow: hidden; }
+.monetra-preview-notice { background: #050505; color: white; border-radius: 28px; padding: 22px 11px 12px; font-size: 10px; }
+.monetra-preview-notice > span { display: flex; align-items: center; gap: 5px; }
+.monetra-preview-notice svg { background: #5267f5; padding: 2px; border-radius: 3px; }
+.monetra-preview-notice p { margin: 10px 0; color: #ddd; line-height: 1.5; }
+.monetra-preview-notice > div { display: flex; gap: 5px; }
+.monetra-preview-notice > div span { background: white; color: black; border-radius: 20px; text-align: center; flex: 1; padding: 5px; font-size: 9px; }
+.monetra-preview-notice > div span:last-child { background: #252525; border: 1px solid #444; color: white; }
+.monetra-preview-chart { height: 132px; display: flex; gap: 6px; align-items: flex-end; padding: 5px; }
+.monetra-preview-chart i { flex: 1; background: linear-gradient(#efefff, #d8dcff); border-radius: 6px 6px 0 0; border: 1px solid #e3e4f5; }
+.monetra-preview-chart i:nth-child(3) { background: linear-gradient(#bac8ff, #354dff); border-color: #8b9af9; }
+.monetra-preview-report { display: flex; align-items: center; gap: 7px; padding: 12px 5px; font-size: 8px; border-top: 1px solid #f1f1f3; }
+.monetra-preview-accounts { display: flex; gap: 9px; font-size: 8px; padding: 16px 5px; background: #272727; color: #ddd; }
+.monetra-welcome-sheet { position: relative; flex: 1; background: #fff; color: #101010; padding: 36px 20px 22px; border-radius: 32px 32px 0 0; box-shadow: 0 -40px 45px #10101099; text-align: center; }
+.monetra-welcome-sheet h1 { font-size: 25px; font-weight: 650; line-height: 1.25; letter-spacing: -.8px; }
+.monetra-welcome-sheet p { color: #777; font-size: 15px; line-height: 1.4; margin-top: 18px; }
+.mobile-client .monetra-create-account { background: linear-gradient(110deg, #282a2b, #141516); color: white; border: 1px solid #090909; border-radius: 28px; width: 100%; padding: 12px; margin-top: 32px; font-size: 14px; box-shadow: 0 3px 5px #00000020; }
+.monetra-welcome-login { display: block; text-decoration: underline; font-size: 13px; margin: 14px auto 0; }
+.mobile-client.monetra-expenses-screen { background: #252527; }
+.mobile-client.monetra-expenses-screen .monetra-shell { padding-left: 0; padding-right: 0; }
+.mobile-client.monetra-expenses-screen .monetra-header { margin: 0; }
+.monetra-expenses-content { background: var(--pocket-paper); }
+.monetra-expenses-content > div:nth-child(2), .monetra-expenses-content > div:nth-child(3) { padding-left: 16px; padding-right: 16px; }
+.monetra-expenses-content > div > h1 { font-size: 15px; font-weight: 500; }
+.mobile-client .monetra-expenses-summary { border: 0; border-radius: 0 0 24px 24px; box-shadow: none; padding: 20px 18px; margin-top: 0; }
+.monetra-expenses-summary > svg { display: none; }
+.monetra-expenses-summary p:first-of-type { color: var(--pocket-muted); font-size: 11px; text-transform: none; letter-spacing: 0; }
+.mobile-client .monetra-expenses-content .monetra-action-strip { margin-top: 0; padding-top: 15px; padding-bottom: 15px; }
+.mobile-client .monetra-expenses-list { border: 0; border-radius: 26px 26px 0 0; padding: 24px 16px 12px; margin-top: 0; box-shadow: none; position: relative; }
+.monetra-expenses-list::before { content: ''; position: absolute; top: 6px; left: calc(50% - 20px); width: 40px; height: 4px; background: #ddd; border-radius: 10px; }
+.monetra-expenses-list h2 { font-size: 14px; }
+.monetra-expenses-list li { border-style: dashed; }
+.monetra-expenses-list li p { font-size: 11px; }
+.monetra-expenses-list li p:first-child { font-size: 12px; }
+.monetra-expenses-list li button { min-height: 34px; }
+.mobile-client .monetra-expenses-categories { border: 0; margin: 0; box-shadow: none; border-radius: 0; padding-top: 12px; }
+.monetra-expenses-categories summary { cursor: pointer; font-size: 13px; }
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule button { background: transparent; color: #a0a0a6; }
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] { background: var(--pocket-paper); color: var(--pocket-ink); }
+.monetra-expenses-content { background: #252527; }
+.monetra-expenses-content > .flex, .monetra-expenses-content > .grid { padding: 12px 16px; margin-top: 0; background: var(--pocket-paper); }
+.monetra-expenses-content > .grid { padding-bottom: 20px; }
+.monetra-expenses-content > .monetra-expenses-list { margin-top: 0; }
+
+/* Expenses: the supplied Bills screen's header, date rail and stacked sheets. */
+.bills-expenses { background: #222223; }
+.bills-top-sheet { background: var(--pocket-paper); border-radius: 0 0 28px 28px; padding: 28px 16px 17px; }
+.bills-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.bills-header h1 { font-size: 21px; font-weight: 600; letter-spacing: -.6px; }
+.bills-header > div { display: flex; gap: 9px; }
+.mobile-client .bills-header button { display: flex; align-items: center; justify-content: center; width: 38px; min-height: 38px; border-radius: 50%; background: linear-gradient(#f8f8f8, #f1f1f1); border: 1px solid #f0f0f0; color: #69696a; }
+.bills-help-icon { display: flex; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 50%; background: #69696a; color: white; font-size: 14px; font-weight: 600; }
+.bills-header button svg circle { fill: #f5f5f5; }
+.bills-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.bills-tabs { display: flex; padding: 0; border-radius: 11px; background: #f6f6f7; min-width: 0; }
+.mobile-client .bills-tabs button { min-height: 38px; padding: 0 12px; border: 1px solid transparent; border-radius: 11px; font-size: 12px; white-space: nowrap; color: #737377; }
+.mobile-client .bills-tabs button[aria-selected="true"] { background: var(--pocket-paper); color: var(--pocket-ink); border-color: #e5e5e7; box-shadow: 0 1px 2px #00000005; }
+.bills-sort { position: relative; flex: 0 0 68px; }
+.mobile-client .bills-sort select { width: 68px; appearance: none; background: var(--pocket-paper); border: 1px solid #e8e8eb; border-radius: 11px; min-height: 38px; padding: 0 24px 0 11px; font-size: 12px; box-shadow: 0 1px 2px #00000005; }
+.bills-sort > svg { position: absolute; right: 10px; top: 13px; pointer-events: none; }
+.bills-week-summary { font-size: 13px; color: #8a8b94; margin-top: 27px; margin-bottom: 12px; }
+.bills-week-summary strong { color: var(--pocket-ink); font-weight: 600; }
+.bills-calendar { display: flex; justify-content: space-between; gap: 6px; background: #f8f8f9; border-radius: 18px; padding: 16px 10px 10px; }
+.bills-calendar-day { min-width: 0; flex: 1; text-align: center; }
+.bills-calendar-day > span { font-size: 12px; color: #67676b; display: block; margin-bottom: 10px; }
+.bills-calendar-day > span.active-weekday { color: var(--pocket-ink); font-weight: 600; }
+.mobile-client .bills-calendar-day button { width: 100%; max-width: 39px; min-height: 59px; margin: auto; border-radius: 24px; background: var(--pocket-paper); border: 1px solid #ececef; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; box-shadow: 0 1px 2px #00000003; }
+.mobile-client .bills-calendar-day button.is-current { background: linear-gradient(110deg, #373838, #161718); border-color: #18191b; color: white; box-shadow: inset 0 0 0 2px #ffffff12, 0 2px 4px #00000015; }
+.bills-calendar-dot { display: flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; color: white; font-style: normal; }
+.bills-calendar-empty { width: 16px; height: 16px; border-radius: 50%; border: 1px dashed #dddde2; background: #fafafa; }
+.bills-help { font-size: 12px; color: var(--pocket-muted); line-height: 1.6; background: #f7f7fa; border-radius: 12px; padding: 10px; margin-top: 15px; }
+.bills-action-strip { display: flex; gap: 10px; padding: 16px 16px 17px; overflow-x: auto; scrollbar-width: none; }
+.mobile-client .bills-action-strip button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; min-height: 43px; padding: 5px 10px; border: 1px solid #555556; border-radius: 24px; background: linear-gradient(110deg, #343435, #282829); box-shadow: inset 0 0 0 3px #ffffff04; color: white; font-size: 12px; white-space: nowrap; }
+.bills-action-strip button:disabled { opacity: .45; }
+.bills-action-strip button > span { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #ffffff12; }
+.bills-action-strip em { font-size: 10px; font-style: normal; background: #5267f5; padding: 1px 5px; border-radius: 10px; }
+.bills-list-sheet { background: var(--pocket-paper); border-radius: 28px 28px 0 0; padding: 6px 16px 32px; min-height: 380px; }
+.bills-sheet-handle { width: 39px; height: 5px; border-radius: 10px; background: #dededf; margin: 0 auto 28px; }
+.bills-list-sheet h2 { font-size: 16px; font-weight: 600; letter-spacing: -.3px; margin-bottom: 13px; }
+.bills-expense-list { list-style: none; padding: 0; margin: 0; }
+.bills-expense-list > li { border-bottom: 1px dashed #f0f0f3; }
+.bills-expense-list > li:last-child { border-bottom: 0; }
+.mobile-client .bills-expense-row { display: flex; align-items: center; text-align: left; width: 100%; gap: 11px; padding: 14px 0; min-height: 65px; }
+.bills-expense-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 35px; height: 35px; border-radius: 9px; color: white; border: 1px solid #ffffff88; box-shadow: inset 0 0 0 2px #ffffff20; }
+.bills-expense-name { min-width: 0; flex: 1; }
+.bills-expense-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 550; letter-spacing: -.2px; }
+.bills-expense-price { flex-shrink: 0; max-width: 40%; text-align: right; }
+.bills-expense-price strong { display: block; font-size: 13px; font-weight: 550; }
+.bills-expense-row small { display: block; font-size: 11px; color: #85868e; margin-top: 3px; }
+.bills-expense-price small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bills-recent { margin-top: 27px; }
+.bills-recent .bills-expense-name strong, .bills-recent .bills-expense-price strong { color: #8c8c91; font-weight: 400; }
+.bills-recent .bills-expense-icon { opacity: .55; }
+.bills-empty { color: var(--pocket-muted); font-size: 13px; padding: 16px 0; }
+.bills-empty button, .bills-show-more { color: var(--pocket-accent); font-size: 12px; }
+.bills-breakdown { margin-top: 26px; font-size: 12px; color: var(--pocket-muted); }
+.bills-breakdown summary { cursor: pointer; padding: 10px 0; }
+.bills-breakdown > div { display: flex; justify-content: space-between; padding: 6px 0; }
+.bills-breakdown strong { font-weight: 500; }
+.bills-filters { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 0 20px; }
+.bills-filters label { display: flex; flex-direction: column; flex: 1; gap: 4px; font-size: 11px; color: var(--pocket-muted); }
+.mobile-client .bills-filters select { min-height: 38px; font-size: 12px; border: 1px solid var(--pocket-line); border-radius: 10px; padding: 5px; background: var(--pocket-paper); color: var(--pocket-ink); }
+.bills-filters button { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.dark .bills-calendar, .dark .bills-tabs, .dark .bills-help { background: #29292e; }
+.dark .bills-header button { background: #29292e; border-color: #35353c; color: #aaa; }
+.dark .bills-calendar-empty { background: #303034; border-color: #555; }
+.dark .bills-expense-list > li { border-color: #35353c; }
+@media (max-width: 360px) { .mobile-client .bills-tabs button { padding-left: 8px; padding-right: 8px; font-size: 11px; } .bills-calendar { gap: 4px; padding-left: 6px; padding-right: 6px; } }
+
+/* Centered, wider navigation and the expanding financial report. */
+.mobile-client .pocket-bottom-nav > .monetra-nav-inner { justify-content: center; }
+.mobile-client .monetra-nav-capsule { width: min(100%, 420px); padding: 5px; border-radius: 23px; }
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule button { flex: 1 1 0; min-height: 46px; justify-content: center; padding: 0 7px; border-radius: 18px; }
+.mobile-client .monetra-nav-capsule button span { display: inline; font-size: 12px; }
+.mobile-financial-report { position: fixed; inset: 0; z-index: 80; overflow-y: auto; overscroll-behavior: contain; background: var(--pocket-paper); color: var(--pocket-ink); padding-top: var(--safe-area-inset-top, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); animation: pocket-report-open 220ms ease-out; }
+.mobile-report-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--pocket-paper); border-bottom: 1px solid var(--pocket-line); }
+.mobile-report-header > div { flex: 1; }
+.mobile-report-header h1 { font-size: 18px; font-weight: 600; letter-spacing: -.4px; }
+.mobile-report-header p { font-size: 11px; color: var(--pocket-muted); margin-top: 2px; }
+.mobile-client .mobile-report-header button { display: flex; align-items: center; justify-content: center; width: 40px; min-height: 40px; border-radius: 50%; background: var(--pocket-lavender); color: var(--pocket-ink); }
+.mobile-report-header button:disabled { opacity: .45; }
+.mobile-report-content { width: 100%; max-width: 900px; margin: 0 auto; padding: 18px 14px; display: flex; flex-direction: column; gap: 20px; }
+.mobile-report-panel { border: 1px solid var(--pocket-line); background: var(--pocket-paper); border-radius: 24px; overflow: hidden; }
+.mobile-report-panel-heading { padding: 20px 18px 24px; }
+.mobile-report-panel-heading p { color: var(--pocket-muted); font-size: 12px; }
+.mobile-report-panel-heading h2 { font-size: 30px; font-weight: 650; letter-spacing: -1px; margin-top: 3px; }
+.mobile-report-panel-heading small { display: block; font-size: 11px; color: var(--pocket-muted); margin-top: 8px; }
+.mobile-report-months .monetra-bars { height: 230px; padding-bottom: 22px; }
+.mobile-report-months .monetra-bar-track { height: 184px; }
+.mobile-report-categories { padding: 20px 16px 12px; }
+.mobile-report-categories h2 { font-size: 17px; font-weight: 600; }
+.mobile-report-categories > p { color: var(--pocket-muted); font-size: 12px; margin: 4px 0 12px; }
+.mobile-report-error { font-size: 13px; color: #d64e4e; border: 1px solid #f7cccc; border-radius: 12px; padding: 12px; }
+.mobile-report-error button { text-decoration: underline; }
+.mobile-report-loading { font-size: 12px; color: var(--pocket-muted); }
+.money-mascot { position: fixed; z-index: 80; right: 18px; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); width: min(210px, calc(100vw - 36px)); border-radius: 24px; background: #b58bfa; color: #20162e; box-shadow: 0 12px 40px #00000030; animation: money-mascot-pop 700ms cubic-bezier(.2,.8,.25,1) both; pointer-events: none; }
+.money-mascot > img { display: block; width: 100%; border-radius: 24px 24px 0 0; }
+.money-mascot > div[role="status"] { padding: 0 16px 16px; text-align: center; }
+.money-mascot strong { display: block; font-size: 15px; font-weight: 700; }
+.money-mascot span { display: block; font-size: 18px; font-weight: 650; margin-top: 4px; }
+.mobile-client .money-mascot-dismiss { position: absolute; top: 7px; right: 7px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #ffffffa0; color: #20162e; pointer-events: auto; }
+.money-mascot-sparkles { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.money-mascot-sparkles i { position: absolute; left: calc(10% + var(--spark-index) * 12%); top: -8px; width: 5px; height: 9px; background: #fff4ad; border-radius: 2px; animation: money-mascot-confetti 1600ms calc(var(--spark-index) * 100ms) ease-out both; }
+.money-mascot-sparkles i:nth-child(even) { background: #78e29d; }
+@keyframes money-mascot-pop { 0% { opacity: 0; transform: translateY(90px) scale(.45) rotate(-9deg); } 55% { opacity: 1; transform: translateY(-12px) scale(1.06) rotate(3deg); } 78% { transform: translateY(4px) scale(.98) rotate(-1deg); } 100% { transform: translateY(0) scale(1) rotate(0); } }
+@keyframes money-mascot-confetti { 0% { opacity: 0; transform: translateY(0) rotate(0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(230px) rotate(280deg); } }
+@media (prefers-reduced-motion: reduce) { .money-mascot { animation: none; } .money-mascot-sparkles { display: none; } }
+.mobile-report-section > h2 { font-size: 20px; font-weight: 650; letter-spacing: -.4px; margin-bottom: 12px; color: var(--pocket-ink); }
+.mobile-report-section > p { font-size: 13px; line-height: 1.6; color: var(--pocket-muted); margin: -4px 0 16px; }
+.mobile-report-summary-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.mobile-report-summary { display: flex; align-items: flex-start; gap: 14px; padding: 22px 20px; border: 1px solid var(--pocket-line); border-radius: 24px; background: var(--pocket-paper); }
+.mobile-report-summary > div { flex: 1; min-width: 0; }
+.mobile-report-summary p { color: var(--pocket-muted); font-size: 14px; font-weight: 550; }
+.mobile-report-summary strong { display: block; color: var(--pocket-ink); font-size: 27px; font-weight: 650; letter-spacing: -.7px; line-height: 1.25; margin: 8px 0; overflow-wrap: anywhere; }
+.mobile-report-summary small { display: block; color: var(--pocket-muted); font-size: 13px; line-height: 1.6; }
+.mobile-report-summary > span { display: flex; justify-content: center; align-items: center; flex-shrink: 0; width: 42px; height: 42px; border-radius: 14px; color: var(--pocket-accent, #5267f5); background: var(--pocket-lavender); }
+.mobile-report-section > .mobile-report-comparison { font-size: 11px; margin: 12px 0 0; }
+.mobile-report-period { display: flex; justify-content: flex-end; }
+.mobile-report-period label { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 16px; background: var(--pocket-paper); border: 1px solid var(--pocket-line); color: var(--pocket-accent, #5267f5); }
+.mobile-report-period select { background: transparent; color: var(--pocket-ink); font-size: 14px; max-width: 220px; }
+.mobile-report-period option { background: var(--pocket-paper); color: var(--pocket-ink); }
+.mobile-report-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.mobile-report-dates label { display: flex; flex-direction: column; gap: 6px; color: var(--pocket-muted); font-size: 12px; min-width: 0; }
+.mobile-report-dates input { width: 100%; min-width: 0; border-radius: 12px; border: 1px solid var(--pocket-line); padding: 10px; background: var(--pocket-paper); color: var(--pocket-ink); }
+.mobile-report-daily { padding: 20px 12px 18px; min-width: 0; }
+.mobile-report-daily h2 { font-size: 17px; font-weight: 600; color: var(--pocket-ink); margin: 0 6px 20px; }
+@media (min-width: 640px) { .mobile-report-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@keyframes pocket-report-open { from { opacity: .6; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .mobile-financial-report { animation: none; } }
+
+/* Report unfolds inside the Home card; the account strip and activity slide down. */
+.home-report-reveal { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 440ms cubic-bezier(.22,.7,.2,1), opacity 280ms ease; }
+.home-report-reveal.is-open { grid-template-rows: 1fr; opacity: 1; }
+.home-report-reveal-inner { min-height: 0; overflow: hidden; }
+.monetra-home .mobile-financial-report { position: static; inset: auto; z-index: auto; overflow: visible; padding: 0; animation: none; }
+.monetra-home .mobile-report-header { position: static; padding: 18px 16px 0; border: 0; }
+.monetra-home .mobile-report-header h2 { font-size: 17px; font-weight: 600; letter-spacing: -.4px; }
+.monetra-home .mobile-report-content { padding: 16px 14px 24px; }
+.monetra-home.is-report-expanded .monetra-report-link > svg:last-child { transform: rotate(90deg); }
+.monetra-report-link > svg:last-child { transition: transform 280ms ease; }
+
+/* The activity sheet scrolls over the stationary overview card. */
+.mobile-client.monetra-home-screen { overflow-anchor: none; padding-top: 0; }
+.monetra-home-screen .monetra-home { position: relative; isolation: isolate; background: transparent; }
+.monetra-home-screen .monetra-header { position: relative; width: 100%; padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 26px); border-radius: 0; }
+.monetra-home-screen .monetra-overview { position: sticky; top: 0; z-index: 0; border-radius: 26px; box-shadow: inset 0 0 0 1px var(--pocket-line); }
+.monetra-home-screen .monetra-action-strip { position: relative; z-index: 1; }
+.monetra-home-screen .monetra-activity { position: relative; z-index: 2; min-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); border-radius: 26px; box-shadow: 0 -10px 30px #00000018, inset 0 0 0 1px var(--pocket-line); }
+.monetra-home-screen .is-report-expanded .monetra-overview { position: relative; top: auto; }
+@media (prefers-reduced-motion: reduce) { .home-report-reveal, .monetra-report-link > svg:last-child { transition: none; } }
+
+/* Dark mode mirrors the reference's monochrome surfaces; accents stay colored. */
+.dark :is(.pocket-native, .mobile-client) :is([class~="dark:bg-gray-800"], [class~="dark:bg-gray-900"], [class~="dark:bg-slate-950"]) { background-color: var(--pocket-paper); }
+.dark :is(.pocket-native, .mobile-client) :is([class~="dark:bg-gray-700"], [class~="dark:bg-gray-700/50"]) { background-color: #272727; }
+.dark .mobile-client:is(.monetra-home-screen, .monetra-expenses-screen), .dark .bills-expenses { background: #eeeeee; }
+.dark .monetra-action-strip { background: linear-gradient(110deg, #f4f4f4, #e7e7e7); }
+.dark .mobile-client :is(.monetra-action-strip, .bills-action-strip) button { background: linear-gradient(#ffffff, #ededed); border-color: #cecece; color: #181818; box-shadow: inset 0 0 0 3px #ffffff50, 0 2px 3px #00000008; }
+.dark :is(.monetra-action-strip, .bills-action-strip) button > span { background: #0000000d; }
+.dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #292929; border-color: #333333; color: #dddddd; }
+.dark .bills-help-icon { background: #dddddd; color: #181818; }
+.dark .bills-header button svg circle { fill: #292929; }
+.dark .mobile-client .monetra-category-review, .dark :is(.bills-calendar, .bills-tabs, .bills-help) { background: #242424; }
+.dark .monetra-review-icon { background: linear-gradient(#333333, #242424); }
+.dark :is(.monetra-sheet-handle, .bills-sheet-handle) { background: #555555; }
+.dark .monetra-outline-icon { color: #bbbbbb; }
+.dark :is(.monetra-stat-aside span, .monetra-stat-aside small, .monetra-month-label, .monetra-transaction small, .bills-week-summary, .bills-expense-row small, .bills-recent .bills-expense-name strong, .bills-recent .bills-expense-price strong) { color: #aaaaaa; }
+.dark .is-selected .monetra-month-label { color: var(--pocket-ink); }
+.dark .monetra-transaction, .dark .bills-expense-list > li { border-color: #303030; }
+.dark .mobile-client .bills-tabs button[aria-selected="true"], .dark .mobile-client .bills-sort select, .dark .mobile-client .bills-calendar-day button { border-color: #393939; }
+.dark .bills-calendar-day > span { color: #aaaaaa; }
+.dark .bills-calendar-day > span.active-weekday { color: #fafafa; }
+.dark .mobile-client .bills-calendar-day button.is-current { background: linear-gradient(#ffffff, #e7e7e7); color: #181818; border-color: #dddddd; }
+.dark .bills-calendar-empty { background: #252525; border-color: #555555; }
+.dark .is-current .bills-calendar-empty { background: #eeeeee; border-color: #bbbbbb; }
+.dark .mobile-client .monetra-nav-capsule { background: #292929; }
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button { color: #a0a0a0; }
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] { background: #f5f5f5; color: #181818; }
+.dark :is(.pocket-native, .mobile-client) :is(button[class~="bg-indigo-600"], button[class~="bg-blue-600"], button[class~="bg-emerald-600"], button[class~="bg-green-600"], button[class~="bg-purple-600"]) { background: #f5f5f5; color: #181818; box-shadow: 0 3px 8px #00000018; }
+.dark :is(.pocket-native, .mobile-client) :is(button[class~="bg-indigo-600"], button[class~="bg-blue-600"], button[class~="bg-emerald-600"], button[class~="bg-green-600"], button[class~="bg-purple-600"]):hover { background: #dddddd; }
+.dark .mobile-client.monetra-welcome { background: #eeeeee; color: #181818; }
+.dark .monetra-welcome-top i:first-child { background: #181818; }
+.dark .monetra-welcome-sheet { background: var(--pocket-paper); color: var(--pocket-ink); box-shadow: 0 -40px 45px #eeeeee99; }
+.dark .monetra-welcome-sheet p { color: #aaaaaa; }
+.dark .mobile-client .monetra-create-account { background: linear-gradient(#ffffff, #e7e7e7); color: #181818; border-color: #dddddd; }
+
+/* The Home activity sheet reaches the screen edge behind the floating navigation. */
+.mobile-client.monetra-home-screen .monetra-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  padding-bottom: 0;
+  background: transparent;
+}
+.monetra-home-screen .monetra-header { flex-shrink: 0; }
+.monetra-home-screen .monetra-home { display: flex; flex-direction: column; flex: 1; }
+.monetra-home-screen .monetra-overview, .monetra-home-screen .monetra-action-strip { flex-shrink: 0; }
+.monetra-home-screen .monetra-activity { flex: 1; padding-bottom: max(100px, calc(84px + env(safe-area-inset-bottom, 0px))); border-radius: 26px; }
+
+
+/* A distinct capsule stays visible against both white and dark cards. */
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule { background: #e3e7ff; border: 1px solid #b7bfe8; box-shadow: 0 5px 20px #24264c22, inset 0 1px 0 #ffffff99; }
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule button { color: #626887; }
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] { background: #24252a; color: #ffffff; box-shadow: 0 2px 5px #00000018; }
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule { background: #393b48; border-color: #666b82; box-shadow: 0 5px 22px #00000066, inset 0 1px 0 #ffffff12; }
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button { color: #c6cada; }
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] { background: #f4f5fa; color: #18191b; }
+.home-report-reveal { transition-duration: 780ms, 560ms; }
+.home-report-page { padding-bottom: max(100px, calc(84px + env(safe-area-inset-bottom, 0px))); }
+.monetra-home-screen .home-report-page { padding-bottom: max(100px, calc(84px + env(safe-area-inset-bottom, 0px))); }
+.home-report-page .mobile-report-header { padding-top: 20px; }
+@media (prefers-reduced-motion: reduce) { .home-report-reveal { transition: none; } }
+
+/* Expenses uses the same overlapping sheets as Home. */
+.mobile-client.monetra-expenses-screen { padding-top: 0; }
+.monetra-expenses-screen .bills-expenses { position: relative; isolation: isolate; }
+.monetra-expenses-screen .bills-top-sheet { position: sticky; top: 0; z-index: 0; border-radius: 26px; padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 28px); box-shadow: inset 0 0 0 1px var(--pocket-line); }
+.monetra-expenses-screen .bills-action-strip { position: relative; z-index: 1; background: #222223; }
+.dark .monetra-expenses-screen .bills-action-strip { background: #eeeeee; }
+.monetra-expenses-screen .bills-list-sheet { position: relative; z-index: 2; min-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); border-radius: 26px; padding-bottom: max(100px, calc(84px + env(safe-area-inset-bottom, 0px))); box-shadow: 0 -10px 30px #00000018, inset 0 0 0 1px var(--pocket-line); }
+
+/* Keep the WebView canvas opaque while replacing mobile screens. */
+html.pocket-native-document, html.pocket-native-document body, html.pocket-native-document #root { background: #f5f5f7; min-height: 100%; }
+html.pocket-native-document.dark, html.pocket-native-document.dark body, html.pocket-native-document.dark #root { background: #181818; }
+.mobile-client { transition-property: none; }
+
+/* Smooth bar growth and the selected value marker from the video reference. */
+.animated-spending-bars { position: relative; }
+.animated-spending-bars .monetra-bar { position: relative; overflow: hidden; transition: height 850ms cubic-bezier(.22, 1, .36, 1), background 300ms ease, box-shadow 300ms ease; }
+.monetra-bar-marker { position: absolute; width: 9px; height: 9px; border-radius: 50%; top: 8px; left: 50%; transform: translateX(-50%) scale(.5); background: #fff; box-shadow: 0 2px 5px #2848f244; opacity: 0; transition: opacity 250ms ease, transform 450ms cubic-bezier(.22, 1, .36, 1); }
+.bars-visible .is-selected .monetra-bar-marker { opacity: 1; transform: translateX(-50%) scale(1); }
+.monetra-value-guide { position: absolute; left: 18px; right: 18px; z-index: 1; border-bottom: 1px dashed #929bd455; pointer-events: none; transition: bottom 850ms cubic-bezier(.22, 1, .36, 1); }
+.monetra-value-guide > span { position: absolute; left: 0; bottom: 3px; color: var(--pocket-accent); font-size: 10px; font-weight: 600; background: var(--pocket-paper); padding-right: 5px; }
+@media (prefers-reduced-motion: reduce) { .animated-spending-bars .monetra-bar, .monetra-bar-marker, .monetra-value-guide { transition: none; } }
+
+/* Tiny translucent bubbles drift inside the selected blue bar. */
+.monetra-bar-bubbles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.monetra-bar-bubble { position: absolute; bottom: -6px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #ffffffbb, #ffffff18 65%); box-shadow: 0 0 3px #ffffff35; opacity: 0; animation: monetra-bubble-rise 3s linear infinite; }
+.monetra-bar-marker { z-index: 1; }
+@keyframes monetra-bubble-rise {
+  0% { transform: translate3d(0, 0, 0) scale(.65); opacity: 0; }
+  15% { opacity: .55; }
+  55% { transform: translate3d(3px, calc(var(--bubble-rise) * -.55), 0) scale(1); opacity: .4; }
+  85% { opacity: .3; }
+  100% { transform: translate3d(-2px, calc(var(--bubble-rise) * -1), 0) scale(.7); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .monetra-bar-bubble { animation: none; display: none; } }
+
+/* Frosted navigation keeps the scrolling cards visible through the capsule. */
+.mobile-client .pocket-bottom-nav { background: transparent; }
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule {
+  background: rgba(226, 231, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .82);
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
+  backdrop-filter: blur(12px) saturate(145%);
+  box-shadow: 0 7px 24px #24264c20, inset 0 1px 0 #ffffffdd, inset 0 -1px 0 #919cc533;
+}
+.mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] {
+  background: rgba(36, 37, 42, .88);
+  box-shadow: 0 2px 8px #00000020, inset 0 1px 0 #ffffff20;
+}
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule {
+  background: rgba(57, 59, 72, .16);
+  border-color: rgba(190, 195, 221, .35);
+  box-shadow: 0 7px 24px #00000045, inset 0 1px 0 #ffffff30, inset 0 -1px 0 #ffffff0d;
+}
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] {
+  background: rgba(244, 245, 250, .88);
+  box-shadow: 0 2px 8px #00000025, inset 0 1px 0 #ffffffcc;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mobile-client .pocket-bottom-nav .monetra-nav-capsule { background: #e3e7ff; }
+  .dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule { background: #393b48; }
+}
+
+/* Softer dark surfaces distinguish cards without a bright separator strip. */
+.dark :is(.pocket-native, .mobile-client) {
+  --pocket-paper: #292b32;
+  --pocket-ink: #f4f4f8;
+  --pocket-muted: #b1b3bf;
+  --pocket-line: #41444f;
+  --pocket-lavender: #38394c;
+  background: #1d1f26;
+}
+html.pocket-native-document.dark, html.pocket-native-document.dark body, html.pocket-native-document.dark #root { background: #1d1f26; }
+.dark .mobile-client:is(.monetra-home-screen, .monetra-expenses-screen), .dark .bills-expenses { background: #1d1f26; }
+.dark .monetra-action-strip, .dark .monetra-expenses-screen .bills-action-strip { background: #1d1f26; }
+.dark .mobile-client :is(.monetra-action-strip, .bills-action-strip) button { background: linear-gradient(#383b44, #30323a); border-color: #535663; color: #f0f0f5; box-shadow: inset 0 1px 0 #ffffff12, 0 2px 4px #00000018; }
+.dark :is(.monetra-action-strip, .bills-action-strip) button > span { background: #ffffff12; }
+.dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #383a44; border-color: #484b56; color: #e2e3ed; }
+.dark .mobile-client .monetra-category-review, .dark :is(.bills-calendar, .bills-tabs, .bills-help) { background: #34363f; }
+.dark .monetra-review-icon { background: linear-gradient(#434654, #363944); }
+.dark .monetra-bars { background: repeating-linear-gradient(to top, transparent 0, transparent 36px, #ffffff06 37px, transparent 38px); }
+.dark .monetra-bar { background: linear-gradient(#666988, #484d70); border-color: #777b9d; }
+.dark .is-selected .monetra-bar { background: linear-gradient(135deg, #bac5ff, #7185fa 38%, #3655e7); border-color: #8d9efc; }
+.dark .monetra-stat-aside strong { color: #6cd6a6; }
+.dark .monetra-transaction, .dark .bills-expense-list > li { border-color: #444752; }
+.dark .mobile-client .pocket-bottom-nav { background: transparent; }
+
+/* Let the Expenses sheet reach the bottom behind the floating navigation. */
+.mobile-client.monetra-expenses-screen { padding-bottom: 0; }
+.mobile-client.monetra-expenses-screen .monetra-shell { display: flex; flex-direction: column; min-height: 100dvh; padding-bottom: 0; }
+.monetra-expenses-screen .bills-expenses { display: flex; flex-direction: column; flex: 1; }
+.monetra-expenses-screen .bills-top-sheet, .monetra-expenses-screen .bills-action-strip { flex-shrink: 0; }
+.monetra-expenses-screen .bills-list-sheet { flex: 1; padding-bottom: max(100px, calc(84px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))); }
+
+.bills-month-picker { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0; }
+.bills-month-picker button { display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 36px; color: var(--pocket-ink); background: var(--pocket-lavender); }
+.mobile-client .bills-month-picker input { background: transparent; color: var(--pocket-ink); font-size: 14px; border: 0; min-height: 36px; text-align: center; }
+.bills-calendar.bills-month-days { overflow-x: auto; justify-content: flex-start; scrollbar-width: thin; }
+.bills-month-days .bills-calendar-day { flex: 0 0 39px; }
+
+/* Lift the chosen date, then settle at a slightly larger size. */
+.mobile-client .bills-calendar-day button { transition: transform 220ms ease, box-shadow 220ms ease; }
+.mobile-client .bills-calendar-day button.is-day-selected { transform: scale(1.08); animation: bills-day-jump 480ms cubic-bezier(.22, 1, .36, 1); box-shadow: 0 4px 9px #00000022; }
+@keyframes bills-day-jump {
+  0% { transform: translateY(0) scale(1); }
+  28% { transform: translateY(-8px) scale(1.1); }
+  58% { transform: translateY(1px) scale(1.06); }
+  80% { transform: translateY(-2px) scale(1.09); }
+  100% { transform: translateY(0) scale(1.08); }
+}
+.bills-calendar { padding-top: 20px; padding-bottom: 14px; }
+@media (prefers-reduced-motion: reduce) { .mobile-client .bills-calendar-day button.is-day-selected { animation: none; transition: none; } }

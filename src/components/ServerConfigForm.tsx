@@ -141,7 +141,7 @@ export default function ServerConfigForm({
             {currentConfig.isCustom && envConfig && (
               <button
                 type="button"
-                onClick={handleResetToDefault}
+                data-haptic="impact" onClick={handleResetToDefault}
                 className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium shrink-0"
                 title="Reset to default build server"
               >

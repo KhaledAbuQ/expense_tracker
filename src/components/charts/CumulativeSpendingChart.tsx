@@ -1,10 +1,11 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState, type PointerEvent } from 'react'
 import { format, isValid, subMonths } from 'date-fns'
 import { Area, ComposedChart, Line, ReferenceDot, ReferenceLine, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { Expense } from '../../types'
 import { cumulativeMonthlySpending } from '../../lib/analytics'
 import { formatCurrency, parseDateOnly } from '../../lib/utils'
 import { useTheme } from '../../context/ThemeContext'
+import { feedback } from '../../lib/haptics'
 
 interface Props {
   expenses: Expense[]
@@ -18,11 +19,23 @@ export default function CumulativeSpendingChart({ expenses, scopeLabel, comparis
   const isDark = resolvedTheme === 'dark'
   const gradientId = useId().replace(/:/g, '')
   const [monthInput, setMonthInput] = useState(comparisonMonth)
+  const chartTouch = useRef({ pressed: false, day: -1, lastTick: 0 })
   useEffect(() => {
     setMonthInput(comparisonMonth)
   }, [comparisonMonth])
   const now = new Date()
   const data = cumulativeMonthlySpending(expenses, comparisonMonth, now)
+  const tickChartDay = (event: PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const plotWidth = Math.max(1, bounds.width - 89)
+    const day = Math.max(0, Math.min(data.length - 1, Math.round((event.clientX - bounds.left - 62) / plotWidth * (data.length - 1))))
+    const touch = chartTouch.current
+    if (day !== touch.day && Date.now() - touch.lastTick >= 120) {
+      touch.day = day
+      touch.lastTick = Date.now()
+      feedback('selection')
+    }
+  }
   const currentLabel = format(now, 'MMMM yyyy')
   const comparisonLabel = format(parseDateOnly(`${comparisonMonth}-01`), 'MMMM yyyy')
   const currentTotal = data[now.getDate() - 1].current || 0
@@ -46,7 +59,10 @@ export default function CumulativeSpendingChart({ expenses, scopeLabel, comparis
           <input type="month" aria-label="Comparison month" placeholder="YYYY-MM" className="min-w-0 bg-transparent text-xs font-medium text-gray-800 dark:text-gray-200 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded" value={monthInput} max={format(subMonths(now, 1), 'yyyy-MM')} onBlur={() => setMonthInput(comparisonMonth)} onChange={event => {
             const value = event.target.value
             setMonthInput(value)
-            if (/^\d{4}-\d{2}$/.test(value) && isValid(parseDateOnly(`${value}-01`)) && value < format(now, 'yyyy-MM')) onComparisonChange(value)
+            if (/^\d{4}-\d{2}$/.test(value) && isValid(parseDateOnly(`${value}-01`)) && value < format(now, 'yyyy-MM')) {
+              if (value !== comparisonMonth) feedback('selection')
+              onComparisonChange(value)
+            }
           }} />
         </label>
       </div>
@@ -65,7 +81,14 @@ export default function CumulativeSpendingChart({ expenses, scopeLabel, comparis
         <span className="inline-flex items-center gap-2"><span className="w-5 border-t-2 border-dashed border-slate-400 dark:border-slate-500" />{comparisonLabel}</span>
       </div>
     </div>
-    <div className="mt-5 h-64 pr-3 sm:h-80 sm:pr-6">
+    <div className="mt-5 h-64 pr-3 sm:h-80 sm:pr-6"
+      onPointerDown={event => { chartTouch.current.pressed = true; chartTouch.current.day = -1; tickChartDay(event) }}
+      onPointerMove={event => { if (chartTouch.current.pressed) tickChartDay(event) }}
+      onPointerUp={() => { chartTouch.current.pressed = false }}
+      onPointerCancel={() => { chartTouch.current.pressed = false }}
+      onPointerLeave={() => { chartTouch.current.pressed = false }}
+      onKeyDown={event => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') feedback('selection') }}>
+
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 22, right: 12, bottom: 8, left: 0 }} accessibilityLayer>
           <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366f1" stopOpacity={0.18} /><stop offset="100%" stopColor="#6366f1" stopOpacity={0.01} /></linearGradient></defs>

@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react'
 import { App as NativeApp } from '@capacitor/app'
+import { addDays, format, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import {
-  Plus,
   Wallet,
-  RefreshCw,
   LogOut,
   ArrowLeft,
   Fingerprint,
@@ -12,23 +11,25 @@ import {
   TrendingUp,
   ArrowRightLeft,
   Coins,
-  MoreHorizontal,
   ChevronRight,
   Users,
   Tag,
-  BarChart3,
   Database,
   Sun,
   Moon,
   Trash2,
-  Pencil,
   MessageSquare,
+  Home,
+  Settings,
+  Bell,
+  Vibrate,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { useExpenses } from '../hooks/useExpenses'
 import { useCategories } from '../hooks/useCategories'
 import { useIncome } from '../hooks/useIncome'
+import { useTransfers } from '../hooks/useTransfers'
 import ExpenseForm from '../components/ExpenseForm'
 import BankSmsTrackerModal from '../components/BankSmsTrackerModal'
 import IncomePage from './Income'
@@ -36,14 +37,15 @@ import TransfersPage from './Transfers'
 import SavingsPage from './Savings'
 import CategoriesPage from './Categories'
 import MembersPage from './Members'
-import DashboardPage from './Dashboard'
+import MoneyMascot from '../components/MoneyMascot'
+import { celebrateMoney } from '../lib/moneyCelebration'
+import MobileHome from '../components/MobileHome'
+import MobileExpenses from '../components/MobileExpenses'
 import ServerConfigForm from '../components/ServerConfigForm'
 import {
   calculateTotalExpenses,
   formatCurrency,
-  formatDateShort,
   getDateRange,
-  groupExpensesByCategory,
 } from '../lib/utils'
 import { syncExpenseWidget, ExpenseWidget } from '../lib/widget'
 import { checkBiometricStatus, BiometricAuth, type BiometricAvailability } from '../lib/biometrics'
@@ -54,13 +56,17 @@ import {
   markTransactionProcessed,
   checkLaunchApprovalIntent,
   subscribeToApprovalIntent,
+  getPendingSmsTransactions,
+  savePendingSmsTransactions,
+  isTransactionProcessed,
 } from '../lib/bankSms'
-import type { ParsedBankTransaction } from '../lib/smsParser'
+import { matchCategory, type ParsedBankTransaction } from '../lib/smsParser'
 import ThemeToggle from '../components/ThemeToggle'
+import { getHapticsEnabled, setHapticsEnabled, feedback } from '../lib/haptics'
 import type { Expense, ExpenseFormData, IncomeFormData } from '../types'
 
-type MobileTab = 'expenses' | 'income' | 'transfers' | 'savings' | 'more'
-type MoreSubView = 'root' | 'categories' | 'members' | 'dashboard' | 'server'
+type MobileTab = 'home' | 'expenses' | 'income' | 'more'
+type MoreSubView = 'root' | 'transfers' | 'savings' | 'categories' | 'members' | 'server'
 
 export default function Mobile({
   standalone = false,
@@ -70,8 +76,12 @@ export default function Mobile({
   onLock?: () => void
 }) {
   const { member, loading: profileLoading, refreshMember, signOut } = useAuth()
-  const [activeTab, setActiveTab] = useState<MobileTab>('expenses')
+  const [activeTab, setActiveTab] = useState<MobileTab>('home')
   const [moreSubView, setMoreSubView] = useState<MoreSubView>('root')
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [activeTab, moreSubView])
   const [adding, setAdding] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [period, setPeriod] = useState<'month' | 'last-month' | 'week'>('month')
@@ -79,9 +89,14 @@ export default function Mobile({
   const [online, setOnline] = useState(navigator.onLine)
   const [saveError, setSaveError] = useState('')
   const [smsModalOpen, setSmsModalOpen] = useState(false)
-  const [smsModalTab, setSmsModalTab] = useState<'pending' | 'settings' | 'test'>('pending')
-  const [pendingSmsTxs, setPendingSmsTxs] = useState<ParsedBankTransaction[]>([])
-  const { addIncome } = useIncome()
+  const [reportOpen, setReportOpen] = useState(false)
+  const [smsModalTab, setSmsModalTab] = useState<'pending' | 'settings'>('pending')
+  const [pendingSmsTxs, setPendingSmsTxs] = useState(getPendingSmsTransactions)
+  const processingSms = useRef(new Set<string>())
+  const [hapticsEnabled, setHapticsPreference] = useState(getHapticsEnabled)
+  const { addIncome, income: widgetIncome, loading: widgetIncomeLoading, error: widgetIncomeError } = useIncome()
+  const { transfers: widgetTransfers, loading: widgetTransfersLoading, error: widgetTransfersError } = useTransfers()
+  const { expenses: widgetExpenses, loading: widgetLoading, error: widgetError } = useExpenses()
 
   const [biometrics, setBiometrics] = useState<BiometricAvailability>({
     isAvailable: false,
@@ -98,7 +113,7 @@ export default function Mobile({
     updateExpense,
     deleteExpense,
   } = useExpenses({
-    dateRange: getDateRange(period),
+    dateRange: activeTab === 'expenses' ? undefined : getDateRange(period),
     visibility: visibility === 'all' ? undefined : visibility,
   })
   const { categories, loading: categoriesLoading, error: categoriesError, fetchCategories } =
@@ -107,7 +122,21 @@ export default function Mobile({
   const categoriesRef = useRef(categories)
   useEffect(() => {
     categoriesRef.current = categories
+    setPendingSmsTxs(items => items.map(tx => {
+      if (!getSmsSettings().autoDetectCategory) return { ...tx, categoryGuess: 'Choose a category', suggestedCategoryId: undefined, isAutoDetected: false }
+      const result = matchCategory(tx.merchant, tx.rawBody, tx.type, categories, tx.sender)
+      return { ...tx, categoryGuess: result.categoryGuess, suggestedCategoryId: result.categoryId, isAutoDetected: result.isAutoDetected }
+    }))
   }, [categories])
+
+  useEffect(() => { savePendingSmsTransactions(pendingSmsTxs) }, [pendingSmsTxs])
+
+  useEffect(() => {
+    if (!member) return
+    for (const tx of pendingSmsTxs) {
+      if (tx.type === 'income' && tx.isFinancial) celebrateMoney('income', tx.amount, `${member.id}:sms:${tx.smsId}`)
+    }
+  }, [pendingSmsTxs, member])
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine)
@@ -125,13 +154,15 @@ export default function Mobile({
     const backListener = NativeApp.addListener('backButton', () => {
       if (smsModalOpen) {
         setSmsModalOpen(false)
+      } else if (reportOpen) {
+        setReportOpen(false)
       } else if (adding || editingExpense) {
         setAdding(false)
         setEditingExpense(null)
       } else if (moreSubView !== 'root') {
         setMoreSubView('root')
-      } else if (activeTab !== 'expenses') {
-        setActiveTab('expenses')
+      } else if (activeTab !== 'home') {
+        setActiveTab('home')
       } else {
         void NativeApp.exitApp()
       }
@@ -139,7 +170,7 @@ export default function Mobile({
     return () => {
       void backListener.then((handle) => handle.remove())
     }
-  }, [standalone, adding, editingExpense, moreSubView, activeTab])
+  }, [standalone, adding, editingExpense, moreSubView, activeTab, smsModalOpen, reportOpen])
 
   // Resume listener to auto-refresh expenses on foregrounding
   useEffect(() => {
@@ -163,45 +194,91 @@ export default function Mobile({
     }
   }, [])
 
-  // Check if opened from Android Widget "+ Add" button
+  // Handle widget shortcuts on cold launch and while the app is running.
   useEffect(() => {
-    void ExpenseWidget.checkLaunchIntent()
-      .then((res) => {
-        if (res?.action === 'add_expense') {
-          setActiveTab('expenses')
-          setEditingExpense(null)
-          setAdding(true)
-        }
-      })
-      .catch(() => {})
-
-    const sub = ExpenseWidget.addListener('widgetAction', (info) => {
-      if (info?.action === 'add_expense') {
-        setActiveTab('expenses')
-        setEditingExpense(null)
-        setAdding(true)
+    const openWidgetAction = (action: string | null) => {
+      if (!action) return
+      setReportOpen(false)
+      if (action === 'add_expense') {
+        setActiveTab('expenses'); setEditingExpense(null); setAdding(true)
+      } else if (action === 'transfers') {
+        setActiveTab('more'); setMoreSubView('transfers'); setAdding(false)
+      } else if (action === 'income') {
+        setActiveTab('income'); setAdding(false)
+      } else if (action === 'savings') {
+        setActiveTab('more'); setMoreSubView('savings'); setAdding(false)
+      } else if (action === 'home') {
+        setActiveTab('home'); setMoreSubView('root'); setAdding(false)
       }
-    })
-
-    return () => {
-      void sub.then((h) => h.remove()).catch(() => {})
     }
+    void ExpenseWidget.checkLaunchIntent().then(res => openWidgetAction(res.action)).catch(() => {})
+    const sub = ExpenseWidget.addListener('widgetAction', info => openWidgetAction(info.action))
+    return () => { void sub.then(handle => handle.remove()).catch(() => {}) }
   }, [])
 
-  // Sync widget with latest spending stats whenever expenses update
+  // Keep widget data independent of the screen's period and visibility filters.
   useEffect(() => {
-    if (!expenses) return
-    const currentMonthTotal = calculateTotalExpenses(expenses)
-    const todayIso = new Date().toISOString().slice(0, 10)
-    const todayExpenses = expenses.filter((e) => e.date === todayIso)
-    const todayTotal = calculateTotalExpenses(todayExpenses)
-
-    void syncExpenseWidget({
-      monthTotal: formatCurrency(currentMonthTotal),
-      expenseCount: expenses.length,
-      todayTotal: formatCurrency(todayTotal),
+    if (!member || widgetLoading || widgetError || widgetIncomeLoading || widgetIncomeError || widgetTransfersLoading || widgetTransfersError) return
+    const todayIso = format(new Date(), 'yyyy-MM-dd')
+    const mine = widgetExpenses.filter(expense => expense.member_id === member.id)
+    const monthExpenses = mine.filter(expense => expense.date.startsWith(todayIso.slice(0, 7)) && expense.date <= todayIso)
+    const groups = new Map<string, { name: string; icon: string; total: number }>()
+    monthExpenses.forEach(expense => {
+      const key = expense.category_id || 'other'
+      const category = groups.get(key) || { name: expense.category?.name || 'Other', icon: expense.category?.icon || 'tag', total: 0 }
+      category.total += Number(expense.amount)
+      groups.set(key, category)
     })
-  }, [expenses])
+    const top = [...groups.values()].sort((a, b) => b.total - a.total).slice(0, 2)
+    const now = new Date()
+    const balance = (account: 'bank' | 'cash' | 'savings') => widgetIncome.filter(row => row.member_id === member.id && row.date <= todayIso && row.account_type === account).reduce((sum, row) => sum + Number(row.amount), 0)
+      - calculateTotalExpenses(mine.filter(row => row.date <= todayIso && row.account_type === account))
+      + widgetTransfers.filter(row => row.member_id === member.id && row.date <= todayIso).reduce((sum, row) => sum + (row.to_account === account ? Number(row.amount) : 0) - (row.from_account === account ? Number(row.amount) : 0), 0)
+    const recent = [...mine].filter(row => row.date <= todayIso).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at))[0]
+    const myIncome = widgetIncome.filter(row => row.member_id === member.id && row.date <= todayIso)
+    const monthIncome = myIncome.filter(row => row.date.startsWith(todayIso.slice(0, 7)))
+    const incomeAmount = (rows: typeof myIncome) => rows.reduce((sum, row) => sum + Number(row.amount), 0)
+    const categories = [...groups.values()].sort((a, b) => b.total - a.total)
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+    const snapshot = {
+      monthName: format(now, 'MMMM').toUpperCase(), dateLabel: format(now, 'MMM, d'), weekday: format(now, 'EEEE'),
+      monthIncome: incomeAmount(monthIncome), monthNet: incomeAmount(monthIncome) - calculateTotalExpenses(monthExpenses),
+      availableAmount: balance('bank') + balance('cash'), savingsAmount: balance('savings'), bankAmount: balance('bank'),
+      todayAmount: calculateTotalExpenses(mine.filter(row => row.date === todayIso)),
+      todayCount: mine.filter(row => row.date === todayIso).length,
+      todayMerchants: mine.filter(row => row.date === todayIso).slice(0, 3).map(row => row.description || row.category?.name || 'Expense'),
+      categories,
+      weekNet: Array.from({ length: 4 }, (_, i) => {
+        const inWeek = (date: string) => date.startsWith(todayIso.slice(0, 7)) && Number(date.slice(8)) >= i * 7 + 1 && Number(date.slice(8)) <= (i === 3 ? 31 : (i + 1) * 7)
+        return { label: `Week ${i + 1}`, value: incomeAmount(monthIncome.filter(row => inWeek(row.date))) - calculateTotalExpenses(monthExpenses.filter(row => inWeek(row.date))) }
+      }),
+      monthAmount: calculateTotalExpenses(monthExpenses),
+      recent: recent ? `${recent.description || recent.category?.name || 'Expense'} · ${formatCurrency(Number(recent.amount))}` : 'No purchases yet',
+      bank: formatCurrency(balance('bank')), cash: formatCurrency(balance('cash')), available: formatCurrency(balance('bank') + balance('cash')),
+      months: Array.from({ length: 6 }, (_, i) => {
+        const date = subMonths(startOfMonth(now), 5 - i)
+        const key = format(date, 'yyyy-MM')
+        return { label: format(date, 'MMM'), value: calculateTotalExpenses(mine.filter(row => row.date.startsWith(key) && row.date <= todayIso)) }
+      }),
+      week: Array.from({ length: 7 }, (_, i) => {
+        const date = addDays(weekStart, i)
+        const key = format(date, 'yyyy-MM-dd')
+        return { label: format(date, 'EEE'), value: key <= todayIso ? calculateTotalExpenses(mine.filter(row => row.date === key)) : 0, earned: incomeAmount(myIncome.filter(row => row.date === key)), future: key > todayIso }
+      }),
+    }
+    void syncExpenseWidget({
+      snapshot: JSON.stringify(snapshot),
+      monthTotal: formatCurrency(calculateTotalExpenses(monthExpenses)),
+      expenseCount: monthExpenses.length,
+      todayTotal: formatCurrency(calculateTotalExpenses(mine.filter(expense => expense.date === todayIso))),
+      diningTotal: formatCurrency(top[0]?.total || 0),
+      groceryTotal: formatCurrency(top[1]?.total || 0),
+      firstCategoryName: top[0]?.name || 'Dining Out',
+      secondCategoryName: top[1]?.name || 'Groceries',
+      firstCategoryIcon: top[0]?.icon || 'utensils',
+      secondCategoryIcon: top[1]?.icon || 'shopping-cart',
+    })
+  }, [widgetExpenses, widgetLoading, widgetError, widgetIncome, widgetIncomeLoading, widgetIncomeError, widgetTransfers, widgetTransfersLoading, widgetTransfersError, member])
 
   const handleToggleBiometrics = async () => {
     if (biometrics.hasSavedCredentials) {
@@ -241,20 +318,21 @@ export default function Mobile({
     try {
       await deleteExpense(id)
       await fetchExpenses()
+      setEditingExpense(null)
       toast.success('Expense deleted')
     } catch {
       toast.error('Could not delete expense')
     }
   }
 
+  const saveSmsExpense = async (data: ExpenseFormData) => {
+    if (!member || !navigator.onLine) throw new Error('Connect to the internet before approving transactions.')
+    await addExpense({ ...data, member_id: member.id }, { silent: true })
+  }
+
   const saveIncome = async (data: IncomeFormData) => {
-    if (!member || !navigator.onLine) return
-    try {
-      await addIncome({ ...data, member_id: member.id })
-      await fetchExpenses()
-    } catch {
-      toast.error('Could not save income')
-    }
+    if (!member || !navigator.onLine) throw new Error('Connect to the internet before approving transactions.')
+    await addIncome({ ...data, member_id: member.id }, { silent: true })
   }
 
   // Check if opened from notification approval intent & listen for runtime triggers
@@ -277,52 +355,50 @@ export default function Mobile({
   // Handle incoming or background SMS transactions (both expenses and income)
   const processIncomingTransaction = useCallback(async (tx: ParsedBankTransaction) => {
     const settings = getSmsSettings()
-    if (!settings.enabled) return
+    if (!settings.enabled || isTransactionProcessed(tx.smsId) || processingSms.current.has(tx.smsId)) return
 
-    if (settings.mode === 'auto' && member && navigator.onLine) {
+    if (member && tx.type === 'income') celebrateMoney('income', tx.amount, `${member.id}:sms:${tx.smsId}`)
+
+    if (settings.mode === 'auto' && tx.isAutoDetected && tx.suggestedCategoryId && member && navigator.onLine) {
+      processingSms.current.add(tx.smsId)
       try {
         if (tx.type === 'income') {
           await addIncome({
             amount: tx.amount,
             description: tx.merchant,
-            category_id: tx.suggestedCategoryId || categoriesRef.current.find(c => c.category_type === 'income')?.id || '',
+            category_id: tx.suggestedCategoryId,
             visibility: settings.defaultVisibility,
             date: tx.date,
             account_type: 'bank',
             member_id: member.id,
-          })
+          }, { silent: true, celebrate: false })
           markTransactionProcessed(tx.smsId)
-          toast.success(`Auto-logged bank income: ${tx.merchant} (+${formatCurrency(tx.amount)})`)
         } else {
           await addExpense({
             amount: tx.amount,
             description: tx.merchant,
-            category_id: tx.suggestedCategoryId || categoriesRef.current.find(c => c.category_type !== 'income')?.id || '',
+            category_id: tx.suggestedCategoryId,
             visibility: settings.defaultVisibility,
             date: tx.date,
             account_type: 'bank',
             member_id: member.id,
-          })
+          }, { silent: true })
           markTransactionProcessed(tx.smsId)
-          toast.success(`Auto-logged bank expense: ${tx.merchant} (-${formatCurrency(tx.amount)})`)
         }
         await fetchExpenses()
       } catch (err) {
         console.error('Failed to auto-save SMS transaction:', err)
-        setPendingSmsTxs(prev => [...prev.filter(item => item.id !== tx.id), tx])
+        setPendingSmsTxs(prev => [...prev.filter(item => item.smsId !== tx.smsId), tx])
+      } finally {
+        processingSms.current.delete(tx.smsId)
       }
     } else {
       setPendingSmsTxs(prev => {
         if (prev.some(item => item.id === tx.id || item.smsId === tx.smsId)) return prev
         return [tx, ...prev]
       })
-      const isInc = tx.type === 'income'
-      toast(
-        isInc
-          ? `Bank income: ${tx.merchant} (+${formatCurrency(tx.amount)}). Tap to approve.`
-          : `Bank expense: ${tx.merchant} (-${formatCurrency(tx.amount)}). Tap to approve.`,
-        { icon: isInc ? '💰' : '💳', duration: 4000 }
-      )
+      // Pending bank transactions stay in the review inbox; the native notification
+      // provides the alert without stacking app toasts over the screen.
     }
   }, [member, addExpense, addIncome, fetchExpenses])
 
@@ -338,105 +414,40 @@ export default function Mobile({
   }, [processIncomingTransaction])
 
   useEffect(() => {
+    if (!member || categoriesLoading || categoriesError) return
     void checkPendingBackgroundSms()
+    const resume = NativeApp.addListener('resume', () => { void checkPendingBackgroundSms() })
     const unsubscribe = subscribeToIncomingSms(tx => {
       void processIncomingTransaction(tx)
-    }, categoriesRef.current)
+    }, () => categoriesRef.current)
     return () => {
       unsubscribe()
+      void resume.then(handle => handle.remove())
     }
-  }, [checkPendingBackgroundSms, processIncomingTransaction])
+  }, [checkPendingBackgroundSms, processIncomingTransaction, member, categoriesLoading, categoriesError])
 
-  const total = calculateTotalExpenses(expenses)
-  const breakdown = groupExpensesByCategory(expenses, categories)
 
-  return (
-    <div className="mobile-client min-h-dvh bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 pb-28 pt-4">
-        {/* Top Header */}
-        <header className="mb-6 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
-              Pocket expenses
-            </p>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-gray-400">
-              {activeTab === 'expenses'
-                ? member
-                  ? `Hello, ${member.name}`
-                  : 'Your daily spending'
-                : activeTab === 'income'
-                  ? 'Income & deposits'
-                  : activeTab === 'transfers'
-                    ? 'Account transfers & gold'
-                    : activeTab === 'savings'
-                      ? 'Savings & assets'
-                      : 'Settings & household'}
-            </p>
+  const mobileHeader = <header className="monetra-header mb-6 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#5267f5] text-white"><Wallet size={19} /></span>
+            <div className="min-w-0">
+              <p className="text-base font-semibold text-slate-900 dark:text-white">{activeTab === 'home' ? 'Pocket Expenses' : activeTab === 'expenses' ? 'Expenses' : activeTab === 'income' ? 'Income' : 'Your finances'}</p>
+
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setSmsModalTab('pending')
-                setSmsModalOpen(true)
-              }}
-              aria-label="Bank SMS Auto-Tracking"
-              className="relative rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-gray-700 transition"
-              title="Bank SMS Auto-Tracking & Approvals"
-            >
-              <MessageSquare size={19} />
-              {pendingSmsTxs.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-sm">
-                  {pendingSmsTxs.length}
-                </span>
-              )}
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => { setSmsModalTab('pending'); setSmsModalOpen(true) }} aria-label="Review bank transactions" className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 dark:bg-gray-800 dark:text-gray-200">
+              <Bell size={19} />
+              {pendingSmsTxs.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-[#e95235] px-1.5 text-[10px] font-bold text-white">{pendingSmsTxs.length}</span>}
             </button>
-            <ThemeToggle
-              variant="icon"
-              className="rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-slate-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-            />
-            {biometrics.isAvailable && (
-              <button
-                type="button"
-                onClick={() => void handleToggleBiometrics()}
-                aria-label={
-                  biometrics.hasSavedCredentials ? 'Biometrics active' : 'Enable biometrics'
-                }
-                title={
-                  biometrics.hasSavedCredentials
-                    ? 'Biometric sign-in active on this device. Tap to disable.'
-                    : 'Biometrics supported. Sign in with password to enable.'
-                }
-                className={`rounded-full p-2.5 shadow-sm transition ${
-                  biometrics.hasSavedCredentials
-                    ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-800'
-                    : 'bg-white dark:bg-gray-800 text-slate-400 dark:text-gray-400'
-                }`}
-              >
-                <Fingerprint size={19} />
-              </button>
-            )}
-            {onLock && (
-              <button
-                type="button"
-                onClick={onLock}
-                aria-label="Lock app"
-                title="Lock app with biometrics now"
-                className="rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-slate-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-              >
-                <Lock size={19} />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              aria-label="Sign out"
-              className="rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-slate-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition"
-            >
-              <LogOut size={19} />
-            </button>
+            <button type="button" aria-current={activeTab === 'more' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('more'); setMoreSubView('root') }} aria-label="Settings and household tools" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 dark:bg-gray-800 dark:text-gray-200"><Settings size={19} /></button>
           </div>
         </header>
+
+  return (
+    <div className={`mobile-client ${activeTab === 'home' ? 'monetra-home-screen' : activeTab === 'expenses' && !adding && !editingExpense ? 'monetra-tool-screen monetra-expenses-screen' : 'monetra-tool-screen'} min-h-dvh bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
+      <div className="monetra-shell mx-auto max-w-2xl px-4 sm:px-6 pb-28 pt-4">
+        {activeTab !== 'home' && !(activeTab === 'expenses' && !adding && !editingExpense) && mobileHeader}
 
         {!online && (
           <p
@@ -463,6 +474,19 @@ export default function Mobile({
           </div>
         ) : (
           <>
+            {activeTab === 'home' && <MobileHome
+              header={mobileHeader}
+              reportOpen={reportOpen}
+              onOpenReport={() => setReportOpen(true)}
+              onCloseReport={() => setReportOpen(false)}
+              onAdd={() => { setActiveTab('expenses'); setSaveError(''); setEditingExpense(null); setAdding(true) }}
+              onExpenses={() => setActiveTab('expenses')}
+              onIncome={() => setActiveTab('income')}
+              onSavings={() => { setActiveTab('more'); setMoreSubView('savings') }}
+              onTransfers={() => { setActiveTab('more'); setMoreSubView('transfers') }}
+              onCategories={() => { setActiveTab('more'); setMoreSubView('categories') }}
+            />}
+
             {/* TAB: EXPENSES */}
             {activeTab === 'expenses' && (
               <>
@@ -513,242 +537,33 @@ export default function Mobile({
                         }}
                       />
                     )}
+                    {editingExpense && <button type="button" data-haptic="impact" className="mt-5 flex items-center gap-2 text-sm text-red-600" onClick={() => void handleDeleteExpense(editingExpense.id)}><Trash2 size={16} /> Delete expense</button>}
                   </section>
                 ) : (
-                  <div className="space-y-5">
-                    {/* Pending Bank SMS Alert Banner */}
-                    {pendingSmsTxs.length > 0 && (
-                      <div
-                        onClick={() => {
-                          setSmsModalTab('pending')
-                          setSmsModalOpen(true)
-                        }}
-                        role="button"
-                        className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 p-4 text-indigo-950 dark:text-indigo-200 shadow-sm transition hover:bg-indigo-100/70 dark:hover:bg-indigo-900/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-xl bg-indigo-600 p-2 text-white shadow-sm">
-                            <MessageSquare size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold">
-                              {pendingSmsTxs.length} bank {pendingSmsTxs.length === 1 ? 'transaction' : 'transactions'} awaiting approval
-                            </p>
-                            <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                              Tap to review, edit details & approve
-                            </p>
-                          </div>
-                        </div>
-                        <span className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
-                          Review
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Overview</h1>
-                      <button
-                        disabled={loading || !online}
-                        onClick={() => void fetchExpenses()}
-                        aria-label="Refresh expenses"
-                        className="rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-slate-700 dark:text-gray-300 disabled:opacity-40 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-                      >
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <select
-                        aria-label="Period"
-                        value={period}
-                        onChange={(e) => setPeriod(e.target.value as typeof period)}
-                        className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="month">This month</option>
-                        <option value="last-month">Last month</option>
-                        <option value="week">This week</option>
-                      </select>
-                      <select
-                        aria-label="Visibility"
-                        value={visibility}
-                        onChange={(e) => setVisibility(e.target.value as typeof visibility)}
-                        className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="all">All visible</option>
-                        <option value="private">Personal</option>
-                        <option value="household">Household</option>
-                      </select>
-                    </div>
-
-                    {error ? (
-                      <div
-                        role="alert"
-                        className="rounded-2xl bg-red-50 dark:bg-red-950/40 p-5 text-red-700 dark:text-red-400"
-                      >
-                        Could not load expenses.{' '}
-                        <button onClick={() => void fetchExpenses()} className="underline">
-                          Try again
-                        </button>
-                      </div>
-                    ) : loading ? (
-                      <p
-                        role="status"
-                        className="py-12 text-center text-slate-500 dark:text-gray-400"
-                      >
-                        Loading expenses…
-                      </p>
-                    ) : (
-                      <>
-                        <section className="rounded-3xl bg-indigo-600 dark:bg-indigo-700 p-6 text-white shadow-lg shadow-indigo-100 dark:shadow-none">
-                          <Wallet className="mb-4 opacity-75" size={26} />
-                          <p className="text-xs uppercase font-medium tracking-wider text-indigo-100">
-                            Total spent
-                          </p>
-                          <p className="mt-2 break-words text-3xl font-bold tracking-tight">
-                            {formatCurrency(total)}
-                          </p>
-                          <p className="mt-3 text-xs text-indigo-100">
-                            {expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'} ·{' '}
-                            {visibility === 'all'
-                              ? 'Personal + shared spending'
-                              : visibility === 'private'
-                                ? 'Personal spending'
-                                : 'Shared household spending'}
-                          </p>
-                        </section>
-
-                        <section className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-                          <h2 className="mb-4 font-semibold text-slate-900 dark:text-white">
-                            By category
-                          </h2>
-                          {breakdown.length === 0 ? (
-                            <p className="text-sm text-slate-500 dark:text-gray-400">
-                              Add your first expense to see where your money goes.
-                            </p>
-                          ) : (
-                            <div className="space-y-4">
-                              {breakdown.map((item) => (
-                                <div key={item.name}>
-                                  <div className="mb-2 flex justify-between gap-3 text-sm">
-                                    <span className="text-slate-700 dark:text-gray-300">
-                                      {item.name}
-                                    </span>
-                                    <span className="font-medium text-slate-900 dark:text-white">
-                                      {formatCurrency(item.value)}
-                                    </span>
-                                  </div>
-                                  <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-gray-700">
-                                    <div
-                                      className="h-full rounded-full bg-indigo-500"
-                                      style={{
-                                        width: `${total > 0 ? (item.value / total) * 100 : 0}%`,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </section>
-
-                        <section className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-                          <h2 className="mb-2 font-semibold text-slate-900 dark:text-white">
-                            Recent expenses
-                          </h2>
-                          {expenses.length === 0 ? (
-                            <p className="py-4 text-sm text-slate-500 dark:text-gray-400">
-                              No expenses in this period.
-                            </p>
-                          ) : (
-                            <ul className="divide-y divide-slate-100 dark:divide-gray-700">
-                              {expenses.slice(0, 25).map((expense) => (
-                                <li
-                                  key={expense.id}
-                                  className="flex items-start justify-between gap-3 py-3.5"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="break-words text-sm font-medium text-slate-900 dark:text-white">
-                                      {expense.description ||
-                                        expense.category?.name ||
-                                        'Expense'}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
-                                      {formatDateShort(expense.date)} ·{' '}
-                                      {expense.category?.name || 'Uncategorized'}
-                                    </p>
-                                    <p className="mt-0.5 text-xs text-slate-400 dark:text-gray-500">
-                                      {expense.visibility === 'private'
-                                        ? 'Personal'
-                                        : `Shared · ${expense.member?.name || 'Household'}`}{' '}
-                                      · {expense.account_type === 'bank' ? 'Bank' : 'Cash'}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="font-semibold text-sm text-slate-900 dark:text-white">
-                                      {formatCurrency(Number(expense.amount))}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingExpense(expense)
-                                        setAdding(false)
-                                      }}
-                                      className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition"
-                                      title="Edit expense"
-                                    >
-                                      <Pencil size={15} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void handleDeleteExpense(expense.id)}
-                                      className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition"
-                                      title="Delete expense"
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          {expenses.length > 25 && (
-                            <p className="mt-3 text-xs text-slate-500 dark:text-gray-400">
-                              Showing the 25 most recent expenses.
-                            </p>
-                          )}
-                        </section>
-                      </>
-                    )}
-                  </div>
+                  <MobileExpenses
+                    expenses={expenses}
+                    categories={categories}
+                    loading={loading}
+                    error={error}
+                    online={online}
+                    period={period}
+                    visibility={visibility}
+                    pendingCount={pendingSmsTxs.length}
+                    onPeriod={setPeriod}
+                    onVisibility={setVisibility}
+                    onRefresh={() => void fetchExpenses()}
+                    onAdd={() => { setSaveError(''); setEditingExpense(null); setAdding(true) }}
+                    onEdit={expense => { setSaveError(''); setEditingExpense(expense); setAdding(false) }}
+                    onReview={() => { setSmsModalTab('pending'); setSmsModalOpen(true) }}
+                    onSettings={() => { setActiveTab('more'); setMoreSubView('root') }}
+                  />
                 )}
 
-                {/* Quick Add Expense Action Button */}
-                {!adding && !editingExpense && (
-                  <div className="fixed inset-x-0 bottom-16 z-20 pointer-events-none px-4 pb-2">
-                    <button
-                      disabled={!member || profileLoading || !online}
-                      onClick={() => {
-                        setSaveError('')
-                        setEditingExpense(null)
-                        setAdding(true)
-                      }}
-                      className="pointer-events-auto mx-auto flex min-h-12 w-full max-w-lg items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3 font-semibold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 active:bg-indigo-800 transition disabled:opacity-40"
-                    >
-                      <Plus size={20} /> Add expense
-                    </button>
-                  </div>
-                )}
               </>
             )}
 
             {/* TAB: INCOME */}
             {activeTab === 'income' && <IncomePage />}
-
-            {/* TAB: TRANSFERS */}
-            {activeTab === 'transfers' && <TransfersPage />}
-
-            {/* TAB: SAVINGS */}
-            {activeTab === 'savings' && <SavingsPage />}
 
             {/* TAB: MORE & SETTINGS */}
             {activeTab === 'more' && (
@@ -760,7 +575,7 @@ export default function Mobile({
                         More & Settings
                       </h1>
                       <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-                        Manage categories, household members, charts, and device preferences.
+                        Transfers, savings, categories, and household tools.
                       </p>
                     </div>
 
@@ -797,6 +612,40 @@ export default function Mobile({
                             <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
                               Auto-detection, approval mode & scan inbox (7/30/all days)
                             </p>
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-slate-400 dark:text-gray-500" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setMoreSubView('transfers')}
+                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition text-left"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
+                            <ArrowRightLeft size={20} />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-slate-900 dark:text-white">Transfers</p>
+                            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Move money between accounts and review trends</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-slate-400 dark:text-gray-500" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setMoreSubView('savings')}
+                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition text-left"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+                            <Coins size={20} />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-slate-900 dark:text-white">Savings</p>
+                            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Balances, assets, and monthly savings</p>
                           </div>
                         </div>
                         <ChevronRight size={18} className="text-slate-400 dark:text-gray-500" />
@@ -846,27 +695,6 @@ export default function Mobile({
 
                       <button
                         type="button"
-                        onClick={() => setMoreSubView('dashboard')}
-                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition text-left"
-                      >
-                        <div className="flex items-center gap-3.5">
-                          <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
-                            <BarChart3 size={20} />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm text-slate-900 dark:text-white">
-                              Analytics & Charts
-                            </p>
-                            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                              Cumulative spending, pie charts, and monthly comparisons
-                            </p>
-                          </div>
-                        </div>
-                        <ChevronRight size={18} className="text-slate-400 dark:text-gray-500" />
-                      </button>
-
-                      <button
-                        type="button"
                         onClick={() => setMoreSubView('server')}
                         className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition text-left"
                       >
@@ -907,6 +735,28 @@ export default function Mobile({
                         <ThemeToggle />
                       </div>
 
+                      {standalone && (
+                        <div className="flex items-center justify-between gap-3 p-4">
+                          <div className="flex items-center gap-3.5">
+                            <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600"><Vibrate size={20} /></div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white">Haptic feedback</p>
+                              <p className="mt-0.5 text-xs text-slate-500">Subtle taps for actions and confirmations</p>
+                            </div>
+                          </div>
+                          <button type="button" role="switch" aria-label="Haptic feedback" aria-checked={hapticsEnabled} onClick={() => {
+                            const enabled = !hapticsEnabled
+                            setHapticsEnabled(enabled)
+                            setHapticsPreference(enabled)
+                            if (enabled) feedback()
+                          }} className="flex h-11 w-14 shrink-0 items-center justify-center">
+                            <span className={`relative block h-7 w-12 rounded-full ${hapticsEnabled ? 'bg-[#1b1c1f]' : 'bg-gray-200'}`}>
+                              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${hapticsEnabled ? 'left-6' : 'left-1'}`} />
+                            </span>
+                          </button>
+                        </div>
+                      )}
+
                       {biometrics.isAvailable && (
                         <div className="flex items-center justify-between p-4">
                           <div className="flex items-center gap-3.5">
@@ -926,7 +776,7 @@ export default function Mobile({
                           </div>
                           <button
                             type="button"
-                            onClick={() => void handleToggleBiometrics()}
+                            data-haptic="impact" onClick={() => void handleToggleBiometrics()}
                             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
                               biometrics.hasSavedCredentials
                                 ? 'bg-indigo-600 text-white hover:bg-indigo-700'
@@ -941,7 +791,7 @@ export default function Mobile({
                       {onLock && (
                         <button
                           type="button"
-                          onClick={onLock}
+                          data-haptic="impact" onClick={onLock}
                           className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition text-left"
                         >
                           <div className="flex items-center gap-3.5">
@@ -963,7 +813,7 @@ export default function Mobile({
 
                       <button
                         type="button"
-                        onClick={() => void signOut()}
+                        data-haptic="impact" onClick={() => void signOut()}
                         className="w-full flex items-center justify-between p-4 hover:bg-red-50/50 dark:hover:bg-red-950/30 transition text-left"
                       >
                         <div className="flex items-center gap-3.5">
@@ -994,8 +844,8 @@ export default function Mobile({
                     )}
 
                     <div className="pt-4 text-center text-xs text-slate-400 dark:text-gray-500">
-                      <p className="font-semibold">Pocket Expenses · v1.3.0</p>
-                      <p className="mt-0.5 text-[11px]">Clean & Minimalist Household Edition</p>
+                      <p className="font-semibold">Pocket Expenses · v1.4.2</p>
+                      <p className="mt-0.5 text-[11px]">Your household finances, together</p>
                     </div>
                   </div>
                 )}
@@ -1026,7 +876,7 @@ export default function Mobile({
                   </div>
                 )}
 
-                {moreSubView === 'dashboard' && (
+                {moreSubView === 'transfers' && (
                   <div>
                     <button
                       type="button"
@@ -1035,7 +885,20 @@ export default function Mobile({
                     >
                       <ArrowLeft size={16} /> Back to More
                     </button>
-                    <DashboardPage />
+                    <TransfersPage />
+                  </div>
+                )}
+
+                {moreSubView === 'savings' && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setMoreSubView('root')}
+                      className="mb-4 inline-flex items-center gap-2 rounded-xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-gray-200 shadow-sm hover:bg-slate-50 dark:hover:bg-gray-700 transition"
+                    >
+                      <ArrowLeft size={16} /> Back to More
+                    </button>
+                    <SavingsPage />
                   </div>
                 )}
 
@@ -1063,97 +926,23 @@ export default function Mobile({
       {/* Sleek Minimalist Mobile Bottom Navigation Bar */}
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-1.5 safe-area-pb shadow-lg"
+        className="pocket-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-1.5 safe-area-pb shadow-lg"
       >
-        <div className="mx-auto flex max-w-lg items-center justify-around">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('expenses')
-              setMoreSubView('root')
-            }}
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-colors ${
-              activeTab === 'expenses'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-            }`}
-          >
-            <Receipt className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Expenses</span>
+        <div className="monetra-nav-inner mx-auto flex max-w-lg items-center justify-between"><div className="monetra-nav-capsule">
+          <button type="button" aria-label="Home" aria-current={activeTab === 'home' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('home'); setMoreSubView('root') }} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'home' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
+            <Home className="w-5 h-5" /><span className="mt-1 text-[10px]">Home</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('income')
-              setMoreSubView('root')
-            }}
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-colors ${
-              activeTab === 'income'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-            }`}
-          >
-            <TrendingUp className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Income</span>
+          <button type="button" aria-label="Expenses" aria-current={activeTab === 'expenses' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('expenses'); setMoreSubView('root') }} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'expenses' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
+            <Receipt className="w-5 h-5" /><span className="mt-1 text-[10px]">Expenses</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('transfers')
-              setMoreSubView('root')
-            }}
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-colors ${
-              activeTab === 'transfers'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-            }`}
-          >
-            <ArrowRightLeft className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Transfers</span>
+          <button type="button" aria-label="Income" aria-current={activeTab === 'income' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('income'); setMoreSubView('root') }} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'income' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
+            <TrendingUp className="w-5 h-5" /><span className="mt-1 text-[10px]">Income</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('savings')
-              setMoreSubView('root')
-            }}
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-colors ${
-              activeTab === 'savings'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-            }`}
-          >
-            <Coins className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Savings</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('more')
-              setMoreSubView('root')
-            }}
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-colors ${
-              activeTab === 'more'
-                ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
-                : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
-            }`}
-          >
-            <div className="relative">
-              <MoreHorizontal className="w-5 h-5" />
-              {pendingSmsTxs.length > 0 && (
-                <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[8px] font-bold text-white shadow-sm">
-                  {pendingSmsTxs.length}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] mt-1">More</span>
-          </button>
+          </div>
         </div>
       </nav>
+
+      <MoneyMascot />
 
       {/* Bank SMS Auto-Tracking & Approvals Modal */}
       <BankSmsTrackerModal
@@ -1161,14 +950,14 @@ export default function Mobile({
         initialTab={smsModalTab}
         onClose={() => setSmsModalOpen(false)}
         categories={categories}
-        onSaveExpense={saveExpense}
+        onSaveExpense={saveSmsExpense}
         onSaveIncome={saveIncome}
         pendingTransactions={pendingSmsTxs}
         onRemoveTransaction={id => setPendingSmsTxs(prev => prev.filter(t => t.id !== id))}
         onAddTransactions={txs => {
           setPendingSmsTxs(prev => {
-            const existingIds = new Set(prev.map(t => t.id))
-            const newTxs = txs.filter(t => !existingIds.has(t.id))
+            const existingIds = new Set(prev.map(t => t.smsId))
+            const newTxs = txs.filter(t => !existingIds.has(t.smsId))
             return [...newTxs, ...prev]
           })
         }}

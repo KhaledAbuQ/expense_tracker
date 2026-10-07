@@ -87,7 +87,7 @@ export default function CategoryList({
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(category)}
+                    data-haptic="impact" onClick={() => handleDelete(category)}
                     className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg transition-colors"
                     title="Delete"
                   >

@@ -166,11 +166,11 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
 
             boolean isAuto = "auto".equalsIgnoreCase(mode);
             String title = isAuto
-                ? "Pocket Expenses: Bank Transaction Auto-Tracked"
+                ? "Pocket Expenses: Transaction ready to sync"
                 : "Pocket Expenses: Bank Transaction Detected";
 
             String contentText = isAuto
-                ? "New bank transaction recorded. Tap to view ledger."
+                ? "A bank transaction was detected. Open the app to sync it."
                 : "New bank transaction waiting for your approval. Tap to review.";
 
             int smallIcon = context.getApplicationInfo().icon != 0 ? context.getApplicationInfo().icon : android.R.drawable.stat_notify_chat;
@@ -185,7 +185,8 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
                 .setAutoCancel(true);
 
             NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-            notificationManager.notify((int) (timestamp % 100000), builder.build());
+            // Keep one up-to-date alert in the shade. Every SMS remains in the in-app review queue.
+            notificationManager.notify(1001, builder.build());
         } catch (SecurityException se) {
             Log.w(TAG, "Notification permission not granted yet", se);
         } catch (Exception e) {

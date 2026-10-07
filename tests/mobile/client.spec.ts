@@ -5,6 +5,10 @@ const category = { id: '44444444-4444-4444-8444-444444444444', name: 'Groceries'
 const today = new Date().toLocaleDateString('en-CA')
 
 async function mockSupabase(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('expense_tracker_supabase_url', 'https://test-project.supabase.co')
+    localStorage.setItem('expense_tracker_supabase_anon_key', 'test-public-key')
+  })
   const state = { failSave: false, inserts: [] as Record<string, unknown>[], foreignRequests: [] as string[] }
   const rows: Record<string, unknown>[] = [{ id: '55555555-5555-4555-8555-555555555555', amount: 12.345, description: 'Weekly groceries', category_id: category.id, date: today, member_id: member.id, visibility: 'private', account_type: 'bank', category, member, created_at: `${today}T12:00:00Z` }]
   await page.route('**/*', async route => {
@@ -20,6 +24,7 @@ async function mockSupabase(page: Page) {
     }
     if (url.pathname === '/rest/v1/members') return respond([member])
     if (url.pathname === '/rest/v1/categories') return respond([category])
+    if (url.pathname === '/rest/v1/income' || url.pathname === '/rest/v1/transfers') return respond([])
     if (url.pathname === '/rest/v1/expenses') {
       if (request.method() === 'POST') {
         if (state.failSave) return respond({ message: 'Simulated save failure', code: 'TEST' }, 500)
@@ -46,6 +51,8 @@ async function signIn(page: Page) {
   await page.getByLabel('Email', { exact: true }).fill('test@example.com')
   await page.getByLabel('Password', { exact: true }).fill('test-password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('button', { name: 'Expenses', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
   await expect(page.getByText('Weekly groceries')).toBeVisible()
 }
@@ -55,6 +62,7 @@ test('standalone sign-in persists and saves to the existing Supabase schema', as
   await signIn(page)
   await expect(page.getByRole('link', { name: 'Open full dashboard' })).toHaveCount(0)
   await page.reload()
+  await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('button', { name: 'Expenses', exact: true }).click()
   await expect(page.getByText('Weekly groceries')).toBeVisible()
   await page.getByRole('button', { name: 'Add expense', exact: true }).click()
   await page.getByLabel('Amount').fill('0.125')
@@ -98,4 +106,59 @@ test('offline state disables writes and reconnect allows refresh', async ({ page
   await expect(page.getByRole('button', { name: 'Add expense', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Refresh expenses' }).click()
   await expect(page.getByText('Weekly groceries')).toBeVisible()
+})
+
+test('reference palette, dashboard quick add, and haptic preference work on mobile', async ({ page }) => {
+  await mockSupabase(page)
+  await signIn(page)
+  const navigation = page.getByRole('navigation', { name: 'Mobile navigation' })
+  await navigation.getByRole('button', { name: 'Home', exact: true }).click()
+  await expect(page.locator('.pocket-spend-card')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  await expect(page.locator('.pocket-category-chip').first()).toHaveCSS('background-color', 'rgb(240, 238, 255)')
+  await expect(page.getByRole('button', { name: 'Add expense', exact: true })).toHaveCSS('background-color', 'rgb(27, 28, 31)')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'artifacts/mobile-home.png' })
+  await page.getByRole('button', { name: 'Add expense', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Add expense', exact: true })).toBeVisible()
+  await navigation.getByRole('button', { name: 'More', exact: true }).click()
+  const haptics = page.getByRole('switch', { name: 'Haptic feedback' })
+  await expect(haptics).toBeChecked()
+  await haptics.click()
+  await expect(haptics).not.toBeChecked()
+  await page.reload()
+  await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('button', { name: 'More', exact: true }).click()
+  await expect(page.getByRole('switch', { name: 'Haptic feedback' })).not.toBeChecked()
+})
+
+test('uncertain SMS categories require review and failed approvals are kept for retry', async ({ page }) => {
+  const state = await mockSupabase(page)
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('sms-test-seeded')) {
+      localStorage.setItem('pocket_expenses_pending_transactions', JSON.stringify([{
+        id: 'sms-unknown', smsId: 'unknown', sender: 'Bank', merchant: 'UNKNOWN MERCHANT', amount: 12.5,
+        currency: 'JOD', date: new Date().toLocaleDateString('en-CA'), type: 'expense',
+        rawBody: 'Purchase of JOD 12.500 at UNKNOWN MERCHANT. Available balance JOD 100.',
+        categoryGuess: 'Groceries', suggestedCategoryId: '44444444-4444-4444-8444-444444444444',
+        isAutoDetected: true, isFinancial: true, confidence: 'high',
+      }]))
+      sessionStorage.setItem('sms-test-seeded', 'true')
+    }
+  })
+  await signIn(page)
+  await page.getByRole('button', { name: 'Review bank transactions' }).click()
+  const inbox = page.getByRole('dialog', { name: 'Bank SMS Auto-Tracking' })
+  await expect(inbox.getByRole('combobox')).toHaveValue('')
+  await expect(inbox.getByText('Auto-detected', { exact: true })).toHaveCount(0)
+  await inbox.getByRole('combobox').selectOption(category.id)
+  state.failSave = true
+  await inbox.getByRole('button', { name: 'Save Expense', exact: true }).click()
+  await expect(page.getByText('Failed to save transaction', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pocket_expenses_processed_sms_ids') || '[]'))).not.toContain('unknown')
+  state.failSave = false
+  await inbox.getByRole('button', { name: 'Save Expense', exact: true }).click()
+  await expect(inbox.getByText('All caught up!', { exact: true })).toBeVisible()
+  expect(state.inserts).toHaveLength(1)
+  expect(state.inserts[0].category_id).toBe(category.id)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pocket_expenses_merchant_categories_v2') || '{}')['unknown merchant'])).toBe(category.id)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pocket_expenses_pending_transactions') || '[]'))).toEqual([])
 })

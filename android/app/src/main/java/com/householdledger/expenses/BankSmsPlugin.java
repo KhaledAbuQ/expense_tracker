@@ -32,6 +32,10 @@ import org.json.JSONObject;
                 Manifest.permission.RECEIVE_SMS,
                 Manifest.permission.READ_SMS
             }
+        ),
+        @Permission(
+            alias = "notifications",
+            strings = { Manifest.permission.POST_NOTIFICATIONS }
         )
     }
 )
@@ -83,7 +87,7 @@ public class BankSmsPlugin extends Plugin {
         if (activeInstance != null) {
             try {
                 JSObject data = new JSObject();
-                data.put("id", "live_" + timestamp + "_" + Math.abs(address.hashCode()));
+                data.put("id", "rcv_" + timestamp + "_" + Math.abs(address.hashCode()));
                 data.put("address", address);
                 data.put("body", body);
                 data.put("date", timestamp);
@@ -131,6 +135,36 @@ public class BankSmsPlugin extends Plugin {
         }
 
         requestPermissionForAlias("sms", call, "smsPermsCallback");
+    }
+
+    @PluginMethod
+    public void checkNotificationPermission(PluginCall call) {
+        boolean granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestNotificationPermission(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+            return;
+        }
+        requestPermissionForAlias("notifications", call, "notificationPermsCallback");
+    }
+
+    @PermissionCallback
+    private void notificationPermsCallback(PluginCall call) {
+        boolean granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        call.resolve(ret);
     }
 
     @PermissionCallback

@@ -1,0 +1,9 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/reference_widget_root" android:layout_width="match_parent" android:layout_height="match_parent">
+<ImageView android:id="@+id/reference_widget_art" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:contentDescription="Pocket Expenses widget"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
+<TextView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/>
+<TextView android:id="@+id/reference_widget_primary" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:visibility="gone" android:contentDescription="Send"/>
+<TextView android:id="@+id/reference_widget_secondary" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:visibility="gone" android:contentDescription="Receive"/>
+<TextView android:id="@+id/reference_widget_footer" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="0.45" android:visibility="gone" android:contentDescription="Set savings goal"/>
+</LinearLayout>
+</FrameLayout>

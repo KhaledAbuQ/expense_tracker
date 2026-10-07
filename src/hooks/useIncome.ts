@@ -1,3 +1,5 @@
+import { celebrateMoney } from '../lib/moneyCelebration'
+import { cachedFinance, invalidateFinance, subscribeFinance } from '../lib/financeCache'
 import { fetchAllRows } from '../lib/pagination'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
@@ -50,7 +52,7 @@ export function useIncome(options?: UseIncomeOptions) {
     return true
   }, [member, householdMemberIds, startDateStr, endDateStr, categoryId, visibility])
 
-  const fetchIncome = useCallback(async () => {
+  const fetchIncome = useCallback(async (force: unknown = true) => {
     if (!isSupabaseConfigured || !member || householdMemberIds.length === 0) {
       setIncome([])
       setError(null)
@@ -97,7 +99,7 @@ export function useIncome(options?: UseIncomeOptions) {
         query = query.or(`member_id.eq.${member.id},and(visibility.eq.household,member_id.in.(${householdMemberIds.join(',')}))`)
       }
 
-      const data = await fetchAllRows((from, to) => query.range(from, to))
+      const data = await cachedFinance('income:' + JSON.stringify([member.id, memberIdsKey, startDateStr, endDateStr, categoryId, visibility]), () => fetchAllRows((from, to) => query.range(from, to)), force !== false)
       if (currentRequest !== requestId.current) return
 
       const scopedIncome = (data || []).filter(entry =>
@@ -124,12 +126,13 @@ export function useIncome(options?: UseIncomeOptions) {
   }, [startDateStr, endDateStr, categoryId, visibility, member, memberIdsKey])
 
   useEffect(() => {
-    fetchIncome()
+    void fetchIncome(false)
+    return subscribeFinance(resource => { if (resource === 'income') void fetchIncome(false) })
   }, [fetchIncome])
 
-  const addIncome = async (formData: IncomeFormData) => {
+  const addIncome = async (formData: IncomeFormData, options: { silent?: boolean; celebrate?: boolean } = {}) => {
     if (!isSupabaseConfigured || !member) {
-      toast.error('Please configure Supabase first')
+      if (!options.silent) toast.error('Please configure Supabase first')
       throw new Error('Supabase not configured')
     }
 
@@ -150,15 +153,17 @@ export function useIncome(options?: UseIncomeOptions) {
         .single()
 
       if (error) throw error
+      invalidateFinance('income')
       // Only show it here if it actually belongs in the current view.
       if (matchesFilters(data)) {
         setIncome(prev => [data, ...prev])
       }
-      toast.success('Income added successfully')
+      if (options.celebrate !== false && data.member_id === member.id && data.date <= format(new Date(), 'yyyy-MM-dd')) celebrateMoney(data.account_type === 'savings' ? 'savings' : 'income', Number(data.amount), `${member.id}:income:${data.id}`)
+      if (!options.silent) toast.success('Income added successfully')
       return data
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to add income'
-      toast.error(message)
+      if (!options.silent) toast.error(message)
       throw err
     }
   }
@@ -182,6 +187,7 @@ export function useIncome(options?: UseIncomeOptions) {
         .single()
 
       if (error) throw error
+      invalidateFinance('income')
       // An edit can move a row out of the active filter.
       setIncome(prev =>
         matchesFilters(data)
@@ -210,6 +216,7 @@ export function useIncome(options?: UseIncomeOptions) {
         .eq('id', id)
 
       if (error) throw error
+      invalidateFinance('income')
       setIncome(prev => prev.filter(i => i.id !== id))
       toast.success('Income deleted successfully')
     } catch (err) {

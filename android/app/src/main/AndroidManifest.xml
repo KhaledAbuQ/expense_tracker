@@ -63,7 +63,15 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_quick_actions_info" />
         </receiver>
-
+<receiver android:name=".MonthReportWidgetProvider" android:label="Monthly Report" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_monthreport_info"/></receiver>
+<receiver android:name=".TodaySpendWidgetProvider" android:label="Today Spending" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_todayspend_info"/></receiver>
+<receiver android:name=".SpendingWidgetProvider" android:label="Spending Overview" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_spending_info"/></receiver>
+<receiver android:name=".AddExpenseWidgetProvider" android:label="Add Expense" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_addexpense_info"/></receiver>
+<receiver android:name=".SmartSavingsWidgetProvider" android:label="Smart Savings" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_smartsavings_info"/></receiver>
+<receiver android:name=".WalletCardWidgetProvider" android:label="Balance Wallet" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_walletcard_info"/></receiver>
+<receiver android:name=".DailyCompareWidgetProvider" android:label="Daily Spend and Earn" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_dailycompare_info"/></receiver>
+<receiver android:name=".SendReceiveWidgetProvider" android:label="Send and Receive" android:exported="false"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_sendreceive_info"/></receiver>
+<activity android:name=".WidgetSavingsGoalActivity" android:exported="false" android:theme="@style/Theme.AppCompat.Light.Dialog"/>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -78,6 +86,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />

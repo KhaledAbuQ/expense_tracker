@@ -1,3 +1,5 @@
+import { celebrateMoney } from '../lib/moneyCelebration'
+import { cachedFinance, invalidateFinance, subscribeFinance } from '../lib/financeCache'
 import { fetchAllRows } from '../lib/pagination'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
@@ -31,7 +33,7 @@ export function useTransfers(options?: UseTransfersOptions) {
     return true
   }, [member, startDateStr, endDateStr])
 
-  const fetchTransfers = useCallback(async () => {
+  const fetchTransfers = useCallback(async (force: unknown = true) => {
     if (!isSupabaseConfigured || !member) {
       setTransfers([])
       setError(null)
@@ -60,7 +62,7 @@ export function useTransfers(options?: UseTransfersOptions) {
           .lte('date', endDateStr)
       }
 
-      const data = await fetchAllRows((from, to) => query.range(from, to))
+      const data = await cachedFinance('transfers:' + JSON.stringify([member.id, startDateStr, endDateStr]), () => fetchAllRows((from, to) => query.range(from, to)), force !== false)
       if (currentRequest !== requestId.current) return
 
       const scopedTransfers = (data || []).filter(transfer => transfer.member_id === member.id)
@@ -83,7 +85,8 @@ export function useTransfers(options?: UseTransfersOptions) {
   }, [startDateStr, endDateStr, member])
 
   useEffect(() => {
-    fetchTransfers()
+    void fetchTransfers(false)
+    return subscribeFinance(resource => { if (resource === 'transfers') void fetchTransfers(false) })
   }, [fetchTransfers])
 
   const addTransfer = async (formData: TransferFormData) => {
@@ -108,10 +111,12 @@ export function useTransfers(options?: UseTransfersOptions) {
         .single()
 
       if (error) throw error
+      invalidateFinance('transfers')
       // Only show it here if it actually belongs in the current view.
       if (matchesFilters(data)) {
         setTransfers(prev => [data, ...prev])
       }
+      if (data.member_id === member.id && data.date <= format(new Date(), 'yyyy-MM-dd') && data.to_account === 'savings' && data.from_account !== 'savings') celebrateMoney('savings', Number(data.amount))
       toast.success('Transfer completed successfully')
       return data
     } catch (err) {
@@ -139,6 +144,7 @@ export function useTransfers(options?: UseTransfersOptions) {
         .single()
 
       if (error) throw error
+      invalidateFinance('transfers')
       // An edit can move a row out of the active date filter.
       setTransfers(prev =>
         matchesFilters(data)
@@ -167,6 +173,7 @@ export function useTransfers(options?: UseTransfersOptions) {
         .eq('id', id)
 
       if (error) throw error
+      invalidateFinance('transfers')
       setTransfers(prev => prev.filter(t => t.id !== id))
       toast.success('Transfer deleted successfully')
     } catch (err) {

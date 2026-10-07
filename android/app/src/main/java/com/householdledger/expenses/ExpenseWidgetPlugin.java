@@ -34,12 +34,14 @@ public class ExpenseWidgetPlugin extends Plugin {
         String action = intent.getAction();
         String extraAction = intent.getStringExtra(PocketExpensesWidgetProvider.EXTRA_ACTION);
 
-        if (PocketExpensesWidgetProvider.ACTION_ADD_EXPENSE.equals(action) ||
-            PocketExpensesWidgetProvider.ACTION_VALUE_ADD.equals(extraAction)) {
-            lastPendingAction = PocketExpensesWidgetProvider.ACTION_VALUE_ADD;
+        String requested = PocketExpensesWidgetProvider.ACTION_ADD_EXPENSE.equals(action) ? "add_expense" : extraAction;
+        if ("add_expense".equals(requested) || "transfers".equals(requested) || "home".equals(requested) || "income".equals(requested) || "savings".equals(requested)) {
+            lastPendingAction = requested;
+            intent.removeExtra(PocketExpensesWidgetProvider.EXTRA_ACTION);
+            intent.setAction(Intent.ACTION_MAIN);
             if (activeInstance != null) {
                 JSObject ret = new JSObject();
-                ret.put("action", PocketExpensesWidgetProvider.ACTION_VALUE_ADD);
+                ret.put("action", requested);
                 activeInstance.notifyListeners("widgetAction", ret);
             }
         }
@@ -58,6 +60,14 @@ public class ExpenseWidgetPlugin extends Plugin {
                 Context.MODE_PRIVATE
         );
         prefs.edit()
+                .putString("finance_snapshot", call.getString("snapshot", "{}"))
+                .putString("first_category_name", call.getString("firstCategoryName", "Dining Out"))
+                .putString("second_category_name", call.getString("secondCategoryName", "Groceries"))
+                .putString("first_category_icon", call.getString("firstCategoryIcon", "utensils"))
+                .putString("second_category_icon", call.getString("secondCategoryIcon", "shopping-cart"))
+                .putString("month_label", call.getString("monthLabel", "Spent this month"))
+                .putString("dining_total", call.getString("diningTotal", "JOD 0.000"))
+                .putString("grocery_total", call.getString("groceryTotal", "JOD 0.000"))
                 .putString(PocketExpensesWidgetProvider.KEY_MONTH_TOTAL, monthTotal)
                 .putString(QuickActionsWidgetProvider.KEY_TODAY_TOTAL, todayTotal)
                 .putString(PocketExpensesWidgetProvider.KEY_SUB_STAT, subStat)
@@ -66,6 +76,7 @@ public class ExpenseWidgetPlugin extends Plugin {
 
         PocketExpensesWidgetProvider.updateAllWidgets(context);
         QuickActionsWidgetProvider.updateAllWidgets(context);
+        FinanceWidgetProvider.updateAllWidgets(context);
 
         JSObject ret = new JSObject();
         ret.put("success", true);

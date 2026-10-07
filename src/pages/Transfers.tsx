@@ -417,7 +417,7 @@ export default function TransfersPage() {
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => deleteTransfer(transfer.id)}
+                              data-haptic="impact" onClick={() => deleteTransfer(transfer.id)}
                               className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
                               title="Delete transfer"
                             >

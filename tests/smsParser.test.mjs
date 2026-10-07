@@ -12,7 +12,9 @@ const {
   extractMerchant,
   extractDate,
   normalizeDigits,
-  parseBankSms
+  parseBankSms,
+  matchCategory,
+  saveLearnedCategory
 } = await load('src/lib/smsParser.ts')
 
 test('SMS Parser - Arabic digits normalization', () => {
@@ -238,5 +240,81 @@ test('SMS Parser - Maps to custom user category using alias', () => {
 
   const parsed = parseBankSms(sampleSms, userCategories)
   assert.equal(parsed.suggestedCategoryId, 'cat-rest')
+})
+
+const category = (id, name, type = 'expense') => ({ id, name, category_type: type, is_default: true, icon: 'tag', color: '#5267f5', created_at: '' })
+const householdCategories = [
+  category('grocery', 'Groceries'), category('dining', 'Dining Out'),
+  category('health', 'Healthcare'), category('shopping', 'Shopping'),
+  category('transport', 'Transportation'), category('utilities', 'Utilities'),
+  category('salary', 'Salary', 'income'), category('freelance', 'Freelance', 'income'),
+  category('other-income', 'Other Income', 'income'), category('other', 'Other'),
+]
+const purchase = merchant => parseBankSms({ id: merchant, address: 'Bank', date: Date.UTC(2026, 9, 5), body: `Purchase of JOD 12.500 at ${merchant} on 05/10/2026. Available balance JOD 150.000.` }, householdCategories)
+
+test('Unknown merchants do not inherit Healthcare from available balance or the first category', () => {
+  const parsed = purchase('UNKNOWN MERCHANT')
+  assert.equal(parsed.suggestedCategoryId, 'other')
+  assert.equal(parsed.isAutoDetected, false)
+  const unmatched = matchCategory('UNKNOWN MERCHANT', 'Purchase JOD 12.500. Available balance JOD 150', 'expense', householdCategories.filter(c => c.id !== 'other'))
+  assert.equal(unmatched.categoryId, undefined)
+  assert.equal(unmatched.isAutoDetected, false)
+})
+
+test('Merchant brands outrank mall location and overlapping generic words', () => {
+  assert.equal(purchase('CARREFOUR CITY MALL').suggestedCategoryId, 'grocery')
+  assert.equal(purchase('PHARMACY ONE CITY MALL').suggestedCategoryId, 'health')
+  assert.equal(purchase('METRO RESTAURANT').suggestedCategoryId, 'dining')
+  assert.equal(purchase('CAREEM FOOD').suggestedCategoryId, 'dining')
+  assert.equal(purchase('JUST COFFEE').suggestedCategoryId, 'dining')
+})
+
+test('Brand punctuation and Arabic merchant text survive extraction', () => {
+  assert.equal(purchase('TALABAT.COM').merchant, 'TALABAT.COM')
+  assert.equal(purchase('H&M').suggestedCategoryId, 'shopping')
+  const parsed = parseBankSms({ id: 'arabic', address: 'Bank', date: Date.UTC(2026, 9, 5), body: 'تمت عملية شراء بقيمة ١٢.٥٠٠ دينار لدى صيدلية روحي بتاريخ 2026-10-05. الرصيد المتاح 150 دينار' }, householdCategories)
+  assert.equal(parsed.merchant, 'صيدلية روحي')
+  assert.equal(parsed.suggestedCategoryId, 'health')
+})
+
+test('Credit-card purchases remain expenses, while unknown CliQ receipts are not salary', () => {
+  const debit = parseBankSms({ id: 'credit-card', address: 'Bank', date: Date.UTC(2026, 9, 5), body: 'Purchase of JOD 10.500 at STARBUCKS using your credit card. Available balance JOD 100.' }, householdCategories)
+  assert.equal(debit.type, 'expense')
+  assert.equal(debit.suggestedCategoryId, 'dining')
+  const receipt = parseBankSms({ id: 'cliq-in', address: 'Bank', date: Date.UTC(2026, 9, 5), body: 'JOD 10.500 credited from AHMED as CliQ transfer. Balance JOD 100.' }, householdCategories)
+  assert.equal(receipt.type, 'income')
+  assert.equal(receipt.suggestedCategoryId, 'other-income')
+  assert.equal(receipt.isAutoDetected, false)
+})
+
+test('Category mapping is independent of category ordering and does not use partial aliases', () => {
+  const first = matchCategory('STARBUCKS', 'Purchase JOD 10', 'expense', householdCategories)
+  const reversed = matchCategory('STARBUCKS', 'Purchase JOD 10', 'expense', [...householdCategories].reverse())
+  assert.equal(first.categoryId, reversed.categoryId)
+  const salary = matchCategory('Salary Deposit', 'Salary credited JOD 100', 'income', [category('other-income', 'Other Income', 'income')])
+  assert.equal(salary.categoryId, undefined)
+})
+
+test('Declined payments and promotional prices are not recorded as transactions', () => {
+  const sms = { id: 'ignored', address: 'Bank', date: Date.UTC(2026, 9, 5) }
+  assert.equal(parseBankSms({ ...sms, body: 'Purchase of JOD 20 at CARREFOUR was declined due to insufficient funds.' }, householdCategories).isFinancial, false)
+  assert.equal(parseBankSms({ ...sms, body: 'Enjoy our restaurant offer for only JOD 20 today.' }, householdCategories).isFinancial, false)
+})
+
+test('Explicit merchant corrections override rules, but legacy automatic guesses are not reused', () => {
+  const storage = new Map()
+  const previous = globalThis.localStorage
+  globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }
+  try {
+    storage.set('pocket_expenses_merchant_categories', JSON.stringify({ starbucks: 'grocery' }))
+    assert.equal(purchase('STARBUCKS').suggestedCategoryId, 'dining')
+    saveLearnedCategory('STARBUCKS-AMMAN', 'grocery')
+    assert.equal(purchase('Starbucks Amman').suggestedCategoryId, 'grocery')
+    const missing = matchCategory('Starbucks Amman', 'Purchase JOD 10', 'expense', householdCategories.filter(c => c.id !== 'grocery'))
+    assert.equal(missing.categoryId, 'dining')
+  } finally {
+    if (previous === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = previous
+  }
 })
 

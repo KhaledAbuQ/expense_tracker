@@ -1,3 +1,4 @@
+import { useRapidTapPeek } from '../hooks/useRapidTapPeek'
 import { useState } from 'react'
 import { addDays, addMonths, format, getDaysInMonth, startOfDay } from 'date-fns'
 import { Bell, ChevronDown, ChevronLeft, ChevronRight, Plus, RefreshCw, Settings, SlidersHorizontal } from 'lucide-react'
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function MobileExpenses(props: Props) {
+  const recordDayTap = useRapidTapPeek()
   const [tab, setTab] = useState<'upcoming' | 'all'>('all')
   const [calendarMonth, setCalendarMonth] = useState(() => format(new Date(), 'yyyy-MM'))
   const [customMonth, setCustomMonth] = useState(false)
@@ -90,7 +92,18 @@ export default function MobileExpenses(props: Props) {
           const entries = props.expenses.filter(expense => expense.date === key)
           const category = entries[0] && categoryFor(entries[0])
           const active = selectedDay === key || (!selectedDay && key === todayKey)
-          return <div className="bills-calendar-day" key={key}><span className={active ? 'active-weekday' : ''}>{format(date, 'EEEEE')}</span><button type="button" aria-pressed={selectedDay === key} aria-label={`${format(date, 'EEEE, MMMM d')}, ${entries.length} expenses${selectedDay === key ? ', selected' : ''}`} className={`${active ? 'is-current' : ''} ${selectedDay === key ? 'is-day-selected' : ''}`} onClick={() => { if (tab === 'all') setCustomMonth(true); setSelectedDay(key); setLimit(25) }}><span>{format(date, 'd')}</span>{entries.length > 0 ? <i className={`bills-calendar-dot tint-${date.getDay() % 4}`} style={category?.color ? { background: category.color } : undefined}><CategoryIcon name={category?.icon || 'tag'} className="h-2.5 w-2.5" /></i> : <i className="bills-calendar-empty" />}</button></div>
+          return <div className="bills-calendar-day" key={key}><span className={active ? 'active-weekday' : ''}>{format(date, 'EEEEE')}</span><button type="button" aria-pressed={selectedDay === key} aria-label={`${format(date, 'EEEE, MMMM d')}, ${entries.length} expenses${selectedDay === key ? ', selected' : ''}`} className={`${active ? 'is-current' : ''} ${selectedDay === key ? 'is-day-selected' : ''}`} onClick={event => {
+            recordDayTap()
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+              const button = event.currentTarget
+              button.style.animation = 'none'
+              // Restart the original CSS animation, including its easing on each bounce.
+              void button.offsetWidth
+              button.style.animation = 'bills-day-jump 480ms cubic-bezier(.22, 1, .36, 1)'
+            }
+            if (tab === 'all') setCustomMonth(true)
+            setSelectedDay(key); setLimit(25)
+          }}><span>{format(date, 'd')}</span>{entries.length > 0 ? <i className={`bills-calendar-dot tint-${date.getDay() % 4}`} style={category?.color ? { background: category.color } : undefined}><CategoryIcon name={category?.icon || 'tag'} className="h-2.5 w-2.5" /></i> : <i className="bills-calendar-empty" />}</button></div>
         })}
       </div>
     </section>

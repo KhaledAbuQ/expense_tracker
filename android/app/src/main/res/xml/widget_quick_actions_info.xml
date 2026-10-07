@@ -8,6 +8,6 @@
     android:initialLayout="@layout/widget_quick_actions"
     android:previewLayout="@layout/widget_quick_actions"
     android:previewImage="@drawable/widget_preview_quick"
-    android:resizeMode="horizontal|vertical"
+    android:minResizeWidth="150dp" android:minResizeHeight="48dp" android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_quick_description" />

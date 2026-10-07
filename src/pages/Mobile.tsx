@@ -1,3 +1,7 @@
+import RapidTapPeek from '../components/RapidTapPeek'
+import { SAVINGS_PLAN_CHANGED, readSavingsPlan } from '../lib/savingsPlan'
+import { useGoldPrice } from '../hooks/useGoldPrice'
+import { calculateGoldFineGrams, valueOfFineGrams } from '../lib/gold'
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react'
 import { App as NativeApp } from '@capacitor/app'
 import { addDays, format, startOfMonth, startOfWeek, subMonths } from 'date-fns'
@@ -91,6 +95,14 @@ export default function Mobile({
   const [smsModalOpen, setSmsModalOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [smsModalTab, setSmsModalTab] = useState<'pending' | 'settings'>('pending')
+  const [savingsGoalRequested, setSavingsGoalRequested] = useState(0)
+  const [savingsPlanRevision, setSavingsPlanRevision] = useState(0)
+  const { price: widgetGoldPrice } = useGoldPrice()
+  useEffect(() => {
+    const update = () => setSavingsPlanRevision(value => value + 1)
+    window.addEventListener(SAVINGS_PLAN_CHANGED, update)
+    return () => window.removeEventListener(SAVINGS_PLAN_CHANGED, update)
+  }, [])
   const [pendingSmsTxs, setPendingSmsTxs] = useState(getPendingSmsTransactions)
   const processingSms = useRef(new Set<string>())
   const [hapticsEnabled, setHapticsPreference] = useState(getHapticsEnabled)
@@ -205,8 +217,11 @@ export default function Mobile({
         setActiveTab('more'); setMoreSubView('transfers'); setAdding(false)
       } else if (action === 'income') {
         setActiveTab('income'); setAdding(false)
-      } else if (action === 'savings') {
+      } else if (action === 'savings' || action === 'savings_goal') {
+        setSavingsGoalRequested(action === 'savings_goal' ? Date.now() : 0)
         setActiveTab('more'); setMoreSubView('savings'); setAdding(false)
+      } else if (action === 'expenses') {
+        setActiveTab('expenses'); setAdding(false); setEditingExpense(null)
       } else if (action === 'home') {
         setActiveTab('home'); setMoreSubView('root'); setAdding(false)
       }
@@ -240,10 +255,12 @@ export default function Mobile({
     const incomeAmount = (rows: typeof myIncome) => rows.reduce((sum, row) => sum + Number(row.amount), 0)
     const categories = [...groups.values()].sort((a, b) => b.total - a.total)
     const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+    const savingsPlan = readSavingsPlan(member.id)
+    const savingsTotal = balance('savings') + valueOfFineGrams(calculateGoldFineGrams(widgetTransfers.filter(row => row.member_id === member.id && row.date <= todayIso)), widgetGoldPrice)
     const snapshot = {
       monthName: format(now, 'MMMM').toUpperCase(), dateLabel: format(now, 'MMM, d'), weekday: format(now, 'EEEE'),
       monthIncome: incomeAmount(monthIncome), monthNet: incomeAmount(monthIncome) - calculateTotalExpenses(monthExpenses),
-      availableAmount: balance('bank') + balance('cash'), savingsAmount: balance('savings'), bankAmount: balance('bank'),
+      availableAmount: balance('bank') + balance('cash'), savingsAmount: savingsTotal, savingsGoal: Math.max(0, Number(savingsPlan.goalAmount) || 0), savingsGoalBalance: savingsPlan.currentSavings !== '' ? Math.max(0, Number(savingsPlan.currentSavings) || 0) : savingsTotal, bankAmount: balance('bank'),
       todayAmount: calculateTotalExpenses(mine.filter(row => row.date === todayIso)),
       todayCount: mine.filter(row => row.date === todayIso).length,
       todayMerchants: mine.filter(row => row.date === todayIso).slice(0, 3).map(row => row.description || row.category?.name || 'Expense'),
@@ -278,7 +295,7 @@ export default function Mobile({
       firstCategoryIcon: top[0]?.icon || 'utensils',
       secondCategoryIcon: top[1]?.icon || 'shopping-cart',
     })
-  }, [widgetExpenses, widgetLoading, widgetError, widgetIncome, widgetIncomeLoading, widgetIncomeError, widgetTransfers, widgetTransfersLoading, widgetTransfersError, member])
+  }, [widgetExpenses, widgetLoading, widgetError, widgetIncome, widgetIncomeLoading, widgetIncomeError, widgetTransfers, widgetTransfersLoading, widgetTransfersError, member, widgetGoldPrice, savingsPlanRevision])
 
   const handleToggleBiometrics = async () => {
     if (biometrics.hasSavedCredentials) {
@@ -482,7 +499,7 @@ export default function Mobile({
               onAdd={() => { setActiveTab('expenses'); setSaveError(''); setEditingExpense(null); setAdding(true) }}
               onExpenses={() => setActiveTab('expenses')}
               onIncome={() => setActiveTab('income')}
-              onSavings={() => { setActiveTab('more'); setMoreSubView('savings') }}
+              onSavings={() => { setSavingsGoalRequested(0); setActiveTab('more'); setMoreSubView('savings') }}
               onTransfers={() => { setActiveTab('more'); setMoreSubView('transfers') }}
               onCategories={() => { setActiveTab('more'); setMoreSubView('categories') }}
             />}
@@ -636,7 +653,7 @@ export default function Mobile({
 
                       <button
                         type="button"
-                        onClick={() => setMoreSubView('savings')}
+                        onClick={() => { setSavingsGoalRequested(0); setMoreSubView('savings') }}
                         className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition text-left"
                       >
                         <div className="flex items-center gap-3.5">
@@ -898,7 +915,7 @@ export default function Mobile({
                     >
                       <ArrowLeft size={16} /> Back to More
                     </button>
-                    <SavingsPage />
+                    <SavingsPage key={member?.id} openGoalPlanner={savingsGoalRequested} />
                   </div>
                 )}
 
@@ -943,6 +960,7 @@ export default function Mobile({
       </nav>
 
       <MoneyMascot />
+      <RapidTapPeek />
 
       {/* Bank SMS Auto-Tracking & Approvals Modal */}
       <BankSmsTrackerModal

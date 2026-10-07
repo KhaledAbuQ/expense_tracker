@@ -1,3 +1,4 @@
+import { useRapidTapPeek } from '../hooks/useRapidTapPeek'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { ArrowDownCircle, BarChart3, ChevronRight, Coins, HandCoins, Plus, Wallet } from 'lucide-react'
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function MobileHome({ header, reportOpen, onOpenReport, onCloseReport, onAdd, onExpenses, onIncome, onSavings, onTransfers, onCategories }: Props) {
+  const recordMonthTap = useRapidTapPeek()
   const homeRef = useRef<HTMLDivElement>(null)
   const homeScroll = useRef(0)
   const reportWasPage = useRef(false)
@@ -93,7 +95,7 @@ export default function MobileHome({ header, reportOpen, onOpenReport, onCloseRe
         <div className="monetra-stat-aside"><span>Bank account</span><strong>{loading ? '…' : formatCurrency(bank)}</strong><small>Current balance</small></div>
       </div>
       {error && <p role="alert" className="monetra-data-error">Could not load your finances. Open your report to retry.</p>}
-      <MonthlySpendingBars months={months} selectedMonth={selectedMonth} onSelect={setSelectedMonth} />
+      <MonthlySpendingBars months={months} selectedMonth={selectedMonth} onSelect={month => { recordMonthTap(1000); setSelectedMonth(month) }} />
       <button type="button" className="monetra-report-link" onClick={reportOpen ? onCloseReport : onOpenReport} aria-controls="home-financial-report" aria-expanded={reportOpen}><span className="monetra-outline-icon"><BarChart3 size={17} /></span><span>{reportOpen ? 'Close financial report' : 'View financial report'}</span><ChevronRight size={17} /></button>
       <div id="home-financial-report" className={`home-report-reveal ${reportOpen ? 'is-open' : ''}`} aria-hidden={!reportOpen} ref={element => { if (element) { if (reportOpen) element.removeAttribute('inert'); else element.setAttribute('inert', '') } }}>
         <div className="home-report-reveal-inner"><MobileFinancialReport expenses={mine} income={myIncome} transfers={myTransfers} loading={loading} error={error} onRetry={refreshReport} /></div>

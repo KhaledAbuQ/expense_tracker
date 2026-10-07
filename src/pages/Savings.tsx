@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { readSavingsPlan, saveSavingsPlan } from '../lib/savingsPlan'
+import { ExpenseWidget } from '../lib/widget'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TrendingUp, TrendingDown, HandCoins, Coins, RefreshCw } from 'lucide-react'
 import { useIncome } from '../hooks/useIncome'
 import { useTransfers } from '../hooks/useTransfers'
@@ -102,22 +104,25 @@ function groupSavingsByMonth(income: Income[], transfers: Transfer[]): MonthlySa
   return Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month))
 }
 
-export default function SavingsPage() {
+export default function SavingsPage({ openGoalPlanner = 0 }: { openGoalPlanner?: number }) {
+  const plannerRef = useRef<HTMLDivElement>(null)
   const { member } = useAuth()
 
   // Fetch all income and transfers (no date filter for total balance)
   const { income: allIncome, loading: incomeLoading } = useIncome({})
-  const { transfers: allTransfers, loading: transfersLoading } = useTransfers({})
+  const { transfers: rawTransfers, loading: transfersLoading } = useTransfers({})
   const { expenses: allExpenses, loading: expensesLoading } = useExpenses({})
 
+  const todayKey = format(new Date(), 'yyyy-MM-dd')
+  const allTransfers = useMemo(() => rawTransfers.filter(row => row.member_id === member?.id && row.date <= todayKey), [rawTransfers, member?.id, todayKey])
   const loading = incomeLoading || transfersLoading || expensesLoading
 
   // These feeds include housemates' household-visible rows, but transfers are
   // always private. Mixing the two produced a savings balance that counted a
   // housemate's deposits without their withdrawals -- scope everything to you.
   const myIncome = useMemo(
-    () => (member ? allIncome.filter(i => i.member_id === member.id) : []),
-    [allIncome, member]
+    () => (member ? allIncome.filter(i => i.member_id === member.id && i.date <= todayKey) : []),
+    [allIncome, member, todayKey]
   )
 
   const myExpenses = useMemo(
@@ -220,11 +225,41 @@ export default function SavingsPage() {
   }, [myExpenses])
 
   // Savings goal calculator state
-  const [goalAmountInput, setGoalAmountInput] = useState('')
-  const [monthsInput, setMonthsInput] = useState('')
-  const [currentSavingsInput, setCurrentSavingsInput] = useState('')
-  const [monthlyIncomeInput, setMonthlyIncomeInput] = useState('')
-  const [willingMonthlyInput, setWillingMonthlyInput] = useState('')
+  const [goalAmountInput, setGoalAmountInput] = useState(() => readSavingsPlan(member?.id).goalAmount)
+  const [monthsInput, setMonthsInput] = useState(() => readSavingsPlan(member?.id).months)
+  const [currentSavingsInput, setCurrentSavingsInput] = useState(() => readSavingsPlan(member?.id).currentSavings)
+  const [monthlyIncomeInput, setMonthlyIncomeInput] = useState(() => readSavingsPlan(member?.id).monthlyIncome)
+  const [willingMonthlyInput, setWillingMonthlyInput] = useState(() => readSavingsPlan(member?.id).willingMonthly)
+
+  const [planMemberId, setPlanMemberId] = useState(member?.id)
+  useEffect(() => {
+    if (planMemberId === member?.id) return
+    const saved = readSavingsPlan(member?.id)
+    setGoalAmountInput(saved.goalAmount)
+    setMonthsInput(saved.months)
+    setCurrentSavingsInput(saved.currentSavings)
+    setMonthlyIncomeInput(saved.monthlyIncome)
+    setWillingMonthlyInput(saved.willingMonthly)
+    setPlanMemberId(member?.id)
+  }, [member?.id, planMemberId])
+
+  useEffect(() => {
+    if (!member || planMemberId !== member.id) return
+    saveSavingsPlan(member.id, { goalAmount: goalAmountInput, months: monthsInput, currentSavings: currentSavingsInput, monthlyIncome: monthlyIncomeInput, willingMonthly: willingMonthlyInput })
+    const timer = setTimeout(() => {
+      void ExpenseWidget.updateSavingsPlan({ goalAmount: Math.max(0, Number(goalAmountInput) || 0), currentSavings: currentSavingsInput !== '' ? Math.max(0, Number(currentSavingsInput) || 0) : undefined }).catch(() => {})
+    }, 180)
+    return () => clearTimeout(timer)
+  }, [member?.id, planMemberId, goalAmountInput, monthsInput, currentSavingsInput, monthlyIncomeInput, willingMonthlyInput])
+
+  useEffect(() => {
+    if (!openGoalPlanner || loading || goldLoading) return
+    const frame = requestAnimationFrame(() => {
+      plannerRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+      plannerRef.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [openGoalPlanner, loading, goldLoading])
 
   const goalAmount = parseFloat(goalAmountInput) || 0
   const monthsToGoal = parseInt(monthsInput, 10) || 0
@@ -582,7 +617,7 @@ export default function SavingsPage() {
       </div>
 
       {/* Savings Goal Calculator */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div ref={plannerRef} id="savings-goal-planner" style={{ scrollMarginTop: 100 }} className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Savings Goal Planner</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Set a goal and see how much you need to save each month to reach it.

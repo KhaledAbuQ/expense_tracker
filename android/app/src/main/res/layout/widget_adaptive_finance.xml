@@ -1,0 +1,4 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/reference_widget_root" android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/reference_widget_art" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:contentDescription="Pocket Expenses widget" />
+    <TextView android:id="@+id/reference_widget_footer" android:layout_width="match_parent" android:layout_height="48dp" android:layout_gravity="bottom" android:contentDescription="Widget action" />
+</FrameLayout>

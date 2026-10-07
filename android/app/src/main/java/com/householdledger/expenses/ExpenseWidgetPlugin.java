@@ -35,7 +35,7 @@ public class ExpenseWidgetPlugin extends Plugin {
         String extraAction = intent.getStringExtra(PocketExpensesWidgetProvider.EXTRA_ACTION);
 
         String requested = PocketExpensesWidgetProvider.ACTION_ADD_EXPENSE.equals(action) ? "add_expense" : extraAction;
-        if ("add_expense".equals(requested) || "transfers".equals(requested) || "home".equals(requested) || "income".equals(requested) || "savings".equals(requested)) {
+        if ("add_expense".equals(requested) || "transfers".equals(requested) || "home".equals(requested) || "income".equals(requested) || "savings".equals(requested) || "savings_goal".equals(requested) || "expenses".equals(requested)) {
             lastPendingAction = requested;
             intent.removeExtra(PocketExpensesWidgetProvider.EXTRA_ACTION);
             intent.setAction(Intent.ACTION_MAIN);
@@ -81,6 +81,21 @@ public class ExpenseWidgetPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("success", true);
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void updateSavingsPlan(PluginCall call) {
+        SharedPreferences prefs = getContext().getSharedPreferences(PocketExpensesWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE);
+        try {
+            org.json.JSONObject data = new org.json.JSONObject(prefs.getString("finance_snapshot", "{}"));
+            Double goal = call.getDouble("goalAmount", 0.0);
+            Double current = call.getDouble("currentSavings");
+            data.put("savingsGoal", Math.max(0, goal));
+            data.put("savingsGoalBalance", current != null ? current : data.optDouble("savingsAmount", 0));
+            prefs.edit().putString("finance_snapshot", data.toString()).apply();
+            FinanceWidgetProvider.updateAllWidgets(getContext());
+            JSObject result = new JSObject(); result.put("success", true); call.resolve(result);
+        } catch (org.json.JSONException error) { call.reject("Could not update savings goal", error); }
     }
 
     @PluginMethod

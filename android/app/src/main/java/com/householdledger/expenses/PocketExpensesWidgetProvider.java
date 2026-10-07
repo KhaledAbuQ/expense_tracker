@@ -28,50 +28,7 @@ public class PocketExpensesWidgetProvider extends AppWidgetProvider {
     }
 
     public static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String monthTotal = prefs.getString(KEY_MONTH_TOTAL, "$0.00");
-        String subStat = prefs.getString(KEY_SUB_STAT, "Tap to view");
-        String lastUpdated = prefs.getString(KEY_LAST_UPDATED, "");
-
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_pocket_expenses);
-        views.setTextViewText(R.id.widget_month_total, monthTotal);
-        views.setTextViewText(R.id.widget_label, prefs.getString("month_label", "Spent this month"));
-        views.setTextViewText(R.id.widget_dining_total, prefs.getString("dining_total", "JOD 0.000"));
-        views.setTextViewText(R.id.widget_grocery_total, prefs.getString("grocery_total", "JOD 0.000"));
-        views.setTextViewText(R.id.widget_today_total, prefs.getString(QuickActionsWidgetProvider.KEY_TODAY_TOTAL, "JOD 0.000"));
-
-        views.setImageViewResource(R.id.widget_first_icon, categoryIcon(prefs.getString("first_category_icon", "utensils")));
-        views.setImageViewResource(R.id.widget_second_icon, categoryIcon(prefs.getString("second_category_icon", "shopping-cart")));
-        views.setContentDescription(R.id.widget_first_icon, prefs.getString("first_category_name", "Dining Out"));
-        views.setContentDescription(R.id.widget_second_icon, prefs.getString("second_category_name", "Groceries"));
-
-        // 1. Intent for opening the app normally when clicking anywhere on the widget card
-        Intent openAppIntent = new Intent(context, MainActivity.class);
-        openAppIntent.setAction(Intent.ACTION_MAIN);
-        openAppIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-        openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent openAppPendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-        views.setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent);
-
-        // 2. Intent for "+ Add" button to open app directly into Add Expense screen
-        Intent addExpenseIntent = new Intent(context, MainActivity.class);
-        addExpenseIntent.setAction(ACTION_ADD_EXPENSE);
-        addExpenseIntent.putExtra(EXTRA_ACTION, ACTION_VALUE_ADD);
-        addExpenseIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent addExpensePendingIntent = PendingIntent.getActivity(
-                context,
-                1,
-                addExpenseIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-        views.setOnClickPendingIntent(R.id.widget_btn_add, addExpensePendingIntent);
-
-        appWidgetManager.updateAppWidget(appWidgetId, views);
+        FinanceWidgetProvider.update(context, appWidgetManager, appWidgetId, "pocket");
     }
 
     private static int categoryIcon(String icon) {

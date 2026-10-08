@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Wallet, Fingerprint, LogOut, ShieldAlert } from 'lucide-react'
 import { BiometricAuth } from '../lib/biometrics'
 
@@ -15,8 +15,12 @@ export default function BiometricLockScreen({
 }: BiometricLockScreenProps) {
   const [authenticating, setAuthenticating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const inFlight = useRef(false)
+  const autoPrompted = useRef(false)
 
   const promptUnlock = useCallback(async () => {
+    if (inFlight.current) return
+    inFlight.current = true
     setError(null)
     setAuthenticating(true)
     try {
@@ -24,6 +28,7 @@ export default function BiometricLockScreen({
         title: 'Unlock Pocket Expenses',
         subtitle: savedEmail ? `Account: ${savedEmail}` : 'Confirm your fingerprint or face',
         cancelText: 'Use Password',
+        confirmationRequired: false,
       })
 
       if (res.success) {
@@ -36,15 +41,18 @@ export default function BiometricLockScreen({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication error')
     } finally {
+      inFlight.current = false
       setAuthenticating(false)
     }
   }, [onUnlock, savedEmail])
 
   // Auto-prompt on mount
   useEffect(() => {
+    if (autoPrompted.current) return
     const timer = setTimeout(() => {
+      autoPrompted.current = true
       void promptUnlock()
-    }, 200)
+    }, 100)
     return () => clearTimeout(timer)
   }, [promptUnlock])
 
@@ -75,7 +83,7 @@ export default function BiometricLockScreen({
         </button>
 
         <p className="mt-5 text-sm font-medium">
-          {authenticating ? 'Waiting for biometric sensor…' : 'Tap to scan fingerprint or face'}
+          {authenticating ? 'Look at your phone or touch the fingerprint sensor…' : 'Tap to scan fingerprint or face'}
         </p>
         </div>
 

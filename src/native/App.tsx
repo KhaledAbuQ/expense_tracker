@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { App } from '@capacitor/app'
 import { useAuth } from '../context/AuthContext'
 import Mobile from '../pages/Mobile'
@@ -11,7 +11,10 @@ export default function NativeApp() {
   const { session, loading, isPasswordRecovery, setIsPasswordRecovery, signOut } = useAuth()
   const [biometricStatus, setBiometricStatus] = useState<BiometricAvailability | null>(null)
   const [isLocked, setIsLocked] = useState(true)
+  const [biometricCheckedUser, setBiometricCheckedUser] = useState<string>()
   const lastPausedRef = useRef<number | null>(null)
+  const handleUnlock = useCallback(() => setIsLocked(false), [])
+  const handleSignOut = useCallback(() => { setIsLocked(true); void signOut() }, [signOut])
 
   // Check if biometric lock is configured on this device
   useEffect(() => {
@@ -19,8 +22,9 @@ export default function NativeApp() {
     void checkBiometricStatus().then(status => {
       if (!isMounted) return
       setBiometricStatus(status)
+      setBiometricCheckedUser(session?.user.id)
       // If biometrics is NOT enabled or enrolled, don't lock
-      if (!status.hasSavedCredentials) {
+      if (!status.hasSavedCredentials || (status.authenticatedRecently && status.savedEmail === session?.user.email)) {
         setIsLocked(false)
       }
     })
@@ -70,12 +74,15 @@ export default function NativeApp() {
     )
   }
 
+  // Wait for the lock policy before displaying any signed-in financial content.
+  if (!biometricStatus || biometricCheckedUser !== session.user.id) return <div role="status" className="flex min-h-dvh items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-gray-400">Opening Pocket Expenses…</div>
+
   // Signed in, but biometrics enabled and currently locked -> show Lock Screen
   if (isLocked && biometricStatus?.hasSavedCredentials) {
     return (
       <BiometricLockScreen
-        onUnlock={() => setIsLocked(false)}
-        onSignOut={() => void signOut()}
+        onUnlock={handleUnlock}
+        onSignOut={handleSignOut}
         savedEmail={biometricStatus.savedEmail || session.user?.email}
       />
     )

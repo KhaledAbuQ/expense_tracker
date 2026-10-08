@@ -1,0 +1,4 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/reference_widget_root" android:layout_width="match_parent" android:layout_height="match_parent">
+ <ImageView android:id="@+id/reference_widget_art" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:contentDescription="Bank balance wallet" />
+ <TextView android:id="@+id/reference_widget_footer" android:layout_width="64dp" android:layout_height="48dp" android:layout_gravity="bottom|end" android:contentDescription="Show or hide bank balance" />
+</FrameLayout>

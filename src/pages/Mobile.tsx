@@ -303,7 +303,7 @@ export default function Mobile({
       setBiometrics((prev) => ({ ...prev, hasSavedCredentials: false }))
       toast.success('Biometric login disabled on this device')
     } else {
-      toast('To enable biometrics, check "Remember with Fingerprint" next time you sign in.', {
+      toast('To enable biometrics, check "Remember with Fingerprint / Face Unlock" next time you sign in.', {
         icon: '🔐',
       })
     }
@@ -442,6 +442,13 @@ export default function Mobile({
       void resume.then(handle => handle.remove())
     }
   }, [checkPendingBackgroundSms, processIncomingTransaction, member, categoriesLoading, categoriesError])
+
+  // Android holds SMS received while the app is backgrounded in a native queue.
+  // Refresh it on every inbox open so opening the notification reveals the new items.
+  useEffect(() => {
+    if (!smsModalOpen || !member || categoriesLoading || categoriesError) return
+    void checkPendingBackgroundSms()
+  }, [smsModalOpen, member, categoriesLoading, categoriesError, checkPendingBackgroundSms])
 
 
   const mobileHeader = <header className="monetra-header mb-6 flex items-center justify-between gap-3">
@@ -861,8 +868,16 @@ export default function Mobile({
                     )}
 
                     <div className="pt-4 text-center text-xs text-slate-400 dark:text-gray-500">
-                      <p className="font-semibold">Pocket Expenses · v1.4.2</p>
+                      <p className="font-semibold">Pocket Expenses · v1.5.2</p>
                       <p className="mt-0.5 text-[11px]">Your household finances, together</p>
+                      <p className="mt-2 text-[11px] leading-relaxed">
+                        Made by{' '}
+                        <a href="https://github.com/tareqarnaout" target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-500 hover:underline">@tareqarnaout</a>
+                        {', '}
+                        <a href="https://github.com/nasseralbess" target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-500 hover:underline">@nasseralbess</a>
+                        {' & '}
+                        <a href="https://github.com/KhaledAbuQ" target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-500 hover:underline">@KhaledAbuQ</a>
+                      </p>
                     </div>
                   </div>
                 )}

@@ -36,6 +36,13 @@ public class BiometricAuthPlugin extends Plugin {
     private static final String KEY_ENABLED = "biometrics_enabled";
     private static final String ANDROID_KEYSTORE = "AndroidKeyStore";
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
+    // Only retained in memory, to avoid a second unlock prompt immediately after biometric sign-in.
+    private long lastAuthenticationTime = -1;
+    private String lastAuthenticatedEmail = null;
+    private void recordAuthentication(String email) {
+        lastAuthenticatedEmail = email;
+        lastAuthenticationTime = android.os.SystemClock.elapsedRealtime();
+    }
 
     private SecretKey getOrCreateKey() throws Exception {
         KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
@@ -112,6 +119,10 @@ public class BiometricAuthPlugin extends Plugin {
         ret.put("isEnrolled", isEnrolled);
         ret.put("hasSavedCredentials", hasSavedCredentials);
         ret.put("savedEmail", savedEmail);
+        ret.put("authenticatedRecently", lastAuthenticationTime >= 0 && savedEmail.equals(lastAuthenticatedEmail)
+                && android.os.SystemClock.elapsedRealtime() - lastAuthenticationTime < 30000);
+        lastAuthenticationTime = -1;
+        lastAuthenticatedEmail = null;
         call.resolve(ret);
     }
 
@@ -193,6 +204,7 @@ public class BiometricAuthPlugin extends Plugin {
                         super.onAuthenticationSucceeded(result);
                         try {
                             String decryptedPassword = decrypt(encryptedPassword, ivBase64);
+                            recordAuthentication(savedEmail);
                             JSObject ret = new JSObject();
                             ret.put("success", true);
                             ret.put("email", savedEmail);
@@ -216,6 +228,7 @@ public class BiometricAuthPlugin extends Plugin {
                         .setTitle(title)
                         .setSubtitle(subtitle)
                         .setNegativeButtonText(cancelText)
+                        .setConfirmationRequired(call.getBoolean("confirmationRequired", false))
                         .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG |
                                 BiometricManager.Authenticators.BIOMETRIC_WEAK)
                         .build();
@@ -276,6 +289,7 @@ public class BiometricAuthPlugin extends Plugin {
                         .setTitle(title)
                         .setSubtitle(subtitle)
                         .setNegativeButtonText(cancelText)
+                        .setConfirmationRequired(call.getBoolean("confirmationRequired", false))
                         .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG |
                                 BiometricManager.Authenticators.BIOMETRIC_WEAK)
                         .build();
@@ -291,6 +305,8 @@ public class BiometricAuthPlugin extends Plugin {
     public void clearCredentials(PluginCall call) {
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit().clear().apply();
+        lastAuthenticationTime = -1;
+        lastAuthenticatedEmail = null;
         try {
             KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
             keyStore.load(null);

@@ -62,7 +62,8 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         w=Math.min(800,w);h=Math.min(800,h);
         boolean adaptive=true;
         int layout=R.layout.widget_adaptive_finance;
-        if(isRightActionBar(kind,w,h))layout=R.layout.widget_today_bar;
+        if(kind.equals("walletcard"))layout=R.layout.widget_wallet_adaptive;
+        else if(isRightActionBar(kind,w,h))layout=R.layout.widget_today_bar;
         else if(kind.equals("sendreceive"))layout=isWide(w,h)?R.layout.widget_send_horizontal:R.layout.widget_send_vertical;
         RemoteViews v=new RemoteViews(c.getPackageName(),layout);
         v.setImageViewBitmap(R.id.reference_widget_art,render(kind,data,p,w,h));
@@ -83,7 +84,7 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         if(!hasAdd(kind)&&!kind.equals("smartsavings")&&!kind.equals("walletcard")&&!kind.equals("sendreceive"))v.setViewVisibility(R.id.reference_widget_footer,View.GONE);
         if(kind.equals("walletcard")){
             Intent toggle=new Intent(c,WalletCardWidgetProvider.class).setAction(PRIVACY);
-            v.setViewVisibility(R.id.reference_widget_footer,View.VISIBLE);v.setContentDescription(R.id.reference_widget_footer,"Show or hide bank balance");
+            v.setViewVisibility(R.id.reference_widget_footer,View.VISIBLE);v.setContentDescription(R.id.reference_widget_footer,p.getBoolean("wallet_hidden",true)?"Show bank balance":"Hide bank balance");
             v.setOnClickPendingIntent(R.id.reference_widget_footer,PendingIntent.getBroadcast(c,614,toggle,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         }
         return v;
@@ -151,8 +152,13 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
                 float pocketY=pad+cardH*.6f;Path pocket=new Path();pocket.moveTo(0,pocketY);pocket.lineTo(w*.34f,pocketY);pocket.cubicTo(w*.4f,pocketY,w*.4f,pocketY+20,w*.5f,pocketY+20);pocket.cubicTo(w*.6f,pocketY+20,w*.6f,pocketY,w*.66f,pocketY);pocket.lineTo(w,pocketY);pocket.lineTo(w,h);pocket.lineTo(0,h);pocket.close();a.p.setColor(BLUE);c.drawPath(pocket,a.p);labelY=pad+cardH+18;
             }
             a.text("BALANCE",pad,labelY,10,Color.WHITE,true);
-            a.fit(hidden?"* * * *":amount(d.optDouble("bankAmount",0)),pad,valueY,Math.min(36,h*.22f),w-pad*2,Color.WHITE,true);
-            a.fit("Tap bottom to "+(hidden?"show":"hide"),pad,h-7,9,w-pad*2,0xffe7f1ff,false);
+            a.fit(hidden?"* * * *":amount(d.optDouble("bankAmount",0)),pad,valueY,Math.min(36,h*.22f),w-pad*2-42,Color.WHITE,true);
+            a.fit(hidden?"Balance hidden":"Bank account",pad,h-7,9,w-pad*2-42,0xffe7f1ff,false);
+            float eyeX=w-32,eyeY=h-24;
+            a.circle(eyeX,eyeY,18,0xffffffff);
+            RectF eye=new RectF(eyeX-10,eyeY-6,eyeX+10,eyeY+6);
+            a.arc(eye,0,180,0xff1256aa,2);a.arc(eye,180,180,0xff1256aa,2);a.circle(eyeX,eyeY,3,0xff1256aa);
+            if(hidden)a.line(eyeX-11,eyeY+10,eyeX+11,eyeY-10,0xff1256aa,2);
         }else if(kind.equals("spending")){
             float valueY=h<90?h-12:h-18;
             a.text("SPENDING",pad,pad+10,10,GRAY,true);

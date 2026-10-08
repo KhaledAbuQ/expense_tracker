@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import peekImage from '../assets/character-peek-top.svg'
+import peekImage from '../assets/character-top-looking-around.svg'
 import { RAPID_TAP_PEEK_EVENT } from '../hooks/useRapidTapPeek'
 
 export default function RapidTapPeek() {

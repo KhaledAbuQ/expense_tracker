@@ -299,35 +299,35 @@ export default function BankSmsTrackerModal({
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="bank-sms-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-3xl bg-white shadow-2xl overflow-hidden">
+      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl dark:bg-gray-900 dark:text-gray-100">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-gray-700">
           <div className="flex items-center gap-2.5">
-            <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600">
+            <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
               <MessageSquare size={22} />
             </div>
             <div>
-              <h2 id="bank-sms-title" className="text-lg font-bold text-slate-900">Bank SMS Auto-Tracking</h2>
-              <p className="text-xs text-slate-500">Scan & auto-track bank debit/credit messages by date</p>
+              <h2 id="bank-sms-title" className="text-lg font-bold text-slate-900 dark:text-white">Bank SMS Auto-Tracking</h2>
+              <p className="text-xs text-slate-500 dark:text-gray-400">Scan & auto-track bank debit/credit messages by date</p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-100 bg-slate-50/70 px-4 text-xs font-semibold">
+        <div className="flex border-b border-slate-100 bg-slate-50/70 px-4 text-xs font-semibold dark:border-gray-700 dark:bg-gray-800">
           <button
             onClick={() => setActiveTab('pending')}
             className={`relative flex items-center gap-1.5 px-3 py-3 ${
               activeTab === 'pending'
                 ? 'text-indigo-600 border-b-2 border-indigo-600 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+                : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
             }`}
           >
             Pending Approvals
@@ -343,7 +343,7 @@ export default function BankSmsTrackerModal({
             className={`flex items-center gap-1.5 px-3 py-3 ${
               activeTab === 'settings'
                 ? 'text-indigo-600 border-b-2 border-indigo-600 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
+                : 'text-slate-600 hover:text-slate-900 dark:text-gray-300 dark:hover:text-white'
             }`}
           >
             Settings
@@ -356,12 +356,12 @@ export default function BankSmsTrackerModal({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Permission warning banner if on native and not granted */}
           {isNative && (!permissionsGranted || !notificationsGranted) && (
-            <div className="rounded-2xl bg-amber-50 p-4 text-amber-900 border border-amber-200">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 shrink-0 text-amber-600" size={18} />
                 <div className="text-xs">
                   <p className="font-semibold">Enable bank alerts</p>
-                  <p className="mt-1 text-amber-700">
+                  <p className="mt-1 text-amber-700 dark:text-amber-200">
                     Grant SMS access to detect bank transactions and allow notifications so alerts appear in Android’s notification shade.
                   </p>
                   <button
@@ -381,11 +381,11 @@ export default function BankSmsTrackerModal({
             <div className="space-y-4">
               {pendingTransactions.length === 0 ? (
                 <div className="py-12 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-gray-800 dark:text-gray-500">
                     <CheckCircle2 size={24} />
                   </div>
-                  <h3 className="mt-3 text-sm font-semibold text-slate-900">All caught up!</h3>
-                  <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
+                  <h3 className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">All caught up!</h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-gray-400 max-w-xs mx-auto">
                     No pending bank transactions waiting for approval. To scan past bank messages (last 7 days, 30 days, or all messages), open the Settings tab.
                   </p>
                   <button
@@ -405,7 +405,7 @@ export default function BankSmsTrackerModal({
                         className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
                           filterType === 'all'
                             ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                         }`}
                       >
                         All ({pendingTransactions.length})
@@ -415,7 +415,7 @@ export default function BankSmsTrackerModal({
                         className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
                           filterType === 'expense'
                             ? 'bg-rose-600 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                         }`}
                       >
                         Expenses ({expenseCount})
@@ -425,7 +425,7 @@ export default function BankSmsTrackerModal({
                         className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
                           filterType === 'income'
                             ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                         }`}
                       >
                         Income ({incomeCount})
@@ -451,8 +451,8 @@ export default function BankSmsTrackerModal({
                       return (
                         <div key={dateKey} className="space-y-2.5">
                           {/* Date Group Header */}
-                          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 dark:border-gray-700">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-gray-100">
                               <Calendar size={14} className="text-indigo-600" />
                               <span>{formatGroupDateHeader(dateKey)}</span>
                             </div>
@@ -493,8 +493,8 @@ export default function BankSmsTrackerModal({
                                   key={tx.id}
                                   className={`rounded-2xl border p-4 shadow-sm space-y-3 ${
                                     isIncome
-                                      ? 'border-emerald-200 bg-emerald-50/20'
-                                      : 'border-slate-200 bg-white'
+                                      ? 'border-emerald-200 bg-emerald-50/20 dark:border-emerald-900 dark:bg-emerald-950/20'
+                                      : 'border-slate-200 bg-white dark:border-gray-700 dark:bg-gray-900'
                                   }`}
                                 >
                                   {/* Card Header: Type Badge, Amount, Card ending */}
@@ -504,25 +504,25 @@ export default function BankSmsTrackerModal({
                                         <span
                                           className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                                             isIncome
-                                              ? 'bg-emerald-100 text-emerald-800'
-                                              : 'bg-rose-100 text-rose-800'
+                                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+                                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200'
                                           }`}
                                         >
                                           {isIncome ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                                           {isIncome ? 'Credited / Income' : 'Debited / Expense'}
                                         </span>
 
-                                        <span className="text-xs font-semibold text-slate-700">{tx.sender}</span>
+                                        <span className="text-xs font-semibold text-slate-700 dark:text-gray-200">{tx.sender}</span>
 
                                         {tx.accountEnding && (
-                                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 font-mono">
+                                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 font-mono dark:bg-gray-800 dark:text-gray-300">
                                             •{tx.accountEnding}
                                           </span>
                                         )}
                                       </div>
 
                                       {tx.availableBalance !== undefined && (
-                                        <p className="mt-1 text-[11px] text-slate-400">
+                                        <p className="mt-1 text-[11px] text-slate-400 dark:text-gray-500">
                                           Balance: <span className="font-mono">{formatCurrency(tx.availableBalance)}</span>
                                         </p>
                                       )}
@@ -530,7 +530,7 @@ export default function BankSmsTrackerModal({
 
                                     <span
                                       className={`text-base font-bold ${
-                                        isIncome ? 'text-emerald-600' : 'text-slate-900'
+                                        isIncome ? 'text-emerald-600' : 'text-slate-900 dark:text-white'
                                       }`}
                                     >
                                       {isIncome ? '+' : '-'}{formatCurrency(edit.amount)}
@@ -540,7 +540,7 @@ export default function BankSmsTrackerModal({
                                   {/* Editable Description & Category */}
                                   <div className="grid grid-cols-2 gap-2 text-xs">
                                     <div>
-                                      <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                                      <label className="mb-1 block text-[10px] font-medium text-slate-500 dark:text-gray-400">
                                         {isIncome ? 'Source / Sender' : 'Merchant / Description'}
                                       </label>
                                       <input
@@ -552,17 +552,17 @@ export default function BankSmsTrackerModal({
                                             [tx.id]: { ...prev[tx.id], merchant: e.target.value },
                                           }))
                                         }}
-                                        className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                                       />
                                     </div>
 
                                     <div>
                                       <div className="flex items-center justify-between mb-1">
-                                        <label className="text-[10px] font-medium text-slate-500">
+                                        <label className="text-[10px] font-medium text-slate-500 dark:text-gray-400">
                                           Category
                                         </label>
                                         {tx.isAutoDetected && !edit.categoryChanged && (
-                                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                        <span className="inline-flex items-center gap-0.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
                                             <Sparkles size={9} /> Auto-detected
                                           </span>
                                         )}
@@ -582,7 +582,7 @@ export default function BankSmsTrackerModal({
                                             return next
                                           })
                                         }}
-                                        className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                                       >
                                         <option value="">Select Category</option>
                                         {categoryOptions.map(c => (
@@ -596,9 +596,9 @@ export default function BankSmsTrackerModal({
                                   </div>
 
                                   {/* Visibility & Toggle Raw */}
-                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-1 dark:border-gray-700">
                                     <div className="flex items-center gap-3">
-                                      <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                                      <label className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-gray-300">
                                         <input
                                           type="radio"
                                           name={`vis-${tx.id}`}
@@ -613,7 +613,7 @@ export default function BankSmsTrackerModal({
                                         />
                                         Shared
                                       </label>
-                                      <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                                      <label className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-gray-300">
                                         <input
                                           type="radio"
                                           name={`vis-${tx.id}`}
@@ -638,14 +638,14 @@ export default function BankSmsTrackerModal({
                                           [tx.id]: { ...prev[tx.id], showRaw: !prev[tx.id]?.showRaw },
                                         }))
                                       }}
-                                      className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600"
+                                      className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-gray-200"
                                     >
                                       <Eye size={12} /> {edit.showRaw ? 'Hide SMS' : 'View SMS'}
                                     </button>
                                   </div>
 
                                   {edit.showRaw && (
-                                    <div className="rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-600 font-mono whitespace-pre-wrap">
+                                    <div className="rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-600 font-mono whitespace-pre-wrap dark:bg-gray-800 dark:text-gray-300">
                                       {tx.rawBody}
                                     </div>
                                   )}
@@ -654,7 +654,7 @@ export default function BankSmsTrackerModal({
                                   <div className="flex items-center justify-end gap-2 pt-1">
                                     <button
                                       data-haptic="impact" onClick={() => handleDismiss(tx)}
-                                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+                                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-gray-800"
                                     >
                                       <Trash2 size={13} /> Dismiss
                                     </button>
@@ -692,14 +692,14 @@ export default function BankSmsTrackerModal({
           {activeTab === 'settings' && (
             <div className="space-y-4 text-xs">
               {/* Scan Old Bank Messages Section */}
-              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+              <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-indigo-950 flex items-center gap-1.5">
+                    <h4 className="flex items-center gap-1.5 font-bold text-indigo-950 dark:text-indigo-100">
                       <RefreshCw size={15} className={scanning ? 'animate-spin text-indigo-600' : 'text-indigo-600'} />
                       Scan Old Bank Messages
                     </h4>
-                    <p className="text-[11px] text-slate-600 mt-0.5">
+                    <p className="mt-0.5 text-[11px] text-slate-600 dark:text-gray-300">
                       Scan your inbox for past bank transactions with automatically detected categories:
                     </p>
                   </div>
@@ -709,14 +709,14 @@ export default function BankSmsTrackerModal({
                   <button
                     disabled={scanning}
                     onClick={() => void handleScan(7)}
-                    className="flex-1 rounded-xl bg-white border border-indigo-200 py-2.5 px-3 text-xs font-semibold text-indigo-900 shadow-sm hover:bg-indigo-50/80 disabled:opacity-50 transition"
+                    className="flex-1 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-50/80 disabled:opacity-50 dark:border-indigo-800 dark:bg-gray-800 dark:text-indigo-200 dark:hover:bg-gray-700"
                   >
                     📅 Last 7 Days
                   </button>
                   <button
                     disabled={scanning}
                     onClick={() => void handleScan(30)}
-                    className="flex-1 rounded-xl bg-white border border-indigo-200 py-2.5 px-3 text-xs font-semibold text-indigo-900 shadow-sm hover:bg-indigo-50/80 disabled:opacity-50 transition"
+                    className="flex-1 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-50/80 disabled:opacity-50 dark:border-indigo-800 dark:bg-gray-800 dark:text-indigo-200 dark:hover:bg-gray-700"
                   >
                     📅 Last 30 Days
                   </button>
@@ -736,18 +736,18 @@ export default function BankSmsTrackerModal({
                 )}
 
                 {!isNative && (
-                  <div className="rounded-xl bg-white/80 p-2.5 text-[11px] text-slate-500 border border-indigo-100">
+                  <div className="rounded-xl border border-indigo-100 bg-white/80 p-2.5 text-[11px] text-slate-500 dark:border-indigo-900 dark:bg-gray-900/80 dark:text-gray-400">
                     Bank SMS scanning is available in the Android app.
                   </div>
                 )}
               </div>
 
               {/* Mode Selection */}
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-4">
+              <div className="space-y-4 rounded-2xl border border-slate-200 p-4 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-slate-900">Auto-Tracking Mode</h4>
-                    <p className="text-[11px] text-slate-500">
+                    <h4 className="font-bold text-slate-900 dark:text-white">Auto-Tracking Mode</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-gray-400">
                       Choose whether incoming bank messages require confirmation or are logged automatically.
                     </p>
                   </div>
@@ -755,7 +755,7 @@ export default function BankSmsTrackerModal({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3 cursor-pointer hover:bg-slate-50 transition">
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-800">
                     <input
                       type="radio"
                       name="mode"
@@ -767,16 +767,16 @@ export default function BankSmsTrackerModal({
                       className="mt-0.5 text-indigo-600"
                     />
                     <div>
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-slate-800 dark:text-gray-100">
                         Notify & Ask for Approval (with Edit Option)
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-gray-400">
                         Sends a notification for each transaction and lets you review, edit category/amount, and approve before adding.
                       </p>
                     </div>
                   </label>
 
-                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3 cursor-pointer hover:bg-slate-50 transition">
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-800">
                     <input
                       type="radio"
                       name="mode"
@@ -788,8 +788,8 @@ export default function BankSmsTrackerModal({
                       className="mt-0.5 text-indigo-600"
                     />
                     <div>
-                      <span className="font-semibold text-slate-800">Zero-Click Auto-Save</span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <span className="font-semibold text-slate-800 dark:text-gray-100">Zero-Click Auto-Save</span>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-gray-400">
                         Saves transactions with a recognized category when the app is active. Uncertain matches stay in the review inbox.
                       </p>
                     </div>
@@ -797,19 +797,19 @@ export default function BankSmsTrackerModal({
                 </div>
 
                 {/* Category Detection Info */}
-                <div className="pt-3 border-t border-slate-100 flex items-start gap-2.5 text-[11px] text-slate-600">
+                <div className="flex items-start gap-2.5 border-t border-slate-100 pt-3 text-[11px] text-slate-600 dark:border-gray-700 dark:text-gray-300">
                   <Sparkles size={16} className="text-indigo-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-slate-800">Automatic Category Detection Active</span>
-                    <p className="text-slate-500 mt-0.5">
+                    <span className="font-semibold text-slate-800 dark:text-gray-100">Automatic Category Detection Active</span>
+                    <p className="mt-0.5 text-slate-500 dark:text-gray-400">
                       Intelligently matches Jordanian bank merchants and CliQ transfers to categories. Your category choices are remembered for future messages from the same merchant or SMS pattern.
                     </p>
                   </div>
                 </div>
 
                 {/* Default Visibility */}
-                <div className="pt-3 border-t border-slate-100">
-                  <label className="block font-medium text-slate-700 mb-1">
+                <div className="border-t border-slate-100 pt-3 dark:border-gray-700">
+                  <label className="mb-1 block font-medium text-slate-700 dark:text-gray-200">
                     Default Visibility for Bank Transactions
                   </label>
                   <select
@@ -818,7 +818,7 @@ export default function BankSmsTrackerModal({
                       const updated = saveSmsSettings({ defaultVisibility: e.target.value as Visibility })
                       setSettings(updated)
                     }}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-2 text-xs"
+                    className="w-full rounded-xl border border-slate-200 bg-white p-2 text-xs text-slate-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                   >
                     <option value="household">Shared Household (Everyone in household sees it)</option>
                     <option value="private">Personal (Only visible to you)</option>
@@ -831,10 +831,10 @@ export default function BankSmsTrackerModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3 text-right">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3 text-right dark:border-gray-700 dark:bg-gray-800/80">
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-700"
           >
             Close
           </button>

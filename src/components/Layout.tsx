@@ -62,7 +62,7 @@ export default function Layout() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto min-w-0 w-full">
+      <main key={location.pathname} className="app-screen-enter flex-1 overflow-y-auto min-w-0 w-full">
         <div className="p-4 sm:p-6 lg:p-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full">
           {!isSupabaseConfigured && <SetupBanner />}
           {isSupabaseConfigured && !!session && !loading && !member && (

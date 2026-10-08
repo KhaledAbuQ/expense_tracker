@@ -5,6 +5,7 @@ export interface BiometricAvailability {
   isEnrolled: boolean
   hasSavedCredentials: boolean
   savedEmail?: string
+  authenticatedRecently?: boolean
 }
 
 export interface BiometricAuthResult {
@@ -22,11 +23,13 @@ export interface BiometricAuthPluginInterface {
     title?: string
     subtitle?: string
     cancelText?: string
+    confirmationRequired?: boolean
   }): Promise<{ success: boolean; canceled?: boolean; error?: string }>
   authenticateAndGetCredentials(options?: {
     title?: string
     subtitle?: string
     cancelText?: string
+    confirmationRequired?: boolean
   }): Promise<BiometricAuthResult>
   clearCredentials(): Promise<{ success: boolean }>
 }

@@ -141,7 +141,7 @@ export default function SavingsPage({ openGoalPlanner = 0 }: { openGoalPlanner?:
   }, [myIncome, allTransfers])
 
   // Gold is held as weight but reported as money: holdings come from the
-  // transfer ledger in fine grams, then get valued at today's rate.
+  // transfer ledger in fine grams, then get valued at today's indicative spot reference.
   const goldFineGrams = useMemo(() => calculateGoldFineGrams(allTransfers), [allTransfers])
   const goldItemCount = useMemo(() => countGoldItems(allTransfers), [allTransfers])
   const goldHoldings = useMemo(() => summarizeGoldHoldings(allTransfers), [allTransfers])
@@ -371,7 +371,7 @@ export default function SavingsPage({ openGoalPlanner = 0 }: { openGoalPlanner?:
               <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
                 {goldPrice ? (
                   <>
-                    {formatCurrency(Number(goldPrice.price_24k))}/g
+                    {formatCurrency(Number(goldPrice.price_24k))}/g spot reference
                     {goldPrice.source === 'spot_peg' && ' (world spot)'}
                     {' · '}
                     {formatDate(goldPrice.fetched_at.slice(0, 10))}

@@ -312,9 +312,9 @@ Coin weights and carat follow how gold is actually traded in Jordan, which
 differs slightly from the original mint standards (a British sovereign is struck
 at 7.98805 g / 22k). Local convention is what the money changes hands on.
 
-Purity is `karat / 24`, with 24k treated as 1.0 rather than 0.999, because the
-price source derives its per-carat rates the same way — its 21k quote is exactly
-0.875 of its 24k quote. Valuing an 8 g English lira through fine grams gives
+Purity is `karat / 24`, with 24k treated as 1.0 rather than 0.999. The app
+derives every carat from the same spot-per-gram reference. Valuing an 8 g
+English lira through fine grams gives
 647.22 JD against 647.20 JD from the dealer-style `8 g × 21k rate`, a 0.003%
 difference that is just the source rounding its quote to two decimals.
 
@@ -325,25 +325,13 @@ market estimate is prefilled, because what you actually pay includes workmanship
 
 ### Price source
 
-`supabase/functions/gold-price` fetches prices server-side, which is necessary
-because no free gold API quotes JOD and the sources send no CORS headers. It
-tries the Jordanian per-carat table first, then falls back to international spot
-converted through the fixed 0.709 JOD/USD peg. Results are validated before
-being stored — implausible values, inverted carat ordering and misaligned
-columns are all rejected, so a broken page cannot overwrite a good price. If
-both sources fail the last good price is kept and flagged as stale in the UI.
-
-Deploy it once:
-
-```bash
-supabase login
-supabase link --project-ref ijycfxuhtnkpnxymbmja
-supabase functions deploy gold-price
-```
-
-Prices land in `gold_prices`, which every signed-in user can read and no client
-can write — the function uses the service role key, which bypasses RLS. That
-matters because these values price your holdings.
+The app calls `https://api.gold-api.com/price/XAU` directly from the client. It
+returns a public USD-per-troy-ounce spot quote with browser CORS enabled. The
+app converts it to JOD per gram using 31.1034768 grams per troy ounce and the
+Central Bank of Jordan's 0.709 JOD/USD peg, then derives 22k, 21k, 18k and 14k
+by purity. This is an indicative international spot reference, not a Jordanian
+jeweler's sell or buyback quote. The last successful quote is cached locally on
+the device for offline display; gold prices do not require Supabase.
 
 ### Applying the schema
 

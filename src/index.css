@@ -142,6 +142,17 @@ body {
 .monetra-home-insights span { display: block; font-size: 10px; line-height: 1.5; color: var(--pocket-muted); }
 .monetra-home-insights .monetra-home-top-category { grid-column: 1 / -1; padding-right: 38px; }
 .monetra-home-top-category > svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--pocket-muted); }
+.monetra-gold-card { display: flex; align-items: center; gap: 12px; margin: 0 0 20px; padding: 15px; border: 1px solid #e9d6a5; border-radius: 20px; background: linear-gradient(135deg, #fffaf0, #fff4d9); color: #352b19; }
+.monetra-gold-card-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 14px; background: #f6e7be; color: #9b6b13; }
+.monetra-gold-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.monetra-gold-card-copy p { margin: 0; font-size: 12px; color: #786846; }
+.monetra-gold-card-copy p a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.monetra-gold-card-copy strong { font-size: 22px; letter-spacing: -.5px; }
+.monetra-gold-card-copy strong small { font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.monetra-gold-card-copy > span { font-size: 10px; color: #887958; }
+.monetra-gold-card-copy > .monetra-gold-stale { color: #a44f16; }
+.monetra-gold-refresh { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid #e8d9b5; border-radius: 12px; background: #fffdf8; color: #8a671e; }
+.monetra-gold-refresh:disabled { opacity: .55; }
 .monetra-upcoming-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .monetra-upcoming-heading h2 { font-size: 17px; font-weight: 650; color: var(--pocket-ink); }
 .monetra-upcoming-heading > span { font-size: 11px; color: var(--pocket-muted); }
@@ -599,16 +610,35 @@ html.pocket-native-document.dark, html.pocket-native-document.dark body, html.po
   100% { transform: translateY(0) scale(1.08); }
 }
 @keyframes app-screen-enter {
-  from { opacity: 0; transform: translate3d(0, 12px, 0) scale(.992); }
+  from { opacity: 0; transform: translate3d(var(--app-screen-start-x, 0), 0, 0) scale(.985); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
 .app-screen-enter {
-  animation: app-screen-enter 280ms cubic-bezier(.22, 1, .36, 1) both;
+  --app-screen-start-x: 28px;
+  animation: app-screen-enter 360ms cubic-bezier(.22, 1, .36, 1) both;
   transform-origin: center top;
   will-change: opacity, transform;
 }
+.app-screen-enter-backward { --app-screen-start-x: -32px; }
+
+.mobile-page-slide { min-width: 0; }
+
+@keyframes route-view-forward-old { to { opacity: 0; transform: translateX(-5%); } }
+@keyframes route-view-forward-new { from { opacity: 0; transform: translateX(5%); } }
+@keyframes route-view-backward-old { to { opacity: 0; transform: translateX(5%); } }
+@keyframes route-view-backward-new { from { opacity: 0; transform: translateX(-5%); } }
+
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+html[data-page-direction="forward"]::view-transition-old(root) { animation-name: route-view-forward-old; }
+html[data-page-direction="forward"]::view-transition-new(root) { animation-name: route-view-forward-new; }
+html[data-page-direction="backward"]::view-transition-old(root) { animation-name: route-view-backward-old; }
+html[data-page-direction="backward"]::view-transition-new(root) { animation-name: route-view-backward-new; }
 
 @media (prefers-reduced-motion: reduce) {
   .app-screen-enter { animation: none; will-change: auto; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }

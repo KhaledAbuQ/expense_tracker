@@ -275,7 +275,7 @@ export default function TransferForm({
 
           {price && (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              {formatCurrency(Number(price.price_24k))}/g for 24k
+              {formatCurrency(pricePerGram(price, 24))}/g 24k spot reference
               {price.source === 'spot_peg' && ' (from world spot)'}
               {' '}&middot; {formatDate(price.fetched_at.slice(0, 10))}
               {isPriceStale(price) && (

@@ -82,12 +82,31 @@ export default function Mobile({
   const { member, loading: profileLoading, refreshMember, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<MobileTab>('home')
   const [moreSubView, setMoreSubView] = useState<MoreSubView>('root')
+  const mobilePageRef = useRef<HTMLDivElement>(null)
+  const previousMobilePage = useRef<string | null>(null)
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
   }, [activeTab, moreSubView])
   const [adding, setAdding] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const mobilePageKey = `${activeTab}:${activeTab === 'more' ? moreSubView : ''}:${adding ? 'add' : ''}:${editingExpense?.id || ''}`
+
+  useLayoutEffect(() => {
+    const previous = previousMobilePage.current
+    previousMobilePage.current = mobilePageKey
+    if (!previous || previous === mobilePageKey) return
+    const element = mobilePageRef.current
+    if (!element || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const oldTab = previous.split(':', 1)[0]
+    const newTab = mobilePageKey.split(':', 1)[0]
+    const order: MobileTab[] = ['home', 'expenses', 'income', 'more']
+    const direction = order.indexOf(newTab as MobileTab) >= order.indexOf(oldTab as MobileTab) ? 1 : -1
+    element.animate([
+      { opacity: 0.45, transform: `translate3d(${direction * 72}px, 0, 0)` },
+      { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+    ], { duration: 700, easing: 'cubic-bezier(.22, 1, .36, 1)' })
+  }, [mobilePageKey])
   const [period, setPeriod] = useState<'month' | 'last-month' | 'week'>('month')
   const [visibility, setVisibility] = useState<'all' | 'private' | 'household'>('all')
   const [online, setOnline] = useState(navigator.onLine)
@@ -97,7 +116,7 @@ export default function Mobile({
   const [smsModalTab, setSmsModalTab] = useState<'pending' | 'settings'>('pending')
   const [savingsGoalRequested, setSavingsGoalRequested] = useState(0)
   const [savingsPlanRevision, setSavingsPlanRevision] = useState(0)
-  const { price: widgetGoldPrice } = useGoldPrice()
+  const { price: widgetGoldPrice, loading: goldLoading, refreshing: goldRefreshing, error: goldError, refresh: refreshGold } = useGoldPrice()
   useEffect(() => {
     const update = () => setSavingsPlanRevision(value => value + 1)
     window.addEventListener(SAVINGS_PLAN_CHANGED, update)
@@ -497,9 +516,14 @@ export default function Mobile({
             </button>
           </div>
         ) : (
-          <>
+          <div key={mobilePageKey} ref={mobilePageRef} className="mobile-page-slide">
             {activeTab === 'home' && <MobileHome
               header={mobileHeader}
+              goldPrice={widgetGoldPrice}
+              goldLoading={goldLoading}
+              goldRefreshing={goldRefreshing}
+              goldError={goldError}
+              onRefreshGold={refreshGold}
               reportOpen={reportOpen}
               onOpenReport={() => setReportOpen(true)}
               onCloseReport={() => setReportOpen(false)}
@@ -868,7 +892,7 @@ export default function Mobile({
                     )}
 
                     <div className="pt-4 text-center text-xs text-slate-400 dark:text-gray-500">
-                      <p className="font-semibold">Pocket Expenses · v1.5.2</p>
+                      <p className="font-semibold">Pocket Expenses · v1.5.4</p>
                       <p className="mt-0.5 text-[11px]">Your household finances, together</p>
                       <p className="mt-2 text-[11px] leading-relaxed">
                         Made by{' '}
@@ -951,7 +975,7 @@ export default function Mobile({
                 )}
               </>
             )}
-          </>
+          </div>
         )}
       </div>
 

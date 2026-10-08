@@ -104,7 +104,7 @@ export function pricePerGram(price: GoldPrice, karat: Karat): number {
  */
 export function valueOfFineGrams(fine: number, price: GoldPrice | null): number {
   if (!price || !Number.isFinite(fine)) return 0
-  return fine * Number(price.price_24k)
+  return fine * pricePerGram(price, 24)
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Outlet, useLocation, NavLink } from 'react-router-dom'
 import { Menu, Wallet, LayoutDashboard, Receipt, TrendingUp, ArrowRightLeft, MoreHorizontal } from 'lucide-react'
 import Sidebar from './Sidebar'
@@ -8,10 +8,46 @@ import ThemeToggle from './ThemeToggle'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
+const pageOrder = ['/', '/income', '/expenses', '/transfers', '/savings', '/members', '/categories']
+
 export default function Layout() {
   const { session, member, loading, refreshMember, isPasswordRecovery, setIsPasswordRecovery } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
+  const pageDirection = useMemo(() => {
+    const previousPath = window.history.state?.usr?.previousPath as string | undefined
+    const currentIndex = pageOrder.indexOf(location.pathname)
+    const previousIndex = previousPath ? pageOrder.indexOf(previousPath) : -1
+    return currentIndex >= 0 && previousIndex >= 0 && currentIndex < previousIndex ? 'backward' : 'forward'
+  }, [location.key])
+
+  useEffect(() => {
+    const state = window.history.state
+    if (state?.usr?.previousPath !== location.pathname) {
+      window.history.replaceState({ ...state, usr: { ...state?.usr, previousPath: location.pathname } }, '')
+    }
+  }, [location.key, location.pathname])
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const navigateWithTransition = (event: MouseEvent) => {
+      const target = event.target as Element | null
+      const link = target?.closest('a[href]') as HTMLAnchorElement | null
+      if (!link || link.target || link.origin !== window.location.origin || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const destination = new URL(link.href)
+      if (!destination.pathname.startsWith('/') || destination.pathname === window.location.pathname) return
+      const documentWithTransition = document as Document & { startViewTransition?: (callback: () => void) => { finished: Promise<void> } }
+      if (!documentWithTransition.startViewTransition) return
+      event.preventDefault()
+      const currentIndex = pageOrder.indexOf(window.location.pathname)
+      const nextIndex = pageOrder.indexOf(destination.pathname)
+      document.documentElement.dataset.pageDirection = currentIndex >= 0 && nextIndex >= 0 && nextIndex < currentIndex ? 'backward' : 'forward'
+      const transition = documentWithTransition.startViewTransition(() => link.click())
+      transition.finished.finally(() => delete document.documentElement.dataset.pageDirection)
+    }
+    document.addEventListener('click', navigateWithTransition, true)
+    return () => document.removeEventListener('click', navigateWithTransition, true)
+  }, [])
 
   // Close mobile drawer on navigation
   useEffect(() => {
@@ -62,7 +98,7 @@ export default function Layout() {
       </header>
 
       {/* Main Content */}
-      <main key={location.pathname} className="app-screen-enter flex-1 overflow-y-auto min-w-0 w-full">
+      <main key={location.key} className={`app-screen-enter app-screen-enter-${pageDirection} flex-1 overflow-y-auto min-w-0 w-full`}>
         <div className="p-4 sm:p-6 lg:p-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full">
           {!isSupabaseConfigured && <SetupBanner />}
           {isSupabaseConfigured && !!session && !loading && !member && (

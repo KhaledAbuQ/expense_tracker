@@ -1,7 +1,7 @@
 import { useRapidTapPeek } from '../hooks/useRapidTapPeek'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { format, startOfMonth, subMonths } from 'date-fns'
-import { ArrowDownCircle, BarChart3, ChevronRight, Coins, HandCoins, Plus, Wallet } from 'lucide-react'
+import { ArrowDownCircle, BarChart3, ChevronRight, Coins, HandCoins, Plus, Wallet, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useExpenses } from '../hooks/useExpenses'
 import { useIncome } from '../hooks/useIncome'
@@ -10,9 +10,16 @@ import { calculateIncomeByAccount, calculateTotalExpenses, formatCurrency, group
 import CategoryIcon from './CategoryIcon'
 import MonthlySpendingBars from './MonthlySpendingBars'
 import MobileFinancialReport from './MobileFinancialReport'
+import { isPriceStale } from '../lib/gold'
+import type { GoldPrice } from '../types'
 
 interface Props {
   header: ReactNode
+  goldPrice: GoldPrice | null
+  goldLoading: boolean
+  goldRefreshing: boolean
+  goldError: string | null
+  onRefreshGold: (options?: { silent?: boolean }) => Promise<GoldPrice | null>
   reportOpen: boolean
   onOpenReport: () => void
   onCloseReport: () => void
@@ -24,7 +31,7 @@ interface Props {
   onCategories: () => void
 }
 
-export default function MobileHome({ header, reportOpen, onOpenReport, onCloseReport, onAdd, onExpenses, onIncome, onSavings, onTransfers, onCategories }: Props) {
+export default function MobileHome({ header, goldPrice, goldLoading, goldRefreshing, goldError, onRefreshGold, reportOpen, onOpenReport, onCloseReport, onAdd, onExpenses, onIncome, onSavings, onTransfers, onCategories }: Props) {
   const recordMonthTap = useRapidTapPeek()
   const homeRef = useRef<HTMLDivElement>(null)
   const homeScroll = useRef(0)
@@ -125,6 +132,21 @@ export default function MobileHome({ header, reportOpen, onOpenReport, onCloseRe
         </div>}
         <button type="button" className="monetra-all-activity" onClick={onExpenses}>View expenses <ChevronRight size={15} /></button>
       </>}
+      <section className="monetra-gold-card" aria-label="Gold spot reference in Jordanian dinars">
+        <div className="monetra-gold-card-icon"><Coins size={20} /></div>
+        <div className="monetra-gold-card-copy">
+          <p>Gold in JOD <a href="https://api.gold-api.com/price/XAU" target="_blank" rel="noreferrer">· Live spot reference</a></p>
+          {goldPrice ? <>
+            <strong>{Number(goldPrice.price_21k).toFixed(2)} <small>JOD / g · 21k</small></strong>
+            <span>24k: {Number(goldPrice.price_24k).toFixed(2)} JOD / g · indicative market spot</span>
+            <span>Updated {format(new Date(goldPrice.fetched_at), 'MMM d, h:mm a')}</span>
+            {isPriceStale(goldPrice) && <span className="monetra-gold-stale">Price may be out of date</span>}
+          </> : <span role={goldError ? 'alert' : 'status'}>{goldLoading ? 'Loading price…' : goldError ? `Could not load price: ${goldError}` : 'Price unavailable. Check your connection and try again.'}</span>}
+        </div>
+        <button type="button" className="monetra-gold-refresh" onClick={() => void onRefreshGold()} disabled={goldRefreshing} aria-label="Refresh gold price" title="Refresh gold price">
+          <RefreshCw size={16} className={goldRefreshing ? 'animate-spin' : ''} />
+        </button>
+      </section>
     </section>
 
   </div>

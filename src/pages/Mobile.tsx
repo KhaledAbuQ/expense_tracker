@@ -72,6 +72,8 @@ import type { Expense, ExpenseFormData, IncomeFormData } from '../types'
 type MobileTab = 'home' | 'expenses' | 'income' | 'more'
 type MoreSubView = 'root' | 'transfers' | 'savings' | 'categories' | 'members' | 'server'
 
+const MOBILE_TAB_ORDER: MobileTab[] = ['home', 'expenses', 'income', 'more']
+
 export default function Mobile({
   standalone = false,
   onLock,
@@ -82,31 +84,17 @@ export default function Mobile({
   const { member, loading: profileLoading, refreshMember, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<MobileTab>('home')
   const [moreSubView, setMoreSubView] = useState<MoreSubView>('root')
-  const mobilePageRef = useRef<HTMLDivElement>(null)
-  const previousMobilePage = useRef<string | null>(null)
+  const mobilePagerRef = useRef<HTMLDivElement>(null)
+  const mobilePageRefs = useRef<Array<HTMLElement | null>>([])
+  const pagerScrollFrame = useRef<number | null>(null)
+  const pagerScrollDriven = useRef(false)
+  const [mobilePagerHeight, setMobilePagerHeight] = useState<number>()
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [activeTab, moreSubView])
+  }, [moreSubView])
   const [adding, setAdding] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
-  const mobilePageKey = `${activeTab}:${activeTab === 'more' ? moreSubView : ''}:${adding ? 'add' : ''}:${editingExpense?.id || ''}`
-
-  useLayoutEffect(() => {
-    const previous = previousMobilePage.current
-    previousMobilePage.current = mobilePageKey
-    if (!previous || previous === mobilePageKey) return
-    const element = mobilePageRef.current
-    if (!element || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const oldTab = previous.split(':', 1)[0]
-    const newTab = mobilePageKey.split(':', 1)[0]
-    const order: MobileTab[] = ['home', 'expenses', 'income', 'more']
-    const direction = order.indexOf(newTab as MobileTab) >= order.indexOf(oldTab as MobileTab) ? 1 : -1
-    element.animate([
-      { opacity: 0.45, transform: `translate3d(${direction * 72}px, 0, 0)` },
-      { opacity: 1, transform: 'translate3d(0, 0, 0)' },
-    ], { duration: 700, easing: 'cubic-bezier(.22, 1, .36, 1)' })
-  }, [mobilePageKey])
   const [period, setPeriod] = useState<'month' | 'last-month' | 'week'>('month')
   const [visibility, setVisibility] = useState<'all' | 'private' | 'household'>('all')
   const [online, setOnline] = useState(navigator.onLine)
@@ -116,6 +104,51 @@ export default function Mobile({
   const [smsModalTab, setSmsModalTab] = useState<'pending' | 'settings'>('pending')
   const [savingsGoalRequested, setSavingsGoalRequested] = useState(0)
   const [savingsPlanRevision, setSavingsPlanRevision] = useState(0)
+
+  const navigateToTab = useCallback((nextTab: MobileTab, afterNavigate?: () => void) => {
+    setReportOpen(false)
+    setMoreSubView('root')
+    setActiveTab(nextTab)
+    afterNavigate?.()
+  }, [])
+
+  const handlePagerScroll = () => {
+    const pager = mobilePagerRef.current
+    if (!pager || pager.clientWidth === 0) return
+    if (pagerScrollFrame.current !== null) window.cancelAnimationFrame(pagerScrollFrame.current)
+    pagerScrollFrame.current = window.requestAnimationFrame(() => {
+      const index = Math.max(0, Math.min(MOBILE_TAB_ORDER.length - 1, Math.round(pager.scrollLeft / pager.clientWidth)))
+      setActiveTab(current => {
+        if (current === MOBILE_TAB_ORDER[index]) return current
+        pagerScrollDriven.current = true
+        return MOBILE_TAB_ORDER[index]
+      })
+    })
+  }
+
+  useLayoutEffect(() => {
+    const pager = mobilePagerRef.current
+    if (!pager) return
+    if (pagerScrollDriven.current) {
+      pagerScrollDriven.current = false
+      return
+    }
+    pager.scrollTo({
+      left: MOBILE_TAB_ORDER.indexOf(activeTab) * pager.clientWidth,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  }, [activeTab, member, profileLoading])
+
+  useLayoutEffect(() => {
+    const page = mobilePageRefs.current[MOBILE_TAB_ORDER.indexOf(activeTab)]
+    if (!page) return
+    const updateHeight = () => setMobilePagerHeight(page.getBoundingClientRect().height)
+    updateHeight()
+    const observer = new ResizeObserver(updateHeight)
+    observer.observe(page)
+    return () => observer.disconnect()
+  }, [activeTab, moreSubView, adding, editingExpense])
+
   const { price: widgetGoldPrice, loading: goldLoading, refreshing: goldRefreshing, error: goldError, refresh: refreshGold } = useGoldPrice()
   useEffect(() => {
     const update = () => setSavingsPlanRevision(value => value + 1)
@@ -470,11 +503,11 @@ export default function Mobile({
   }, [smsModalOpen, member, categoriesLoading, categoriesError, checkPendingBackgroundSms])
 
 
-  const mobileHeader = <header className="monetra-header mb-6 flex items-center justify-between gap-3">
+  const mobileHeader = (tab: MobileTab) => <header className="monetra-header mb-6 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#5267f5] text-white"><Wallet size={19} /></span>
             <div className="min-w-0">
-              <p className="text-base font-semibold text-slate-900 dark:text-white">{activeTab === 'home' ? 'Pocket Expenses' : activeTab === 'expenses' ? 'Expenses' : activeTab === 'income' ? 'Income' : 'Your finances'}</p>
+              <p className="text-base font-semibold text-slate-900 dark:text-white">{tab === 'home' ? 'Pocket Expenses' : tab === 'expenses' ? 'Expenses' : tab === 'income' ? 'Income' : 'Your finances'}</p>
 
             </div>
           </div>
@@ -483,15 +516,13 @@ export default function Mobile({
               <Bell size={19} />
               {pendingSmsTxs.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-[#e95235] px-1.5 text-[10px] font-bold text-white">{pendingSmsTxs.length}</span>}
             </button>
-            <button type="button" aria-current={activeTab === 'more' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('more'); setMoreSubView('root') }} aria-label="Settings and household tools" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 dark:bg-gray-800 dark:text-gray-200"><Settings size={19} /></button>
+            <button type="button" aria-current={tab === 'more' ? 'page' : undefined} onClick={() => navigateToTab('more')} aria-label="Settings and household tools" className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 dark:bg-gray-800 dark:text-gray-200"><Settings size={19} /></button>
           </div>
         </header>
 
   return (
-    <div className={`mobile-client ${activeTab === 'home' ? 'monetra-home-screen' : activeTab === 'expenses' && !adding && !editingExpense ? 'monetra-tool-screen monetra-expenses-screen' : 'monetra-tool-screen'} min-h-dvh bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
+    <div className="mobile-client mobile-pager-client min-h-dvh bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <div className="monetra-shell mx-auto max-w-2xl px-4 sm:px-6 pb-28 pt-4">
-        {activeTab !== 'home' && !(activeTab === 'expenses' && !adding && !editingExpense) && mobileHeader}
-
         {!online && (
           <p
             role="status"
@@ -516,9 +547,11 @@ export default function Mobile({
             </button>
           </div>
         ) : (
-          <div key={mobilePageKey} ref={mobilePageRef} className="mobile-page-slide">
-            {activeTab === 'home' && <MobileHome
-              header={mobileHeader}
+          <div ref={mobilePagerRef} className="mobile-page-pager" onScroll={handlePagerScroll} style={mobilePagerHeight ? { height: mobilePagerHeight } : undefined}>
+            <div className="mobile-page-track">
+            <section ref={element => { mobilePageRefs.current[0] = element }} className="mobile-swipe-page monetra-home-screen" aria-hidden={activeTab !== 'home'}>
+            <MobileHome
+              header={mobileHeader('home')}
               goldPrice={widgetGoldPrice}
               goldLoading={goldLoading}
               goldRefreshing={goldRefreshing}
@@ -527,17 +560,18 @@ export default function Mobile({
               reportOpen={reportOpen}
               onOpenReport={() => setReportOpen(true)}
               onCloseReport={() => setReportOpen(false)}
-              onAdd={() => { setActiveTab('expenses'); setSaveError(''); setEditingExpense(null); setAdding(true) }}
-              onExpenses={() => setActiveTab('expenses')}
-              onIncome={() => setActiveTab('income')}
-              onSavings={() => { setSavingsGoalRequested(0); setActiveTab('more'); setMoreSubView('savings') }}
-              onTransfers={() => { setActiveTab('more'); setMoreSubView('transfers') }}
-              onCategories={() => { setActiveTab('more'); setMoreSubView('categories') }}
-            />}
+              onAdd={() => navigateToTab('expenses', () => { setSaveError(''); setEditingExpense(null); setAdding(true) })}
+              onExpenses={() => navigateToTab('expenses')}
+              onIncome={() => navigateToTab('income')}
+              onSavings={() => navigateToTab('more', () => { setSavingsGoalRequested(0); setMoreSubView('savings') })}
+              onTransfers={() => navigateToTab('more', () => setMoreSubView('transfers'))}
+              onCategories={() => navigateToTab('more', () => setMoreSubView('categories'))}
+            />
+            </section>
 
             {/* TAB: EXPENSES */}
-            {activeTab === 'expenses' && (
-              <>
+            <section ref={element => { mobilePageRefs.current[1] = element }} className={`mobile-swipe-page ${adding || editingExpense ? 'monetra-tool-screen' : 'monetra-expenses-screen'}`} aria-hidden={activeTab !== 'expenses'}>
+                {(adding || editingExpense) && mobileHeader('expenses')}
                 {adding || editingExpense ? (
                   <section className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
                     <button
@@ -603,19 +637,20 @@ export default function Mobile({
                     onAdd={() => { setSaveError(''); setEditingExpense(null); setAdding(true) }}
                     onEdit={expense => { setSaveError(''); setEditingExpense(expense); setAdding(false) }}
                     onReview={() => { setSmsModalTab('pending'); setSmsModalOpen(true) }}
-                    onSettings={() => { setActiveTab('more'); setMoreSubView('root') }}
+                    onSettings={() => navigateToTab('more')}
                   />
                 )}
-
-              </>
-            )}
+            </section>
 
             {/* TAB: INCOME */}
-            {activeTab === 'income' && <IncomePage />}
+            <section ref={element => { mobilePageRefs.current[2] = element }} className="mobile-swipe-page monetra-tool-screen" aria-hidden={activeTab !== 'income'}>
+              {mobileHeader('income')}
+              <IncomePage />
+            </section>
 
             {/* TAB: MORE & SETTINGS */}
-            {activeTab === 'more' && (
-              <>
+            <section ref={element => { mobilePageRefs.current[3] = element }} className="mobile-swipe-page monetra-tool-screen" aria-hidden={activeTab !== 'more'}>
+                {mobileHeader('more')}
                 {moreSubView === 'root' && (
                   <div className="space-y-4">
                     <div>
@@ -973,8 +1008,8 @@ export default function Mobile({
                     />
                   </div>
                 )}
-              </>
-            )}
+            </section>
+            </div>
           </div>
         )}
       </div>
@@ -985,13 +1020,13 @@ export default function Mobile({
         className="pocket-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2 py-1.5 safe-area-pb shadow-lg"
       >
         <div className="monetra-nav-inner mx-auto flex max-w-lg items-center justify-between"><div className="monetra-nav-capsule">
-          <button type="button" aria-label="Home" aria-current={activeTab === 'home' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('home'); setMoreSubView('root') }} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'home' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
+          <button type="button" aria-label="Home" aria-current={activeTab === 'home' ? 'page' : undefined} onClick={() => navigateToTab('home')} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'home' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
             <Home className="w-5 h-5" /><span className="mt-1 text-[10px]">Home</span>
           </button>
-          <button type="button" aria-label="Expenses" aria-current={activeTab === 'expenses' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('expenses'); setMoreSubView('root') }} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'expenses' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
+          <button type="button" aria-label="Expenses" aria-current={activeTab === 'expenses' ? 'page' : undefined} onClick={() => navigateToTab('expenses')} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'expenses' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
             <Receipt className="w-5 h-5" /><span className="mt-1 text-[10px]">Expenses</span>
           </button>
-          <button type="button" aria-label="Income" aria-current={activeTab === 'income' ? 'page' : undefined} onClick={() => { setReportOpen(false); setActiveTab('income'); setMoreSubView('root') }} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'income' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
+          <button type="button" aria-label="Income" aria-current={activeTab === 'income' ? 'page' : undefined} onClick={() => navigateToTab('income')} className={`flex flex-1 flex-col items-center justify-center py-1 transition-colors ${activeTab === 'income' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-500 dark:text-gray-400'}`}>
             <TrendingUp className="w-5 h-5" /><span className="mt-1 text-[10px]">Income</span>
           </button>
           </div>

@@ -384,7 +384,7 @@ body {
 /* The activity sheet scrolls over the stationary overview card. */
 .mobile-client.monetra-home-screen { overflow-anchor: none; padding-top: 0; }
 .monetra-home-screen .monetra-home { position: relative; isolation: isolate; background: transparent; }
-.monetra-home-screen .monetra-header { position: relative; width: 100%; padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 26px); border-radius: 0; }
+.monetra-home-screen .monetra-header { position: relative; width: 100%; padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 12px); border-radius: 0; }
 .monetra-home-screen .monetra-overview { position: sticky; top: 0; z-index: 0; border-radius: 26px; box-shadow: inset 0 0 0 1px var(--pocket-line); }
 .monetra-home-screen .monetra-action-strip { position: relative; z-index: 1; }
 .monetra-home-screen .monetra-activity { position: relative; z-index: 2; min-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); border-radius: 26px; box-shadow: 0 -10px 30px #00000018, inset 0 0 0 1px var(--pocket-line); }
@@ -622,7 +622,35 @@ html.pocket-native-document.dark, html.pocket-native-document.dark body, html.po
 }
 .app-screen-enter-backward { --app-screen-start-x: -32px; }
 
-.mobile-page-slide { min-width: 0; }
+.mobile-page-pager {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  transition: height 180ms ease-out;
+}
+.mobile-client.mobile-pager-client { padding-top: 0; }
+.mobile-page-pager::-webkit-scrollbar { display: none; }
+.mobile-page-track { display: grid; grid-template-columns: repeat(4, 100%); width: 100%; align-items: start; }
+.mobile-swipe-page { min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
+.mobile-swipe-page.monetra-home-screen,
+.mobile-swipe-page.monetra-expenses-screen {
+  min-height: calc(100dvh - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  background: #252527;
+}
+.mobile-swipe-page.monetra-home-screen,
+.mobile-swipe-page.monetra-expenses-screen { display: flex; flex-direction: column; }
+.mobile-swipe-page.monetra-tool-screen { padding: 0 16px 100px; background: var(--pocket-paper); }
+.mobile-swipe-page.monetra-tool-screen .monetra-header {
+  margin: 0 -16px 20px;
+  padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 26px);
+}
+.mobile-swipe-page.monetra-expenses-screen { padding-bottom: 0; }
+.dark .mobile-swipe-page:is(.monetra-home-screen, .monetra-expenses-screen) { background: #e7e5e4; }
 
 @keyframes route-view-forward-old { to { opacity: 0; transform: translateX(-5%); } }
 @keyframes route-view-forward-new { from { opacity: 0; transform: translateX(5%); } }
@@ -641,4 +669,5 @@ html[data-page-direction="backward"]::view-transition-new(root) { animation-name
 @media (prefers-reduced-motion: reduce) {
   .app-screen-enter { animation: none; will-change: auto; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .mobile-page-pager { scroll-behavior: auto; transition: none; }
 }

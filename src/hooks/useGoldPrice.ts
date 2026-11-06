@@ -4,6 +4,8 @@ import { GoldPrice } from '../types'
 
 const GOLD_API_URL = 'https://api.gold-api.com/price/XAU'
 const LOCAL_CACHE_KEY = 'pocket_expense_gold_spot_jod_v1'
+const HISTORY_KEY = 'pocket_expense_gold_history_v1'
+const HISTORY_LIMIT = 30
 const MIN_REFRESH_INTERVAL_MS = 60 * 1000
 const JOD_PER_USD = 0.709
 const GRAMS_PER_TROY_OUNCE = 31.1034768
@@ -52,8 +54,31 @@ function readLocalCache(): GoldPrice | null {
   }
 }
 
+type GoldQuote = { timestamp: number; price: number }
+
+function readHistory(): GoldQuote[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]')
+    if (!Array.isArray(stored)) return []
+    return stored.filter((quote): quote is GoldQuote =>
+      quote != null && Number.isFinite(quote.timestamp) && Number.isFinite(quote.price) && quote.price > 0,
+    ).sort((a, b) => a.timestamp - b.timestamp).slice(-HISTORY_LIMIT)
+  } catch {
+    return []
+  }
+}
+
+function addQuote(history: GoldQuote[], quote: GoldPrice): GoldQuote[] {
+  const timestamp = Date.parse(quote.fetched_at)
+  const price = Number(quote.price_21k)
+  if (!Number.isFinite(timestamp) || !Number.isFinite(price) || price <= 0) return history
+  return [...history.filter(point => point.timestamp !== timestamp), { timestamp, price }]
+    .sort((a, b) => a.timestamp - b.timestamp).slice(-HISTORY_LIMIT)
+}
+
 export function useGoldPrice() {
   const [price, setPrice] = useState<GoldPrice | null>(null)
+  const [history, setHistory] = useState(readHistory)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +99,14 @@ export function useGoldPrice() {
 
       const fresh = fromUsdSpot(await response.json() as GoldApiResponse)
       if (currentRequest === requestId.current) {
+        const cached = readLocalCache()
+        const savedHistory = readHistory()
+        const nextHistory = addQuote(cached ? addQuote(savedHistory, cached) : savedHistory, fresh)
+        setHistory(previous => {
+          const merged = new Map([...previous, ...nextHistory].map(point => [point.timestamp, point]))
+          return [...merged.values()].sort((a, b) => a.timestamp - b.timestamp).slice(-HISTORY_LIMIT)
+        })
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory)) } catch { /* Cache is optional. */ }
         setPrice(fresh)
         setError(null)
         try { localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(fresh)) } catch { /* Cache is optional. */ }
@@ -95,7 +128,10 @@ export function useGoldPrice() {
 
   const load = useCallback(async () => {
     const cached = readLocalCache()
-    if (cached) setPrice(cached)
+    if (cached) {
+      setPrice(cached)
+      setHistory(previous => addQuote(previous, cached))
+    }
     const cacheAge = cached ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity
     if (cacheAge < MIN_REFRESH_INTERVAL_MS) {
       setError(null)
@@ -107,5 +143,5 @@ export function useGoldPrice() {
 
   useEffect(() => { void load() }, [load])
 
-  return { price, loading, refreshing, error, refresh, reload: load }
+  return { price, history, loading, refreshing, error, refresh, reload: load }
 }

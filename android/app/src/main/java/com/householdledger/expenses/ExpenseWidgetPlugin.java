@@ -48,6 +48,15 @@ public class ExpenseWidgetPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void updateGoldWidget(PluginCall call) {
+        Context context = getContext();
+        context.getSharedPreferences(PocketExpensesWidgetProvider.PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putString("gold_snapshot", call.getString("snapshot", "{}")).apply();
+        GoldWidgetProvider.updateAll(context);
+        call.resolve();
+    }
+
+    @PluginMethod
     public void updateWidget(PluginCall call) {
         String monthTotal = call.getString("monthTotal", "$0.00");
         String todayTotal = call.getString("todayTotal", "$0.00");

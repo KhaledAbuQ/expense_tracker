@@ -37,7 +37,7 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
     }
     public static void update(Context c,AppWidgetManager m,int id,String kind){
         SharedPreferences p=prefs(c);JSONObject data;
-        try{data=new JSONObject(p.getString("finance_snapshot","{}"));}catch(JSONException e){data=new JSONObject();}
+        try{data=new JSONObject(p.getString(kind.equals("gold") ? "gold_snapshot" : "finance_snapshot", "{}"));}catch(JSONException e){data=new JSONObject();}
         Bundle options=m.getAppWidgetOptions(id);
         boolean adaptive=true;
         if(adaptive && Build.VERSION.SDK_INT>=31){
@@ -68,6 +68,10 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         RemoteViews v=new RemoteViews(c.getPackageName(),layout);
         v.setImageViewBitmap(R.id.reference_widget_art,render(kind,data,p,w,h));
         v.setContentDescription(R.id.reference_widget_art,kind+" · "+p.getString("month_label","This month")+" · monthly spending "+p.getString("month_total","JOD 0.000"));
+        if (kind.equals("gold")) {
+            v.setContentDescription(R.id.reference_widget_art,
+                    "21k gold · " + goldPriceLabel(data) + " · " + data.optString("updatedAt", "Open Pocket Expenses to load"));
+        }
         String action=kind.equals("todayspend")||kind.equals("quickactions")?"expenses":kind.equals("smartsavings")?"savings":"home";
         v.setOnClickPendingIntent(R.id.reference_widget_root,launch(c,action,610+action.hashCode()));
         if(kind.equals("sendreceive")){
@@ -103,7 +107,7 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         void arc(RectF r,float start,float sweep,int color,float width){p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(width);p.setStrokeCap(Paint.Cap.BUTT);c.drawArc(r,start,sweep,false,p);p.setStyle(Paint.Style.FILL);}
         void arrow(float x,float y,float size,int color,boolean down){float sign=down?-1:1;line(x-size/2,y+sign*size/2,x+size/2,y-sign*size/2,color,3);line(x+size/2,y-sign*size/2,x-size/5,y-sign*size/2,color,3);line(x+size/2,y-sign*size/2,x+size/2,y+sign*size/5,color,3);}
     }
-    private static int minimumHeight(String kind){return kind.equals("monthreport")||kind.equals("dailycompare")||kind.equals("sendreceive")?90:48;}
+    private static int minimumHeight(String kind){return kind.equals("gold")||kind.equals("monthreport")||kind.equals("dailycompare")||kind.equals("sendreceive")?90:48;}
     private static boolean hasAdd(String kind){return kind.equals("todayspend")||kind.equals("pocket")||kind.equals("quickactions");}
     private static boolean isWide(float w,float h){return w>h*1.4f;}
     private static boolean isRightActionBar(String kind,float w,float h){return (hasAdd(kind)||kind.equals("smartsavings"))&&(h<90||(h<=140&&isWide(w,h)));}
@@ -116,6 +120,10 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         float w=width,h=height,pad=Math.min(20,Math.min(w,h)*.1f),r=Math.min(28,Math.min(w,h)*.2f);
         Art a=new Art(c,w,h);boolean wide=isWide(w,h),compact=h<150;
         a.gradient(0,0,w,h,r,Color.WHITE,0xfff6faff);
+        if (kind.equals("gold")) {
+            drawGold(a, d, pad, r);
+            return bitmap;
+        }
         double spending=d.optDouble("monthAmount",0),earning=d.optDouble("monthIncome",0),available=d.optDouble("availableAmount",0);
         JSONArray cats=topCategories(d.optJSONArray("categories")==null?new JSONArray():d.optJSONArray("categories"),5);
         if(kind.equals("pocket")||kind.equals("quickactions")){
@@ -201,6 +209,54 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         }
         return bitmap;
     }
+    private static String goldPriceLabel(JSONObject data) {
+        double price = data.optDouble("price");
+        return Double.isFinite(price) && price > 0
+                ? String.format(Locale.US, "JOD %.2f/g", price)
+                : "Price unavailable";
+    }
+
+    private static void drawGold(Art art, JSONObject data, float pad, float radius) {
+        int gold = 0xff795511;
+        float contentWidth = art.w - 2 * pad;
+        art.gradient(0, 0, art.w, art.h, radius, 0xfffffaf0, 0xffffebbf);
+        art.text("21K GOLD", pad, pad + 10, 11, gold, true);
+        art.fit(goldPriceLabel(data), pad, pad + 36, 23, contentWidth, INK, true);
+        art.fit(data.has("updatedAt") ? "Quote " + data.optString("updatedAt") : "Open app to load price",
+                pad, art.h - pad, 10, contentWidth, gold, false);
+
+        JSONArray history = data.optJSONArray("history");
+        if (art.h < 116 || history == null || history.length() < 2) return;
+        double min = Double.POSITIVE_INFINITY;
+        double max = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < history.length(); i++) {
+            JSONObject point = history.optJSONObject(i);
+            if (point == null || !Double.isFinite(point.optDouble("price"))) return;
+            min = Math.min(min, point.optDouble("price"));
+            max = Math.max(max, point.optDouble("price"));
+        }
+
+        double firstTime = history.optJSONObject(0).optDouble("timestamp");
+        double duration = history.optJSONObject(history.length() - 1).optDouble("timestamp") - firstTime;
+        if (!Double.isFinite(duration) || duration <= 0) return;
+
+        float top = pad + 48;
+        float bottom = art.h - pad - 18;
+        float previousX = pad;
+        float previousY = 0;
+        for (int i = 0; i < history.length(); i++) {
+            JSONObject point = history.optJSONObject(i);
+            double elapsed = point.optDouble("timestamp") - firstTime;
+            if (!Double.isFinite(elapsed)) return;
+            float x = pad + contentWidth * (float) (elapsed / duration);
+            float y = max == min ? (top + bottom) / 2
+                    : bottom - (bottom - top) * (float) ((point.optDouble("price") - min) / (max - min));
+            if (i > 0) art.line(previousX, previousY, x, y, gold, 2);
+            previousX = x;
+            previousY = y;
+        }
+    }
+
     private static void drawAdd(Art a,float cx,float cy,float size,boolean blue){a.gradient(cx-size/2,cy-size/2,size,size,size/2,blue?BLUE:0xff333333,blue?0xff105ab5:0xff111111);a.line(cx-8,cy,cx+8,cy,Color.WHITE,2.5f);a.line(cx,cy-8,cx,cy+8,Color.WHITE,2.5f);}
     private static boolean isTodayBar(String kind,float w,float h){return kind.equals("todayspend") && (h<90 || (h<=140 && w>h*1.4f));}
     private static Bitmap renderAdaptive(String kind,JSONObject d,int width,int height){

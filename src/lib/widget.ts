@@ -1,6 +1,7 @@
 import { registerPlugin } from '@capacitor/core'
 
 export interface ExpenseWidgetPluginInterface {
+  updateGoldWidget(options: { snapshot: string }): Promise<void>
   updateSavingsPlan(options: { goalAmount: number; currentSavings?: number }): Promise<{ success: boolean }>
   updateWidget(options: {
     firstCategoryName?: string

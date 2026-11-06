@@ -1,5 +1,5 @@
 import { useRapidTapPeek } from '../hooks/useRapidTapPeek'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { format, startOfMonth, subMonths } from 'date-fns'
 import { ArrowDownCircle, BarChart3, ChevronRight, Coins, HandCoins, Plus, Wallet, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +16,7 @@ import type { GoldPrice } from '../types'
 interface Props {
   header: ReactNode
   goldPrice: GoldPrice | null
+  goldHistory: { timestamp: number; price: number }[]
   goldLoading: boolean
   goldRefreshing: boolean
   goldError: string | null
@@ -31,12 +32,36 @@ interface Props {
   onCategories: () => void
 }
 
-export default function MobileHome({ header, goldPrice, goldLoading, goldRefreshing, goldError, onRefreshGold, reportOpen, onOpenReport, onCloseReport, onAdd, onExpenses, onIncome, onSavings, onTransfers, onCategories }: Props) {
+function GoldPriceTrend({ history }: { history: Props['goldHistory'] }) {
+  if (history.length < 2) return <span>Trend appears after two different quote times are saved.</span>
+
+  const first = history[0]
+  const last = history[history.length - 1]
+  const prices = history.map(quote => quote.price)
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+  const change = last.price - first.price
+  const points = history.map(quote => {
+    const x = 2 + 196 * (quote.timestamp - first.timestamp) / (last.timestamp - first.timestamp)
+    const y = max === min ? 22 : 40 - 36 * (quote.price - min) / (max - min)
+    return `${x},${y}`
+  }).join(' ')
+  const dateLabel = (timestamp: number) => format(new Date(timestamp), 'MMM d, h:mm a')
+  const changeLabel = `${change > 0 ? '+' : ''}${change.toFixed(2)} JOD/g`
+
+  return <figure className="monetra-gold-trend">
+    <svg viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+    <figcaption>21k change {changeLabel} · {dateLabel(first.timestamp)} to {dateLabel(last.timestamp)}</figcaption>
+  </figure>
+}
+
+export default function MobileHome({ header, goldPrice, goldHistory, goldLoading, goldRefreshing, goldError, onRefreshGold, reportOpen, onOpenReport, onCloseReport, onAdd, onExpenses, onIncome, onSavings, onTransfers, onCategories }: Props) {
   const recordMonthTap = useRapidTapPeek()
   const homeRef = useRef<HTMLDivElement>(null)
-  const homeScroll = useRef(0)
-  const reportWasPage = useRef(false)
-  const [reportPage, setReportPage] = useState(false)
+  const homeScroll = useRef<number | null>(null)
+  const reportLink = useRef<HTMLButtonElement>(null)
   const { member } = useAuth()
   const { expenses, loading: expensesLoading, error: expensesError, fetchExpenses } = useExpenses()
   const { income, loading: incomeLoading, error: incomeError, fetchIncome } = useIncome()
@@ -63,38 +88,23 @@ export default function MobileHome({ header, goldPrice, goldLoading, goldRefresh
   const loading = expensesLoading || incomeLoading || transfersLoading
   const error = expensesError || incomeError || transfersError
 
-  useEffect(() => {
-    if (!reportOpen) {
-      setReportPage(false)
-      if (reportWasPage.current) {
-        reportWasPage.current = false
-        const frame = window.requestAnimationFrame(() => window.scrollTo({ top: homeScroll.current, behavior: 'auto' }))
-        return () => window.cancelAnimationFrame(frame)
-      }
-      return
+  useLayoutEffect(() => {
+    if (reportOpen) {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      homeRef.current?.querySelector<HTMLElement>('[aria-label="Back to Home"]')?.focus({ preventScroll: true })
+    } else if (homeScroll.current !== null) {
+      window.scrollTo({ top: homeScroll.current, behavior: 'instant' })
+      homeScroll.current = null
+      reportLink.current?.focus({ preventScroll: true })
     }
-    homeScroll.current = window.scrollY
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const timer = window.setTimeout(() => {
-      reportWasPage.current = true
-      setReportPage(true)
-    }, reducedMotion ? 0 : 800)
-    return () => window.clearTimeout(timer)
   }, [reportOpen])
 
-  useEffect(() => {
-    if (reportOpen && reportPage) {
-      window.scrollTo({ top: 0, behavior: 'auto' })
-      homeRef.current?.querySelector<HTMLElement>('[aria-label="Back to Home"]')?.focus({ preventScroll: true })
-    }
-  }, [reportOpen, reportPage])
-
-  if (reportOpen && reportPage) return <div ref={homeRef} className="monetra-home home-report-page">
+  if (reportOpen) return <div ref={homeRef} className="monetra-home home-report-page">
     <MobileFinancialReport expenses={mine} income={myIncome} transfers={myTransfers} loading={loading} error={error} onRetry={refreshReport} onClose={onCloseReport}>
       <section className="mobile-report-panel mobile-report-months" aria-label="Monthly spending bars"><div className="mobile-report-panel-heading"><p>Spent in {format(parseDateOnly(`${selectedMonth}-01`), 'MMMM yyyy')}</p><h2>{expensesLoading ? '…' : formatCurrency(months.find(month => month.key === selectedMonth)?.amount || 0)}</h2></div><MonthlySpendingBars months={months} selectedMonth={selectedMonth} onSelect={setSelectedMonth} /></section>
     </MobileFinancialReport>
   </div>
-  return <div ref={homeRef} className={`monetra-home ${reportOpen ? 'is-report-expanded' : ''}`}>
+  return <div className="monetra-home">
     <section className="monetra-overview" aria-label="Spending overview">
       {header}
       <div className="monetra-stat">
@@ -103,10 +113,10 @@ export default function MobileHome({ header, goldPrice, goldLoading, goldRefresh
       </div>
       {error && <p role="alert" className="monetra-data-error">Could not load your finances. Open your report to retry.</p>}
       <MonthlySpendingBars months={months} selectedMonth={selectedMonth} onSelect={month => { recordMonthTap(1000); setSelectedMonth(month) }} />
-      <button type="button" className="monetra-report-link" onClick={reportOpen ? onCloseReport : onOpenReport} aria-controls="home-financial-report" aria-expanded={reportOpen}><span className="monetra-outline-icon"><BarChart3 size={17} /></span><span>{reportOpen ? 'Close financial report' : 'View financial report'}</span><ChevronRight size={17} /></button>
-      <div id="home-financial-report" className={`home-report-reveal ${reportOpen ? 'is-open' : ''}`} aria-hidden={!reportOpen} ref={element => { if (element) { if (reportOpen) element.removeAttribute('inert'); else element.setAttribute('inert', '') } }}>
-        <div className="home-report-reveal-inner"><MobileFinancialReport expenses={mine} income={myIncome} transfers={myTransfers} loading={loading} error={error} onRetry={refreshReport} /></div>
-      </div>
+      <button type="button" ref={reportLink} className="monetra-report-link" onClick={() => {
+        homeScroll.current = window.scrollY
+        onOpenReport()
+      }}><span className="monetra-outline-icon"><BarChart3 size={17} /></span><span>View financial report</span><ChevronRight size={17} /></button>
     </section>
     <div className="monetra-action-strip" aria-label="Account shortcuts">
       <button type="button" onClick={onTransfers}><span><Wallet size={16} /></span>Transfers</button>
@@ -140,6 +150,7 @@ export default function MobileHome({ header, goldPrice, goldLoading, goldRefresh
             <strong>{Number(goldPrice.price_21k).toFixed(2)} <small>JOD / g · 21k</small></strong>
             <span>24k: {Number(goldPrice.price_24k).toFixed(2)} JOD / g · indicative market spot</span>
             <span>Updated {format(new Date(goldPrice.fetched_at), 'MMM d, h:mm a')}</span>
+            <GoldPriceTrend history={goldHistory} />
             {isPriceStale(goldPrice) && <span className="monetra-gold-stale">Price may be out of date</span>}
           </> : <span role={goldError ? 'alert' : 'status'}>{goldLoading ? 'Loading price…' : goldError ? `Could not load price: ${goldError}` : 'Price unavailable. Check your connection and try again.'}</span>}
         </div>

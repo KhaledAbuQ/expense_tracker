@@ -149,7 +149,17 @@ export default function Mobile({
     return () => observer.disconnect()
   }, [activeTab, moreSubView, adding, editingExpense])
 
-  const { price: widgetGoldPrice, loading: goldLoading, refreshing: goldRefreshing, error: goldError, refresh: refreshGold } = useGoldPrice()
+  const { price: widgetGoldPrice, history: goldHistory, loading: goldLoading, refreshing: goldRefreshing, error: goldError, refresh: refreshGold } = useGoldPrice()
+
+  useEffect(() => {
+    if (!standalone || !widgetGoldPrice) return
+    const snapshot = JSON.stringify({
+      price: Number(widgetGoldPrice.price_21k),
+      updatedAt: format(new Date(widgetGoldPrice.fetched_at), 'MMM d, h:mm a'),
+      history: goldHistory,
+    })
+    void ExpenseWidget.updateGoldWidget({ snapshot }).catch(() => {})
+  }, [standalone, widgetGoldPrice, goldHistory])
   useEffect(() => {
     const update = () => setSavingsPlanRevision(value => value + 1)
     window.addEventListener(SAVINGS_PLAN_CHANGED, update)
@@ -553,6 +563,7 @@ export default function Mobile({
             <MobileHome
               header={mobileHeader('home')}
               goldPrice={widgetGoldPrice}
+              goldHistory={goldHistory}
               goldLoading={goldLoading}
               goldRefreshing={goldRefreshing}
               goldError={goldError}

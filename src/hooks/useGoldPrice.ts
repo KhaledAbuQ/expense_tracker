@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { GoldPrice } from '../types'
 
@@ -56,13 +57,21 @@ function readLocalCache(): GoldPrice | null {
 
 type GoldQuote = { timestamp: number; price: number }
 
+function dailyQuotes(history: GoldQuote[]): GoldQuote[] {
+  const days = new Map<string, GoldQuote>()
+  for (const quote of history.sort((a, b) => a.timestamp - b.timestamp)) {
+    days.set(format(quote.timestamp, 'yyyy-MM-dd'), quote)
+  }
+  return [...days.values()].slice(-HISTORY_LIMIT)
+}
+
 function readHistory(): GoldQuote[] {
   try {
     const stored: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]')
     if (!Array.isArray(stored)) return []
-    return stored.filter((quote): quote is GoldQuote =>
-      quote != null && Number.isFinite(quote.timestamp) && Number.isFinite(quote.price) && quote.price > 0,
-    ).sort((a, b) => a.timestamp - b.timestamp).slice(-HISTORY_LIMIT)
+    return dailyQuotes(stored.filter((quote): quote is GoldQuote =>
+      quote != null && Number.isFinite(new Date(quote.timestamp).getTime()) && typeof quote.timestamp === 'number' && Number.isFinite(quote.price) && quote.price > 0,
+    ))
   } catch {
     return []
   }
@@ -72,8 +81,7 @@ function addQuote(history: GoldQuote[], quote: GoldPrice): GoldQuote[] {
   const timestamp = Date.parse(quote.fetched_at)
   const price = Number(quote.price_21k)
   if (!Number.isFinite(timestamp) || !Number.isFinite(price) || price <= 0) return history
-  return [...history.filter(point => point.timestamp !== timestamp), { timestamp, price }]
-    .sort((a, b) => a.timestamp - b.timestamp).slice(-HISTORY_LIMIT)
+  return dailyQuotes([...history, { timestamp, price }])
 }
 
 export function useGoldPrice() {
@@ -102,10 +110,7 @@ export function useGoldPrice() {
         const cached = readLocalCache()
         const savedHistory = readHistory()
         const nextHistory = addQuote(cached ? addQuote(savedHistory, cached) : savedHistory, fresh)
-        setHistory(previous => {
-          const merged = new Map([...previous, ...nextHistory].map(point => [point.timestamp, point]))
-          return [...merged.values()].sort((a, b) => a.timestamp - b.timestamp).slice(-HISTORY_LIMIT)
-        })
+        setHistory(previous => dailyQuotes([...previous, ...nextHistory]))
         try { localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory)) } catch { /* Cache is optional. */ }
         setPrice(fresh)
         setError(null)

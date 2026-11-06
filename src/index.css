@@ -386,7 +386,7 @@ body {
 .monetra-home-screen .monetra-header { position: relative; width: 100%; padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 12px); border-radius: 0; }
 .monetra-home-screen .monetra-overview { position: sticky; top: 0; z-index: 0; border-radius: 26px; box-shadow: inset 0 0 0 1px var(--pocket-line); }
 .monetra-home-screen .monetra-action-strip { position: relative; z-index: 1; }
-.monetra-home-screen .monetra-activity { position: relative; z-index: 2; min-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); border-radius: 26px; box-shadow: 0 -10px 30px #00000018, inset 0 0 0 1px var(--pocket-line); }
+.monetra-home-screen .monetra-activity { position: relative; z-index: 2; min-height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 30px #00000018, inset 0 0 0 1px var(--pocket-line); }
 
 /* Dark mode mirrors the reference's monochrome surfaces; accents stay colored. */
 .dark :is(.pocket-native, .mobile-client) :is([class~="dark:bg-gray-800"], [class~="dark:bg-gray-900"], [class~="dark:bg-slate-950"]) { background-color: var(--pocket-paper); }
@@ -433,7 +433,7 @@ body {
 .monetra-home-screen .monetra-header { flex-shrink: 0; }
 .monetra-home-screen .monetra-home { display: flex; flex-direction: column; flex: 1; }
 .monetra-home-screen .monetra-overview, .monetra-home-screen .monetra-action-strip { flex-shrink: 0; }
-.monetra-home-screen .monetra-activity { flex: 1; padding-bottom: max(100px, calc(84px + env(safe-area-inset-bottom, 0px))); border-radius: 26px; }
+.monetra-home-screen .monetra-activity { flex: 1; padding-bottom: max(100px, calc(84px + env(safe-area-inset-bottom, 0px))); border-radius: 26px 26px 0 0; }
 
 
 /* A distinct capsule stays visible against both white and dark cards. */
@@ -516,13 +516,13 @@ html.pocket-native-document.dark, html.pocket-native-document.dark body, html.po
   --pocket-muted: #b1b3bf;
   --pocket-line: #303030;
   --pocket-lavender: #38394c;
-  background: #E7E5E4;
+  background: #18181b;
 }
-html.pocket-native-document.dark, html.pocket-native-document.dark body, html.pocket-native-document.dark #root { background: #E7E5E4; }
-.dark .mobile-client:is(.monetra-home-screen, .monetra-expenses-screen), .dark .bills-expenses { background: #E7E5E4; }
-.dark .monetra-action-strip, .dark .monetra-expenses-screen .bills-action-strip { background: #E7E5E4; }
-.dark .mobile-client :is(.monetra-action-strip, .bills-action-strip) button { background: linear-gradient(#fafaff, #e9eaf2); border-color: #ffffffb0; color: #23252c; box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px #00000020; }
-.dark :is(.monetra-action-strip, .bills-action-strip) button > span { background: #23252c0d; }
+html.pocket-native-document.dark, html.pocket-native-document.dark body, html.pocket-native-document.dark #root { background: #18181b; }
+.dark .mobile-client:is(.monetra-home-screen, .monetra-expenses-screen), .dark .bills-expenses { background: #18181b; }
+.dark .monetra-action-strip, .dark .monetra-expenses-screen .bills-action-strip { background: #18181b; }
+.dark .mobile-client :is(.monetra-action-strip, .bills-action-strip) button { background: #29292e; border-color: #41414a; color: #efeff4; box-shadow: 0 3px 8px #00000030; }
+.dark :is(.monetra-action-strip, .bills-action-strip) button > span { background: #ffffff12; }
 .dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #f0f1f7; border-color: #ffffffb0; color: #292b32; }
 .dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #242424; border-color: #383838; color: #eeeeee; }
 .dark .mobile-client .monetra-category-review, .dark :is(.bills-calendar, .bills-tabs, .bills-help) { background: #242424; }
@@ -645,7 +645,7 @@ html.pocket-native-document.dark, html.pocket-native-document.dark body, html.po
   padding-top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + 26px);
 }
 .mobile-swipe-page.monetra-expenses-screen { padding-bottom: 0; }
-.dark .mobile-swipe-page:is(.monetra-home-screen, .monetra-expenses-screen) { background: #e7e5e4; }
+.dark .mobile-swipe-page:is(.monetra-home-screen, .monetra-expenses-screen) { background: #18181b; }
 
 @keyframes route-view-forward-old { to { opacity: 0; transform: translateX(-5%); } }
 @keyframes route-view-forward-new { from { opacity: 0; transform: translateX(5%); } }
@@ -666,3 +666,23 @@ html[data-page-direction="backward"]::view-transition-new(root) { animation-name
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
   .mobile-page-pager { scroll-behavior: auto; transition: none; }
 }
+
+.monetra-gold-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+.monetra-gold-chart { grid-column: 1 / -1; font-size: 11px; color: var(--gold-trend-ink, #795511); }
+.monetra-gold-trend { margin: 0; color: inherit; }
+.monetra-gold-trend svg { height: 64px; }
+.monetra-gold-trend-heading, .monetra-gold-trend figcaption { display: flex; justify-content: space-between; gap: 8px; }
+.dark .monetra-gold-card { --gold-trend-ink: #eac578; background: linear-gradient(135deg, #2c271f, #382d1a); border-color: #594626; color: #f4e4c1; }
+.dark .monetra-gold-card-copy :is(p, span) { color: #d1b985; }
+.dark .monetra-gold-card-copy > .monetra-gold-stale { color: #efa86c; }
+.dark :is(.monetra-gold-card-icon, .monetra-gold-refresh) { background: #453619; border-color: #65502a; color: #f0ce87; }
+.dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] {
+  background: #4b5068; color: #f4f4f8; box-shadow: inset 0 1px 0 #ffffff20;
+}
+.bank-notifications .bank-notifications-panel { background: var(--pocket-paper, #fff); color: var(--pocket-ink, #18191b); }
+.bank-notifications .bank-scan-card { background: var(--pocket-lavender, #f0eeff); border-color: var(--pocket-line, #ebebef); }
+.dark .bank-notifications .bank-notifications-panel { background: var(--pocket-paper, #242424); color: var(--pocket-ink, #f4f4f8); }
+.dark .bank-notifications .bank-scan-card { background: var(--pocket-lavender, #38394c); border-color: var(--pocket-line, #41444f); }
+
+.home-peep { flex: 0 0 auto; image-rendering: pixelated; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .home-peep { display: none; } }

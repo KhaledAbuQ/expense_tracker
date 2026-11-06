@@ -1,4 +1,14 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/reference_widget_root" android:layout_width="match_parent" android:layout_height="match_parent">
     <ImageView android:id="@+id/reference_widget_art" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:contentDescription="Pocket Expenses widget" />
+    <ViewFlipper
+        android:id="@id/peep_frames"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="55dp"
+        android:layout_marginEnd="16dp"
+        android:autoStart="true"
+        android:flipInterval="100"
+        android:visibility="gone" />
     <TextView android:id="@+id/reference_widget_footer" android:layout_width="match_parent" android:layout_height="48dp" android:layout_gravity="bottom" android:contentDescription="Widget action" />
 </FrameLayout>

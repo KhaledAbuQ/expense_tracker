@@ -31,9 +31,10 @@ public class PocketExpensesWidgetProvider extends AppWidgetProvider {
         FinanceWidgetProvider.update(context, appWidgetManager, appWidgetId, "pocket");
     }
 
-    private static int categoryIcon(String icon) {
+    static int categoryIcon(String icon) {
         if ("utensils".equals(icon)) return R.drawable.widget_dining_icon;
         if ("shopping-cart".equals(icon) || "shopping-bag".equals(icon)) return R.drawable.widget_grocery_icon;
+        if ("zap".equals(icon)) return R.drawable.widget_utility_icon;
         if ("car".equals(icon)) return R.drawable.widget_transport_icon;
         return R.drawable.widget_category_icon;
     }

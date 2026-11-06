@@ -30,6 +30,13 @@
 
         </activity>
 
+        <receiver android:name=".PeepWidgetProvider" android:label="Daily Peep" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_peep_info" />
+        </receiver>
+
         <receiver android:name=".GoldWidgetProvider" android:label="Gold Price" android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

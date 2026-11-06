@@ -191,7 +191,7 @@ export default function BankSmsTrackerModal({
     }
   }
 
-  const handleScan = async (days: number = 0) => {
+  const handleScan = async (days: number | 'today' = 0) => {
     setScanning(true)
     try {
       const found = await scanRecentBankTransactions(categories, days, 500)
@@ -298,8 +298,8 @@ export default function BankSmsTrackerModal({
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="bank-sms-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl dark:bg-gray-900 dark:text-gray-100">
+    <div role="dialog" aria-modal="true" aria-labelledby="bank-sms-title" className="bank-notifications fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="bank-notifications-panel flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white text-slate-900 shadow-2xl dark:bg-gray-900 dark:text-gray-100">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-gray-700">
           <div className="flex items-center gap-2.5">
@@ -307,8 +307,8 @@ export default function BankSmsTrackerModal({
               <MessageSquare size={22} />
             </div>
             <div>
-              <h2 id="bank-sms-title" className="text-lg font-bold text-slate-900 dark:text-white">Bank SMS Auto-Tracking</h2>
-              <p className="text-xs text-slate-500 dark:text-gray-400">Scan & auto-track bank debit/credit messages by date</p>
+              <h2 id="bank-sms-title" className="text-lg font-bold text-slate-900 dark:text-white">Notifications</h2>
+              <p className="text-xs text-slate-500 dark:text-gray-400">Review bank transactions and manage SMS scanning</p>
             </div>
           </div>
           <button
@@ -386,7 +386,7 @@ export default function BankSmsTrackerModal({
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">All caught up!</h3>
                   <p className="mt-1 text-xs text-slate-500 dark:text-gray-400 max-w-xs mx-auto">
-                    No pending bank transactions waiting for approval. To scan past bank messages (last 7 days, 30 days, or all messages), open the Settings tab.
+                    No pending bank transactions waiting for approval. To scan past bank messages (today, the last 7 days, or all messages), open the Settings tab.
                   </p>
                   <button
                     onClick={() => setActiveTab('settings')}
@@ -688,11 +688,11 @@ export default function BankSmsTrackerModal({
             </div>
           )}
 
-          {/* TAB 2: SETTINGS (Includes Auto/Approval mode & Scan Old Messages: 7 days, 30 days, all) */}
+          {/* TAB 2: SETTINGS (Includes Auto/Approval mode & Scan Old Messages: today, 7 days, all) */}
           {activeTab === 'settings' && (
             <div className="space-y-4 text-xs">
               {/* Scan Old Bank Messages Section */}
-              <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
+              <div className="bank-scan-card space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="flex items-center gap-1.5 font-bold text-indigo-950 dark:text-indigo-100">
@@ -708,24 +708,24 @@ export default function BankSmsTrackerModal({
                 <div className="flex flex-col sm:flex-row gap-2 pt-1">
                   <button
                     disabled={scanning}
-                    onClick={() => void handleScan(7)}
+                    onClick={() => void handleScan('today')}
                     className="flex-1 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-50/80 disabled:opacity-50 dark:border-indigo-800 dark:bg-gray-800 dark:text-indigo-200 dark:hover:bg-gray-700"
                   >
-                    📅 Last 7 Days
+                    Scan Today
                   </button>
                   <button
                     disabled={scanning}
-                    onClick={() => void handleScan(30)}
+                    onClick={() => void handleScan(7)}
                     className="flex-1 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-900 shadow-sm transition hover:bg-indigo-50/80 disabled:opacity-50 dark:border-indigo-800 dark:bg-gray-800 dark:text-indigo-200 dark:hover:bg-gray-700"
                   >
-                    📅 Last 30 Days
+                    Last 7 Days
                   </button>
                   <button
                     disabled={scanning}
                     onClick={() => void handleScan(0)}
                     className="flex-1 rounded-xl bg-indigo-600 py-2.5 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition"
                   >
-                    🔄 All Messages
+                    All Messages
                   </button>
                 </div>
 

@@ -36,7 +36,7 @@ interface NativeBankSmsPlugin {
   requestSmsPermissions(): Promise<{ granted: boolean; receiveSms: boolean; readSms: boolean }>
   checkNotificationPermission(): Promise<{ granted: boolean }>
   requestNotificationPermission(): Promise<{ granted: boolean }>
-  getRecentSms(options: { limit?: number; days?: number }): Promise<{ messages: RawSms[]; count: number }>
+  getRecentSms(options: { limit?: number; days?: number; today?: boolean }): Promise<{ messages: RawSms[]; count: number }>
   getPendingReceivedSms(): Promise<{ messages: RawSms[]; count: number }>
   clearPendingReceivedSms(): Promise<{ success: boolean }>
   updateSmsSettings(options: { mode: string; notify: boolean }): Promise<{ success: boolean }>
@@ -67,7 +67,7 @@ export function getSmsSettings(): SmsTrackingSettings {
         enabled: parsed.enabled ?? true,
         mode: parsed.mode === 'auto' ? 'auto' : 'approval',
         notifyEveryTransaction: parsed.notifyEveryTransaction ?? true,
-        defaultVisibility: parsed.defaultVisibility ?? 'household',
+        defaultVisibility: parsed.defaultVisibility ?? 'private',
         defaultAccount: parsed.defaultAccount ?? 'bank',
         scanDays: parsed.scanDays ?? 7,
         lastScanTimestamp: parsed.lastScanTimestamp,
@@ -82,7 +82,7 @@ export function getSmsSettings(): SmsTrackingSettings {
     enabled: true,
     mode: 'approval', // Default: Notify & ask for approval with edit option
     notifyEveryTransaction: true,
-    defaultVisibility: 'household',
+    defaultVisibility: 'private',
     defaultAccount: 'bank',
     scanDays: 7,
     autoDetectCategory: true,
@@ -224,11 +224,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
  */
 export async function scanRecentBankTransactions(
   categories: Category[] = [],
-  days: number = 0,
+  days: number | 'today' = 0,
   limit: number = 500
 ): Promise<ParsedBankTransaction[]> {
   try {
-    const res = await BankSms.getRecentSms({ days, limit })
+    const res = await BankSms.getRecentSms(days === 'today' ? { today: true, limit } : { days, limit })
     if (!res || !res.messages) return []
 
     const processed = getProcessedSmsIds()

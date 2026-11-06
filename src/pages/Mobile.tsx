@@ -1,3 +1,4 @@
+import HomePeep from '../components/HomePeep'
 import RapidTapPeek from '../components/RapidTapPeek'
 import { SAVINGS_PLAN_CHANGED, readSavingsPlan } from '../lib/savingsPlan'
 import { useGoldPrice } from '../hooks/useGoldPrice'
@@ -520,6 +521,7 @@ export default function Mobile({
               <p className="text-base font-semibold text-slate-900 dark:text-white">{tab === 'home' ? 'Pocket Expenses' : tab === 'expenses' ? 'Expenses' : tab === 'income' ? 'Income' : 'Your finances'}</p>
 
             </div>
+            {tab === 'home' && activeTab === 'home' && <HomePeep />}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={() => { setSmsModalTab('pending'); setSmsModalOpen(true) }} aria-label="Review bank transactions" className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 dark:bg-gray-800 dark:text-gray-200">
@@ -704,7 +706,7 @@ export default function Mobile({
                               )}
                             </div>
                             <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                              Auto-detection, approval mode & scan inbox (7/30/all days)
+                              Auto-detection, approval mode & scan inbox (today, 7 days, or all messages)
                             </p>
                           </div>
                         </div>

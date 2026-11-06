@@ -66,8 +66,15 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         else if(isRightActionBar(kind,w,h))layout=R.layout.widget_today_bar;
         else if(kind.equals("sendreceive"))layout=isWide(w,h)?R.layout.widget_send_horizontal:R.layout.widget_send_vertical;
         RemoteViews v=new RemoteViews(c.getPackageName(),layout);
-        v.setImageViewBitmap(R.id.reference_widget_art,render(kind,data,p,w,h));
+        v.setImageViewBitmap(R.id.reference_widget_art,render(c,kind,data,p,w,h));
         v.setContentDescription(R.id.reference_widget_art,kind+" · "+p.getString("month_label","This month")+" · monthly spending "+p.getString("month_total","JOD 0.000"));
+        if (kind.equals("pocket") && h >= 230 && w >= 180) {
+            v.setViewVisibility(R.id.peep_frames, View.VISIBLE);
+            PeepWidgetProvider.populateFrames(c, v);
+        } else if (kind.equals("pocket") && layout == R.layout.widget_adaptive_finance) {
+            v.setViewVisibility(R.id.peep_frames, View.GONE);
+            v.removeAllViews(R.id.peep_frames);
+        }
         if (kind.equals("gold")) {
             v.setContentDescription(R.id.reference_widget_art,
                     "21k gold · " + goldPriceLabel(data) + " · " + data.optString("updatedAt", "Open Pocket Expenses to load"));
@@ -111,7 +118,7 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
     private static boolean hasAdd(String kind){return kind.equals("todayspend")||kind.equals("pocket")||kind.equals("quickactions");}
     private static boolean isWide(float w,float h){return w>h*1.4f;}
     private static boolean isRightActionBar(String kind,float w,float h){return (hasAdd(kind)||kind.equals("smartsavings"))&&(h<90||(h<=140&&isWide(w,h)));}
-    private static Bitmap render(String kind,JSONObject d,SharedPreferences prefs,int width,int height){
+    private static Bitmap render(Context context,String kind,JSONObject d,SharedPreferences prefs,int width,int height){
         if(kind.equals("todayspend")||kind.equals("smartsavings"))return renderAdaptive(kind,d,width,height);
         // Draw at the actual launcher size; geometry and detail change with available space.
         float density=width*height>150000?1:2;
@@ -136,7 +143,8 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
             float footerY=h-48;
             if(!quick&&h>=180){
                 float gap=10,chipW=(w-pad*2-gap)/2,y=Math.min(h*.43f,baseline+35);
-                for(int i=0;i<2;i++){float x=pad+i*(chipW+gap);a.round(x,y,chipW,32,10,i==0?0xfff1eeff:0xfffff3ee);a.fit(prefs.getString(i==0?"dining_total":"grocery_total","JOD 0.000"),x+8,y+21,14,chipW-16,INK,false);}
+                drawCategoryChip(context, a, pad, y, chipW, prefs, true);
+                drawCategoryChip(context, a, pad + chipW + gap, y, chipW, prefs, false);
                 if(footerY-y>=85){a.text("Today",pad,footerY-37,12,GRAY,false);a.fit(prefs.getString(QuickActionsWidgetProvider.KEY_TODAY_TOTAL,"JOD 0.000"),pad,footerY-13,23,w-pad*2,INK,true);}
             }else if(quick&&h>=180)a.fit(d.optInt("todayCount",0)+" transactions today",pad,h*.52f,13,w-pad*2,GRAY,false);
             a.round(pad,footerY+6,w-pad*2,36,18,0xff202124);a.center("+ Add expense",w/2,footerY+29,13,Color.WHITE,true);
@@ -209,6 +217,21 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         }
         return bitmap;
     }
+    private static void drawCategoryChip(Context context, Art art, float x, float y, float width,
+                                         SharedPreferences prefs, boolean first) {
+        art.round(x, y, width, 32, 10, first ? 0xfff1eeff : 0xfffff3ee);
+        String iconName = prefs.getString(first ? "first_category_icon" : "second_category_icon", "");
+        android.graphics.drawable.Drawable icon = context.getDrawable(PocketExpensesWidgetProvider.categoryIcon(iconName));
+        if (icon != null) {
+            int left = Math.round(x + 6);
+            int top = Math.round(y + 9);
+            icon.setBounds(left, top, left + 14, top + 14);
+            icon.draw(art.c);
+        }
+        String amount = prefs.getString(first ? "dining_total" : "grocery_total", "JOD 0.000");
+        art.fit(amount, x + 24, y + 21, 13, width - 29, INK, false);
+    }
+
     private static String goldPriceLabel(JSONObject data) {
         double price = data.optDouble("price");
         return Double.isFinite(price) && price > 0

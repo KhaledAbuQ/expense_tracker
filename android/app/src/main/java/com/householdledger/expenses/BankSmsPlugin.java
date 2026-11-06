@@ -200,7 +200,15 @@ public class BankSmsPlugin extends Plugin {
             String[] projection = new String[] { "_id", "address", "body", "date" };
             String selection = null;
             String[] selectionArgs = null;
-            if (days > 0) {
+            if (Boolean.TRUE.equals(call.getBoolean("today"))) {
+                java.util.Calendar midnight = java.util.Calendar.getInstance();
+                midnight.set(java.util.Calendar.HOUR_OF_DAY, 0);
+                midnight.set(java.util.Calendar.MINUTE, 0);
+                midnight.set(java.util.Calendar.SECOND, 0);
+                midnight.set(java.util.Calendar.MILLISECOND, 0);
+                selection = "date >= ?";
+                selectionArgs = new String[] { String.valueOf(midnight.getTimeInMillis()) };
+            } else if (days > 0) {
                 long minDate = System.currentTimeMillis() - ((long) days * 24L * 60L * 60L * 1000L);
                 selection = "date >= ?";
                 selectionArgs = new String[] { String.valueOf(minDate) };

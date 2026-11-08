@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Sun, Moon, Laptop, ChevronDown } from 'lucide-react'
 import { useTheme, Theme } from '../context/ThemeContext'
+import DayNightSwitch from './DayNightSwitch'
 
 interface ThemeToggleProps {
   variant?: 'icon' | 'segmented' | 'dropdown'
@@ -130,20 +131,11 @@ export default function ThemeToggle({ variant = 'icon', className = '' }: ThemeT
     )
   }
 
-  // Default: icon toggle button
+  // The compact switch is shared by Appearance and the sign-in/header controls.
   return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      className={`p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${className}`}
-      aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
-      title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode (Current: ${theme})`}
-    >
-      {resolvedTheme === 'dark' ? (
-        <Sun className="w-5 h-5 text-amber-400 hover:text-amber-300 transition-transform hover:rotate-45" />
-      ) : (
-        <Moon className="w-5 h-5 text-gray-600 hover:text-indigo-600 transition-transform hover:-rotate-12" />
-      )}
-    </button>
+    <DayNightSwitch dark={resolvedTheme === 'dark'} onToggle={event => {
+      const bounds = event.currentTarget.getBoundingClientRect()
+      toggleTheme({ x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 })
+    }} className={className} />
   )
 }

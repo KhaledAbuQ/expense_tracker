@@ -44,38 +44,44 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
             ArrayList<SizeF> sizes=options.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES);
             if(sizes!=null&&!sizes.isEmpty()){
                 Map<SizeF,RemoteViews> layouts=new LinkedHashMap<>();
+                int pixelBudget=bitmapBudget(c,Math.min(8,sizes.size()));
                 for(SizeF size:sizes){
                     if(layouts.size()>=8)break;
-                    layouts.put(size,views(c,kind,data,p,Math.max(150,Math.round(size.getWidth())),Math.max(minimumHeight(kind),Math.round(size.getHeight()))));
+                    layouts.put(size,views(c,kind,data,p,Math.max(minimumWidth(kind),Math.round(size.getWidth())),Math.max(minimumHeight(kind),Math.round(size.getHeight())),pixelBudget));
                 }
                 m.updateAppWidget(id,new RemoteViews(layouts));return;
             }
         }
-        int minW=Math.max(150,options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,180));
+        int minW=Math.max(minimumWidth(kind),options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,180));
         int minH=Math.max(minimumHeight(kind),options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,180));
         int maxW=Math.max(minW,options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH,minW));
         int maxH=Math.max(minH,options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,minH));
-        if(adaptive)m.updateAppWidget(id,new RemoteViews(views(c,kind,data,p,maxW,minH),views(c,kind,data,p,minW,maxH)));
-        else m.updateAppWidget(id,views(c,kind,data,p,minW,minH));
+        if(adaptive)m.updateAppWidget(id,new RemoteViews(views(c,kind,data,p,maxW,minH,bitmapBudget(c,2)),views(c,kind,data,p,minW,maxH,bitmapBudget(c,2))));
+        else m.updateAppWidget(id,views(c,kind,data,p,minW,minH,bitmapBudget(c,1)));
     }
-    private static RemoteViews views(Context c,String kind,JSONObject data,SharedPreferences p,int w,int h){
-        w=Math.min(800,w);h=Math.min(800,h);
+    static RemoteViews views(Context c,String kind,JSONObject data,SharedPreferences p,int w,int h,int pixelBudget){
         boolean adaptive=true;
         int layout=R.layout.widget_adaptive_finance;
-        if(kind.equals("walletcard"))layout=R.layout.widget_wallet_adaptive;
+        if(kind.equals("pocket"))layout=R.layout.widget_spending_glass;
+        else if(kind.equals("gold"))layout=R.layout.widget_gold_glass;
+        else if(kind.equals("walletcard"))layout=R.layout.widget_wallet_adaptive;
         else if(isRightActionBar(kind,w,h))layout=R.layout.widget_today_bar;
         else if(kind.equals("sendreceive"))layout=isWide(w,h)?R.layout.widget_send_horizontal:R.layout.widget_send_vertical;
         RemoteViews v=new RemoteViews(c.getPackageName(),layout);
-        v.setImageViewBitmap(R.id.reference_widget_art,render(c,kind,data,p,w,h));
+        v.setImageViewBitmap(R.id.reference_widget_art,render(c,kind,data,p,w,h,pixelBudget));
         v.setContentDescription(R.id.reference_widget_art,kind+" · "+p.getString("month_label","This month")+" · monthly spending "+p.getString("month_total","JOD 0.000"));
-        if (kind.equals("pocket") && h >= 230 && w >= 180) {
+        if (showsPeep(kind, w, h)) {
             v.setViewVisibility(R.id.peep_frames, View.VISIBLE);
             PeepWidgetProvider.populateFrames(c, v);
-        } else if (kind.equals("pocket") && layout == R.layout.widget_adaptive_finance) {
+        } else if (kind.equals("pocket") && layout == R.layout.widget_spending_glass) {
             v.setViewVisibility(R.id.peep_frames, View.GONE);
             v.removeAllViews(R.id.peep_frames);
         }
         if (kind.equals("gold")) {
+            if (StyledWidgetRenderer.showsPot(w,h)) {
+                v.setViewVisibility(R.id.gold_pot_frames, View.VISIBLE);
+                GoldPotAnimation.populate(c,v);
+            }
             v.setContentDescription(R.id.reference_widget_art,
                     "21k gold · " + goldPriceLabel(data) + " · " + data.optString("updatedAt", "Open Pocket Expenses to load"));
         }
@@ -92,7 +98,8 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
             v.setOnClickPendingIntent(R.id.reference_widget_footer,launch(c,footerAction,613+footerAction.hashCode()));
             v.setContentDescription(R.id.reference_widget_art,hasAdd(kind)?"Spending JOD "+amount(data.optDouble("todayAmount",0))+", "+data.optInt("todayCount",0)+" transactions":"Savings JOD "+amount(data.optDouble("savingsAmount",0))+", goal JOD "+amount(data.optDouble("savingsGoal",0)));
         }
-        if(!hasAdd(kind)&&!kind.equals("smartsavings")&&!kind.equals("walletcard")&&!kind.equals("sendreceive"))v.setViewVisibility(R.id.reference_widget_footer,View.GONE);
+        if(!hasAdd(kind)&&!kind.equals("smartsavings")&&!kind.equals("walletcard")&&!kind.equals("sendreceive")&&!kind.equals("gold"))v.setViewVisibility(R.id.reference_widget_footer,View.GONE);
+        if(kind.equals("pocket"))v.setContentDescription(R.id.reference_widget_art,"Spent this month "+p.getString("month_total","JOD 0.000")+"; today "+p.getString("today_total","JOD 0.000"));
         if(kind.equals("walletcard")){
             Intent toggle=new Intent(c,WalletCardWidgetProvider.class).setAction(PRIVACY);
             v.setViewVisibility(R.id.reference_widget_footer,View.VISIBLE);v.setContentDescription(R.id.reference_widget_footer,p.getBoolean("wallet_hidden",true)?"Show bank balance":"Hide bank balance");
@@ -114,11 +121,21 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         void arc(RectF r,float start,float sweep,int color,float width){p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(width);p.setStrokeCap(Paint.Cap.BUTT);c.drawArc(r,start,sweep,false,p);p.setStyle(Paint.Style.FILL);}
         void arrow(float x,float y,float size,int color,boolean down){float sign=down?-1:1;line(x-size/2,y+sign*size/2,x+size/2,y-sign*size/2,color,3);line(x+size/2,y-sign*size/2,x-size/5,y-sign*size/2,color,3);line(x+size/2,y-sign*size/2,x+size/2,y+sign*size/5,color,3);}
     }
-    private static int minimumHeight(String kind){return kind.equals("gold")||kind.equals("monthreport")||kind.equals("dailycompare")||kind.equals("sendreceive")?90:48;}
+    private static int minimumWidth(String kind){return kind.equals("gold")||kind.equals("pocket")?48:150;}
+    private static int bitmapBudget(Context c,int count){
+        android.util.DisplayMetrics metrics=c.getResources().getDisplayMetrics();
+        return Math.max(12000,(int)(metrics.widthPixels*(double)metrics.heightPixels*.6/Math.max(1,count)));
+    }
+    private static int minimumHeight(String kind){return kind.equals("monthreport")||kind.equals("dailycompare")||kind.equals("sendreceive")?90:48;}
+    private static boolean showsPeep(String kind, float width, float height) {
+        return kind.equals("pocket") && StyledWidgetRenderer.showsPeep((int)width,(int)height);
+    }
+
     private static boolean hasAdd(String kind){return kind.equals("todayspend")||kind.equals("pocket")||kind.equals("quickactions");}
     private static boolean isWide(float w,float h){return w>h*1.4f;}
     private static boolean isRightActionBar(String kind,float w,float h){return (hasAdd(kind)||kind.equals("smartsavings"))&&(h<90||(h<=140&&isWide(w,h)));}
-    private static Bitmap render(Context context,String kind,JSONObject d,SharedPreferences prefs,int width,int height){
+    private static Bitmap render(Context context,String kind,JSONObject d,SharedPreferences prefs,int width,int height,int pixelBudget){
+        if(kind.equals("pocket")||kind.equals("gold"))return StyledWidgetRenderer.render(context,kind,d,prefs,width,height,pixelBudget);
         if(kind.equals("todayspend")||kind.equals("smartsavings"))return renderAdaptive(kind,d,width,height);
         // Draw at the actual launcher size; geometry and detail change with available space.
         float density=width*height>150000?1:2;
@@ -127,10 +144,6 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
         float w=width,h=height,pad=Math.min(20,Math.min(w,h)*.1f),r=Math.min(28,Math.min(w,h)*.2f);
         Art a=new Art(c,w,h);boolean wide=isWide(w,h),compact=h<150;
         a.gradient(0,0,w,h,r,Color.WHITE,0xfff6faff);
-        if (kind.equals("gold")) {
-            drawGold(a, d, pad, r);
-            return bitmap;
-        }
         double spending=d.optDouble("monthAmount",0),earning=d.optDouble("monthIncome",0),available=d.optDouble("availableAmount",0);
         JSONArray cats=topCategories(d.optJSONArray("categories")==null?new JSONArray():d.optJSONArray("categories"),5);
         if(kind.equals("pocket")||kind.equals("quickactions")){
@@ -142,10 +155,20 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
             if(bar){drawAdd(a,w-32,h/2,Math.min(48,h-8),true);return bitmap;}
             float footerY=h-48;
             if(!quick&&h>=180){
-                float gap=10,chipW=(w-pad*2-gap)/2,y=Math.min(h*.43f,baseline+35);
-                drawCategoryChip(context, a, pad, y, chipW, prefs, true);
-                drawCategoryChip(context, a, pad + chipW + gap, y, chipW, prefs, false);
-                if(footerY-y>=85){a.text("Today",pad,footerY-37,12,GRAY,false);a.fit(prefs.getString(QuickActionsWidgetProvider.KEY_TODAY_TOTAL,"JOD 0.000"),pad,footerY-13,23,w-pad*2,INK,true);}
+                float gap = 10;
+                float chipWidth = (w - pad * 2 - gap) / 2;
+                float chipY = Math.min(h * .43f, baseline + 35);
+                boolean peep = showsPeep(kind, w, h);
+                // Leave room for the 64dp Peep above the footer and to the right of today's total.
+                if (peep) chipY = Math.min(chipY, footerY - 104);
+                drawCategoryChip(context, a, pad, chipY, chipWidth, prefs, true);
+                drawCategoryChip(context, a, pad + chipWidth + gap, chipY, chipWidth, prefs, false);
+                if (footerY - chipY >= 85) {
+                    a.text("Today", pad, footerY - 37, 12, GRAY, false);
+                    float todayWidth = peep ? w - pad - 88 : w - pad * 2;
+                    a.fit(prefs.getString(QuickActionsWidgetProvider.KEY_TODAY_TOTAL, "JOD 0.000"),
+                            pad, footerY - 13, 23, todayWidth, INK, true);
+                }
             }else if(quick&&h>=180)a.fit(d.optInt("todayCount",0)+" transactions today",pad,h*.52f,13,w-pad*2,GRAY,false);
             a.round(pad,footerY+6,w-pad*2,36,18,0xff202124);a.center("+ Add expense",w/2,footerY+29,13,Color.WHITE,true);
         }else if(kind.equals("sendreceive")){
@@ -233,51 +256,11 @@ public abstract class FinanceWidgetProvider extends AppWidgetProvider {
     }
 
     private static String goldPriceLabel(JSONObject data) {
+        if (!"retail".equals(data.optString("basis"))) return "Open app for retail price";
         double price = data.optDouble("price");
         return Double.isFinite(price) && price > 0
                 ? String.format(Locale.US, "JOD %.2f/g", price)
                 : "Price unavailable";
-    }
-
-    private static void drawGold(Art art, JSONObject data, float pad, float radius) {
-        int gold = 0xff795511;
-        float contentWidth = art.w - 2 * pad;
-        art.gradient(0, 0, art.w, art.h, radius, 0xfffffaf0, 0xffffebbf);
-        art.text("21K GOLD", pad, pad + 10, 11, gold, true);
-        art.fit(goldPriceLabel(data), pad, pad + 36, 23, contentWidth, INK, true);
-        art.fit(data.has("updatedAt") ? "Quote " + data.optString("updatedAt") : "Open app to load price",
-                pad, art.h - pad, 10, contentWidth, gold, false);
-
-        JSONArray history = data.optJSONArray("history");
-        if (art.h < 116 || history == null || history.length() < 2) return;
-        double min = Double.POSITIVE_INFINITY;
-        double max = Double.NEGATIVE_INFINITY;
-        for (int i = 0; i < history.length(); i++) {
-            JSONObject point = history.optJSONObject(i);
-            if (point == null || !Double.isFinite(point.optDouble("price"))) return;
-            min = Math.min(min, point.optDouble("price"));
-            max = Math.max(max, point.optDouble("price"));
-        }
-
-        double firstTime = history.optJSONObject(0).optDouble("timestamp");
-        double duration = history.optJSONObject(history.length() - 1).optDouble("timestamp") - firstTime;
-        if (!Double.isFinite(duration) || duration <= 0) return;
-
-        float top = pad + 48;
-        float bottom = art.h - pad - 18;
-        float previousX = pad;
-        float previousY = 0;
-        for (int i = 0; i < history.length(); i++) {
-            JSONObject point = history.optJSONObject(i);
-            double elapsed = point.optDouble("timestamp") - firstTime;
-            if (!Double.isFinite(elapsed)) return;
-            float x = pad + contentWidth * (float) (elapsed / duration);
-            float y = max == min ? (top + bottom) / 2
-                    : bottom - (bottom - top) * (float) ((point.optDouble("price") - min) / (max - min));
-            if (i > 0) art.line(previousX, previousY, x, y, gold, 2);
-            previousX = x;
-            previousY = y;
-        }
     }
 
     private static void drawAdd(Art a,float cx,float cy,float size,boolean blue){a.gradient(cx-size/2,cy-size/2,size,size,size/2,blue?BLUE:0xff333333,blue?0xff105ab5:0xff111111);a.line(cx-8,cy,cx+8,cy,Color.WHITE,2.5f);a.line(cx,cy-8,cx,cy+8,Color.WHITE,2.5f);}

@@ -1,7 +1,7 @@
 import { useRapidTapPeek } from '../hooks/useRapidTapPeek'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { differenceInCalendarDays, format, startOfMonth, subMonths } from 'date-fns'
-import { ArrowDownCircle, BarChart3, ChevronRight, Coins, HandCoins, Plus, Wallet, RefreshCw } from 'lucide-react'
+import { format, startOfMonth, subMonths } from 'date-fns'
+import { ArrowDownCircle, BarChart3, ChevronRight, Coins, HandCoins, Plus, Wallet } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useExpenses } from '../hooks/useExpenses'
 import { useIncome } from '../hooks/useIncome'
@@ -10,7 +10,7 @@ import { calculateIncomeByAccount, calculateTotalExpenses, formatCurrency, group
 import CategoryIcon from './CategoryIcon'
 import MonthlySpendingBars from './MonthlySpendingBars'
 import MobileFinancialReport from './MobileFinancialReport'
-import { isPriceStale } from '../lib/gold'
+import GoldPriceCard from './GoldPriceCard'
 import type { GoldPrice } from '../types'
 
 interface Props {
@@ -30,36 +30,6 @@ interface Props {
   onSavings: () => void
   onTransfers: () => void
   onCategories: () => void
-}
-
-function GoldPriceTrend({ history }: { history: Props['goldHistory'] }) {
-  if (history.length < 2) return <span>The daily trend appears after quotes are saved on two different days.</span>
-
-  const first = history[0]
-  const last = history[history.length - 1]
-  const prices = history.map(quote => quote.price)
-  const min = Math.min(...prices)
-  const max = Math.max(...prices)
-  const change = last.price - first.price
-  const days = differenceInCalendarDays(last.timestamp, first.timestamp)
-  const coordinates = history.map(quote => {
-    const x = 2 + 196 * differenceInCalendarDays(quote.timestamp, first.timestamp) / days
-    const y = max === min ? 32 : 58 - 52 * (quote.price - min) / (max - min)
-    return [x, y]
-  })
-  const points = coordinates.map(point => point.join(',')).join(' ')
-  const dateLabel = (timestamp: number) => format(new Date(timestamp), 'MMM d')
-  const changeLabel = `${change > 0 ? '+' : ''}${change.toFixed(2)} JOD/g`
-
-  return <figure className="monetra-gold-trend">
-    <div className="monetra-gold-trend-heading"><span>Daily 21k price</span><strong>{changeLabel}</strong></div>
-    <svg viewBox="0 0 200 64" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M2 6H198 M2 32H198 M2 58H198" stroke="currentColor" strokeOpacity=".18" strokeDasharray="3 3" />
-      <polygon points={`2,62 ${points} 198,62`} fill="currentColor" opacity=".12" />
-      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-    </svg>
-    <figcaption><span>{dateLabel(first.timestamp)}</span><span>{dateLabel(last.timestamp)}</span></figcaption>
-  </figure>
 }
 
 export default function MobileHome({ header, goldPrice, goldHistory, goldLoading, goldRefreshing, goldError, onRefreshGold, reportOpen, onOpenReport, onCloseReport, onAdd, onExpenses, onIncome, onSavings, onTransfers, onCategories }: Props) {
@@ -147,22 +117,7 @@ export default function MobileHome({ header, goldPrice, goldHistory, goldLoading
         </div>}
         <button type="button" className="monetra-all-activity" onClick={onExpenses}>View expenses <ChevronRight size={15} /></button>
       </>}
-      <section className="monetra-gold-card" aria-label="Gold spot reference in Jordanian dinars">
-        <div className="monetra-gold-card-icon"><Coins size={20} /></div>
-        <div className="monetra-gold-card-copy">
-          <p>Gold in JOD <a href="https://api.gold-api.com/price/XAU" target="_blank" rel="noreferrer">· Live spot reference</a></p>
-          {goldPrice ? <>
-            <strong>{Number(goldPrice.price_21k).toFixed(2)} <small>JOD / g · 21k</small></strong>
-            <span>24k: {Number(goldPrice.price_24k).toFixed(2)} JOD / g · indicative market spot</span>
-            <span>Updated {format(new Date(goldPrice.fetched_at), 'MMM d, h:mm a')}</span>
-            {isPriceStale(goldPrice) && <span className="monetra-gold-stale">Price may be out of date</span>}
-          </> : <span role={goldError ? 'alert' : 'status'}>{goldLoading ? 'Loading price…' : goldError ? `Could not load price: ${goldError}` : 'Price unavailable. Check your connection and try again.'}</span>}
-        </div>
-        <button type="button" className="monetra-gold-refresh" onClick={() => void onRefreshGold()} disabled={goldRefreshing} aria-label="Refresh gold price" title="Refresh gold price">
-          <RefreshCw size={16} className={goldRefreshing ? 'animate-spin' : ''} />
-        </button>
-        {goldPrice && <div className="monetra-gold-chart"><GoldPriceTrend history={goldHistory} /></div>}
-      </section>
+      <GoldPriceCard price={goldPrice} history={goldHistory} loading={goldLoading} refreshing={goldRefreshing} error={goldError} onRefresh={() => onRefreshGold()} />
     </section>
 
   </div>

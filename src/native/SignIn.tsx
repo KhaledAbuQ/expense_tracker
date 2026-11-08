@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { App } from '@capacitor/app'
-import { Wallet, Database, Fingerprint } from 'lucide-react'
+import { Database, Fingerprint } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase, isSupabaseConfigured, getActiveSupabaseConfig } from '../lib/supabase'
 import ServerConfigForm from '../components/ServerConfigForm'
 import { BiometricAuth, checkBiometricStatus, type BiometricAvailability } from '../lib/biometrics'
 import ThemeToggle from '../components/ThemeToggle'
+import WeeklyAppIcon from '../components/WeeklyAppIcon'
 import MobileWelcome from '../components/MobileWelcome'
 
 const PENDING_ONBOARDING_KEY = 'expense_tracker_pending_onboarding'
@@ -232,10 +233,8 @@ export default function NativeSignIn() {
     <main className="mobile-client flex min-h-dvh items-center bg-slate-50 dark:bg-slate-950 px-6 py-10 text-slate-900 dark:text-slate-100 transition-colors">
       <div className="mx-auto w-full max-w-sm">
         <div className="flex items-center justify-between mb-4">
-          <div className="inline-flex rounded-2xl bg-indigo-600 p-3.5 text-white shadow-sm">
-            <Wallet size={28} />
-          </div>
-          <ThemeToggle variant="icon" className="rounded-full bg-white dark:bg-gray-800 p-2.5 shadow-sm text-slate-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition" />
+          <WeeklyAppIcon alt="Pocket Expenses" className="h-14 w-14 object-contain" />
+          <ThemeToggle />
         </div>
 
         <div className="mb-6">

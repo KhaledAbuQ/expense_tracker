@@ -2,45 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { GoldPrice } from '../types'
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { GOLD_RETAIL_SOURCE, parseRetailGold } from '../lib/goldRetail'
 
-const GOLD_API_URL = 'https://api.gold-api.com/price/XAU'
-const LOCAL_CACHE_KEY = 'pocket_expense_gold_spot_jod_v1'
-const HISTORY_KEY = 'pocket_expense_gold_history_v1'
-const HISTORY_LIMIT = 30
+const GOLD_API_URL = '/api/gold-price'
+const LOCAL_CACHE_KEY = 'pocket_expense_gold_retail_jod_v2'
+const HISTORY_KEY = 'pocket_expense_gold_retail_history_v2'
+const HISTORY_LIMIT = 365
 const MIN_REFRESH_INTERVAL_MS = 60 * 1000
-const JOD_PER_USD = 0.709
-const GRAMS_PER_TROY_OUNCE = 31.1034768
-interface GoldApiResponse {
-  symbol?: unknown
-  currency?: unknown
-  price?: unknown
-  updatedAt?: unknown
-}
-
-function fromUsdSpot(body: GoldApiResponse): GoldPrice {
-  const usdPerOunce = Number(body.price)
-  if (body.symbol !== 'XAU' || body.currency !== 'USD' || !Number.isFinite(usdPerOunce) || usdPerOunce <= 0) {
-    throw new Error('The gold price API returned an invalid quote.')
-  }
-
-  const updatedAt = typeof body.updatedAt === 'string' ? new Date(body.updatedAt) : new Date()
-  if (!Number.isFinite(updatedAt.getTime())) throw new Error('The gold price API returned an invalid timestamp.')
-
-  const price24k = usdPerOunce * JOD_PER_USD / GRAMS_PER_TROY_OUNCE
-  const priceAtKarat = (karat: number) => Number((price24k * karat / 24).toFixed(4))
-  const fetchedAt = updatedAt.toISOString()
-
-  return {
-    id: `gold-api-xau-${updatedAt.getTime()}`,
-    price_24k: priceAtKarat(24),
-    price_22k: priceAtKarat(22),
-    price_21k: priceAtKarat(21),
-    price_18k: priceAtKarat(18),
-    price_14k: priceAtKarat(14),
-    source: 'spot_peg',
-    source_detail: `${GOLD_API_URL} — USD/troy oz converted at 0.709 JOD/USD`,
-    fetched_at: fetchedAt,
-  }
+function validRetailQuote(quote: GoldPrice): boolean {
+  return quote?.source === 'jordan_scrape' && quote.quote_basis === 'retail'
+    && Number.isFinite(Date.parse(quote.fetched_at))
+    && [quote.price_24k, quote.price_22k, quote.price_21k, quote.price_18k, quote.price_14k].every(value => typeof value === 'number' && Number.isFinite(value) && value > 0)
 }
 
 function readLocalCache(): GoldPrice | null {
@@ -48,7 +21,7 @@ function readLocalCache(): GoldPrice | null {
     const raw = localStorage.getItem(LOCAL_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as GoldPrice
-    if (!parsed.fetched_at || !Number.isFinite(Number(parsed.price_24k)) || Number(parsed.price_24k) <= 0) return null
+    if (!validRetailQuote(parsed)) return null
     return parsed
   } catch {
     return null
@@ -98,14 +71,19 @@ export function useGoldPrice() {
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 12_000)
     try {
-      const response = await fetch(GOLD_API_URL, {
-        headers: { Accept: 'application/json' },
-        cache: 'no-cache',
-        signal: controller.signal,
-      })
-      if (!response.ok) throw new Error(`Gold price API returned HTTP ${response.status}.`)
-
-      const fresh = fromUsdSpot(await response.json() as GoldApiResponse)
+      let fresh: GoldPrice
+      if (Capacitor.isNativePlatform()) {
+        const response = await CapacitorHttp.get({ url: GOLD_RETAIL_SOURCE, headers: { Accept: 'text/html' }, responseType: 'text', connectTimeout: 10_000, readTimeout: 10_000 })
+        if (response.status !== 200 || typeof response.data !== 'string') throw new Error('Could not load the syndicate retail price.')
+        fresh = parseRetailGold(response.data)
+      } else {
+        const response = await fetch(GOLD_API_URL, { headers: { Accept: 'application/json' }, cache: 'no-cache', signal: controller.signal })
+        if (!response.ok) throw new Error(`Retail gold feed returned HTTP ${response.status}.`)
+        fresh = response.headers.get('content-type')?.includes('text/html')
+          ? parseRetailGold(await response.text())
+          : await response.json() as GoldPrice
+        if (!validRetailQuote(fresh)) throw new Error('The feed did not return a valid retail gold quote.')
+      }
       if (currentRequest === requestId.current) {
         const cached = readLocalCache()
         const savedHistory = readHistory()

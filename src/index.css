@@ -92,7 +92,13 @@ body {
 .mobile-client .monetra-header { margin: 0; padding: 26px 18px 18px; background: var(--pocket-paper); }
 .mobile-client .monetra-header > div:first-child > span { width: 28px; height: 28px; }
 .mobile-client .monetra-header p { font-size: 16px; letter-spacing: -.6px; }
-.mobile-client .monetra-header button { width: 36px; height: 36px; min-height: 36px; background: #f6f6f6; color: #656568; }
+.mobile-client .monetra-header button:not(.day-night-switch):not(.home-peep-button) { width: 36px; height: 36px; min-height: 36px; background: #f6f6f6; color: #656568; }
+.mobile-client .monetra-home-header p { font-size: 14px; line-height: 1.2; }
+@media (max-width: 380px) {
+  .mobile-client .monetra-home-header { flex-wrap: wrap; }
+  .monetra-home-header > div:first-child { flex: 1 1 100%; }
+  .monetra-home-header > div:last-child { width: 100%; justify-content: flex-end; }
+}
 .monetra-overview { background: var(--pocket-paper); border-radius: 0 0 26px 26px; overflow: hidden; }
 .monetra-stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 18px 24px; gap: 12px; }
 .monetra-stat p { color: var(--pocket-muted); font-size: 12px; margin-bottom: 3px; }
@@ -142,20 +148,6 @@ body {
 .monetra-home-insights span { display: block; font-size: 10px; line-height: 1.5; color: var(--pocket-muted); }
 .monetra-home-insights .monetra-home-top-category { grid-column: 1 / -1; padding-right: 38px; }
 .monetra-home-top-category > svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--pocket-muted); }
-.monetra-gold-card { display: flex; align-items: center; gap: 12px; margin: 0 0 20px; padding: 15px; border: 1px solid #e9d6a5; border-radius: 20px; background: linear-gradient(135deg, #fffaf0, #fff4d9); color: #352b19; }
-.monetra-gold-card-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 14px; background: #f6e7be; color: #9b6b13; }
-.monetra-gold-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.monetra-gold-card-copy p { margin: 0; font-size: 12px; color: #786846; }
-.monetra-gold-card-copy p a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-.monetra-gold-card-copy strong { font-size: 22px; letter-spacing: -.5px; }
-.monetra-gold-card-copy strong small { font-size: 11px; font-weight: 500; letter-spacing: 0; }
-.monetra-gold-card-copy > span { font-size: 10px; color: #887958; }
-.monetra-gold-card-copy > .monetra-gold-stale { color: #a44f16; }
-.monetra-gold-trend { margin: 4px 0 0; color: #795511; }
-.monetra-gold-trend svg { display: block; width: 100%; height: 44px; }
-.monetra-gold-trend figcaption { margin-top: 3px; font-size: 10px; }
-.monetra-gold-refresh { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid #e8d9b5; border-radius: 12px; background: #fffdf8; color: #8a671e; }
-.monetra-gold-refresh:disabled { opacity: .55; }
 .monetra-upcoming-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .monetra-upcoming-heading h2 { font-size: 17px; font-weight: 650; color: var(--pocket-ink); }
 .monetra-upcoming-heading > span { font-size: 11px; color: var(--pocket-muted); }
@@ -395,7 +387,7 @@ body {
 .dark .monetra-action-strip { background: linear-gradient(110deg, #f4f4f4, #e7e7e7); }
 .dark .mobile-client :is(.monetra-action-strip, .bills-action-strip) button { background: linear-gradient(#ffffff, #ededed); border-color: #cecece; color: #181818; box-shadow: inset 0 0 0 3px #ffffff50, 0 2px 3px #00000008; }
 .dark :is(.monetra-action-strip, .bills-action-strip) button > span { background: #0000000d; }
-.dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #292929; border-color: #333333; color: #dddddd; }
+.dark .mobile-client .monetra-header button:not(.day-night-switch):not(.home-peep-button), .dark .mobile-client .bills-header button { background: #292929; border-color: #333333; color: #dddddd; }
 .dark .bills-help-icon { background: #dddddd; color: #181818; }
 .dark .bills-header button svg circle { fill: #292929; }
 .dark .mobile-client .monetra-category-review, .dark :is(.bills-calendar, .bills-tabs, .bills-help) { background: #242424; }
@@ -523,8 +515,8 @@ html.pocket-native-document.dark, html.pocket-native-document.dark body, html.po
 .dark .monetra-action-strip, .dark .monetra-expenses-screen .bills-action-strip { background: #18181b; }
 .dark .mobile-client :is(.monetra-action-strip, .bills-action-strip) button { background: #29292e; border-color: #41414a; color: #efeff4; box-shadow: 0 3px 8px #00000030; }
 .dark :is(.monetra-action-strip, .bills-action-strip) button > span { background: #ffffff12; }
-.dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #f0f1f7; border-color: #ffffffb0; color: #292b32; }
-.dark .mobile-client .monetra-header button, .dark .mobile-client .bills-header button { background: #242424; border-color: #383838; color: #eeeeee; }
+.dark .mobile-client .monetra-header button:not(.day-night-switch):not(.home-peep-button), .dark .mobile-client .bills-header button { background: #f0f1f7; border-color: #ffffffb0; color: #292b32; }
+.dark .mobile-client .monetra-header button:not(.day-night-switch):not(.home-peep-button), .dark .mobile-client .bills-header button { background: #242424; border-color: #383838; color: #eeeeee; }
 .dark .mobile-client .monetra-category-review, .dark :is(.bills-calendar, .bills-tabs, .bills-help) { background: #242424; }
 .dark .monetra-review-icon { background: linear-gradient(#333333, #242424); }
 .dark .monetra-bars { background: repeating-linear-gradient(to top, transparent 0, transparent 36px, #ffffff06 37px, transparent 38px); }
@@ -667,15 +659,6 @@ html[data-page-direction="backward"]::view-transition-new(root) { animation-name
   .mobile-page-pager { scroll-behavior: auto; transition: none; }
 }
 
-.monetra-gold-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
-.monetra-gold-chart { grid-column: 1 / -1; font-size: 11px; color: var(--gold-trend-ink, #795511); }
-.monetra-gold-trend { margin: 0; color: inherit; }
-.monetra-gold-trend svg { height: 64px; }
-.monetra-gold-trend-heading, .monetra-gold-trend figcaption { display: flex; justify-content: space-between; gap: 8px; }
-.dark .monetra-gold-card { --gold-trend-ink: #eac578; background: linear-gradient(135deg, #2c271f, #382d1a); border-color: #594626; color: #f4e4c1; }
-.dark .monetra-gold-card-copy :is(p, span) { color: #d1b985; }
-.dark .monetra-gold-card-copy > .monetra-gold-stale { color: #efa86c; }
-.dark :is(.monetra-gold-card-icon, .monetra-gold-refresh) { background: #453619; border-color: #65502a; color: #f0ce87; }
 .dark .mobile-client .pocket-bottom-nav .monetra-nav-capsule button[aria-current="page"] {
   background: #4b5068; color: #f4f4f8; box-shadow: inset 0 1px 0 #ffffff20;
 }
@@ -685,4 +668,60 @@ html[data-page-direction="backward"]::view-transition-new(root) { animation-name
 .dark .bank-notifications .bank-scan-card { background: var(--pocket-lavender, #38394c); border-color: var(--pocket-line, #41444f); }
 
 .home-peep { flex: 0 0 auto; image-rendering: pixelated; pointer-events: none; }
-@media (prefers-reduced-motion: reduce) { .home-peep { display: none; } }
+@media (prefers-reduced-motion: reduce) { .home-peep, .home-peep-button { display: none !important; } }
+
+.mobile-client .monetra-header .home-peep-button { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 44px; min-height: 44px; border: 0; padding: 0; background: transparent; touch-action: manipulation; }
+.home-peep-button:focus-visible { outline: 2px solid var(--pocket-accent, #5267f5); outline-offset: 3px; border-radius: 8px; }
+.home-peep-flight { position: fixed; z-index: 2147483646; pointer-events: none; image-rendering: pixelated; animation: home-peep-fly 1.25s cubic-bezier(.4, 0, .8, .4) both; }
+@keyframes home-peep-fly {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  18% { transform: translate(-8px, 7px) rotate(-16deg) scale(.9); opacity: 1; }
+  55% { opacity: 1; }
+  100% { transform: translate(var(--peep-flight-x), var(--peep-flight-y)) rotate(600deg) scale(.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-peep-flight { animation: home-peep-fade .2s both; }
+  @keyframes home-peep-fade { to { opacity: 0; } }
+}
+
+/* Shared gold-card direction: warm glass, a living pot, and clear retail data. */
+.gold-market-card { --gold-ink: #302318; --gold-muted: #916d4e; --gold-grid: #e5c6a980; --gold-tooltip: #fffaf3; position: relative; overflow: hidden; margin: 0 0 20px; padding: clamp(16px, 4vw, 24px); border: 1.5px solid #fffdf6; border-radius: 28px; color: var(--gold-ink); background: radial-gradient(ellipse at 100% 100%, #ffd7a273, transparent 60%), linear-gradient(125deg, #fff3df, #fffaf5 48%, #ffe9d4); box-shadow: 0 12px 26px #8d583b10, inset 0 -2px 0 #f1cfa4; }
+.gold-market-card::before { content: ''; position: absolute; width: 130%; height: 200px; top: -145px; left: -30%; border-radius: 50%; background: #ffffff55; transform: rotate(-15deg); pointer-events: none; }
+.gold-market-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: relative; }
+.gold-karat-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 24px; background: linear-gradient(#ffe8bd, #ffd69a); color: #795019; border: 1px solid #fff6e4; box-shadow: 0 2px 3px #b6791b16; font-size: 12px; font-weight: 700; }
+.gold-karat-pill svg { color: #eda000; }
+.mobile-client .gold-market-refresh { display: grid; place-items: center; width: 36px; min-height: 36px; height: 36px; border-radius: 12px; border: 1px solid #edc8a4; background: #fff8ef; color: #97602d; box-shadow: 0 2px 4px #98672b10; }
+.gold-market-refresh:disabled { opacity: .5; }
+.gold-market-overview { display: grid; grid-template-columns: minmax(0, 1fr) clamp(78px, 26vw, 126px); align-items: center; margin: 10px 0 4px; gap: 4px; }
+.gold-market-copy { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.gold-market-price { font-size: clamp(24px, 7vw, 36px); font-weight: 750; line-height: 1.2; letter-spacing: -1.3px; white-space: nowrap; }
+.gold-market-price small { font-size: .7em; font-weight: 650; }
+.gold-market-source { font-size: 10px; color: var(--gold-muted); text-decoration: underline; text-underline-offset: 3px; }
+.gold-market-change { display: inline-flex; align-self: flex-start; align-items: center; flex-wrap: wrap; gap: 4px; color: #11812d; background: #d5edc4; padding: 5px 9px; border-radius: 24px; font-size: 11px; font-weight: 650; }
+.gold-market-change small { font-size: 10px; }
+.gold-market-change.is-down { color: #a74727; background: #ffdfcb; }
+.gold-market-note, .gold-market-stale { font-size: 9px; line-height: 1.5; color: var(--gold-muted); }
+.gold-market-stale { color: #b15025; }
+.gold-pot { display: block; width: 100%; max-height: 146px; overflow: visible; pointer-events: none; }
+.gold-pot-body { transform-origin: 80px 120px; animation: gold-pot-bob 3s ease-in-out infinite; }
+.gold-pot-coins { animation: gold-coins-bob 3s ease-in-out infinite; }
+.gold-pot-sparkles { transform-origin: 80px 40px; animation: gold-sparkle 2.1s ease-in-out infinite alternate; }
+@keyframes gold-pot-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-4px) rotate(2deg); } }
+@keyframes gold-coins-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes gold-sparkle { from { opacity: .45; transform: scale(.9); } to { opacity: 1; transform: scale(1.04); } }
+.gold-market-chart { position: relative; min-width: 0; margin-top: 16px; }
+.gold-market-chart-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; height: 92px; font-size: 10px; text-align: center; color: var(--gold-muted); border-top: 1px dashed var(--gold-grid); border-bottom: 1px dashed var(--gold-grid); }
+.gold-market-single-dot { width: 9px; height: 9px; border-radius: 50%; background: #ffb01f; box-shadow: 0 0 0 3px #fff5db; }
+.gold-market-ranges { display: flex; justify-content: space-between; gap: 5px; margin: 8px 0; }
+.mobile-client .gold-market-ranges button { min-height: 38px; flex: 1; border-radius: 22px; color: var(--gold-muted); font-size: 12px; font-weight: 650; background: transparent; }
+.mobile-client .gold-market-ranges button[aria-pressed="true"] { color: #fffaf0; background: linear-gradient(140deg, #e59a09, #bd7608); box-shadow: inset 0 1px #f7c46d; }
+.gold-market-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding-top: 11px; margin-top: 7px; border-top: 1px solid var(--gold-grid); font-size: 10px; color: var(--gold-muted); }
+.gold-market-footer small { margin-left: auto; font-size: 9px; }
+.dark .gold-market-card { --gold-ink: #fae7cd; --gold-muted: #cfac80; --gold-grid: #ac7f4444; --gold-tooltip: #322a21; border-color: #665035; background: radial-gradient(ellipse at 100% 100%, #59402380, transparent 65%), linear-gradient(125deg, #332b21, #29241f 48%, #3a2d20); box-shadow: inset 0 -2px 0 #6b4e2b; }
+.dark .gold-karat-pill { color: #f7cd8c; background: linear-gradient(#654820, #4e381d); border-color: #896536; }
+.dark .mobile-client .gold-market-refresh { background: #423223; color: #edc386; border-color: #6b4d2f; }
+.dark .gold-market-change { color: #a8e7a7; background: #315136; }
+.dark .gold-market-change.is-down { color: #ffc8a6; background: #633b29; }
+@media (max-width: 350px) { .gold-market-overview { grid-template-columns: minmax(0, 1fr) 74px; } .gold-market-price { font-size: 23px; } }
+@media (prefers-reduced-motion: reduce) { .gold-pot * { animation: none !important; } }
+.dark .gold-market-card::before { background: #f9c47b08; }

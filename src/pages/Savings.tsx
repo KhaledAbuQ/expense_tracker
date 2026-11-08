@@ -353,7 +353,7 @@ export default function SavingsPage({ openGoalPlanner = 0 }: { openGoalPlanner?:
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-amber-200 dark:border-amber-700/60">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Gold</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Gold · replacement value</p>
                 <p className="text-xl font-bold text-amber-700 dark:text-amber-400 mt-1">
                   {goldLoading && !goldPrice ? '...' : formatCurrency(goldValue)}
                 </p>
@@ -371,8 +371,7 @@ export default function SavingsPage({ openGoalPlanner = 0 }: { openGoalPlanner?:
               <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
                 {goldPrice ? (
                   <>
-                    {formatCurrency(Number(goldPrice.price_24k))}/g spot reference
-                    {goldPrice.source === 'spot_peg' && ' (world spot)'}
+                    {formatCurrency(Number(goldPrice.price_24k))}/g retail · before workmanship
                     {' · '}
                     {formatDate(goldPrice.fetched_at.slice(0, 10))}
                   </>

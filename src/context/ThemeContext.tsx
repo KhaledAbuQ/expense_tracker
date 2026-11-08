@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react'
+import { flushSync } from 'react-dom'
+import { runThemeTransition, type ThemeTransitionOrigin } from '../lib/themeTransition'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -6,7 +8,7 @@ interface ThemeContextType {
   theme: Theme
   resolvedTheme: 'light' | 'dark'
   setTheme: (theme: Theme) => void
-  toggleTheme: () => void
+  toggleTheme: (origin?: ThemeTransitionOrigin) => void
 }
 
 const THEME_STORAGE_KEY = 'expense_tracker_theme'
@@ -52,7 +54,7 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: { children:
   }, [theme, systemTheme])
 
   // Apply to DOM whenever resolvedTheme changes
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement
     if (resolvedTheme === 'dark') {
       root.classList.add('dark')
@@ -78,8 +80,9 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: { children:
     }
   }, [])
 
-  const toggleTheme = useCallback(() => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  const toggleTheme = useCallback((origin?: ThemeTransitionOrigin) => {
+    const next = resolvedTheme === 'dark' ? 'light' : 'dark'
+    runThemeTransition({ dark: next === 'dark', origin, update: () => flushSync(() => setTheme(next)) })
   }, [resolvedTheme, setTheme])
 
   const value = useMemo(

@@ -5,5 +5,7 @@
     android:targetCellHeight="1"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_peep"
+    android:minResizeWidth="48dp"
+    android:minResizeHeight="48dp"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

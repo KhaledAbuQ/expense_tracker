@@ -14,7 +14,13 @@ async function mockSupabase(page: Page) {
   await page.route('**/*', async route => {
     const request = route.request()
     const url = new URL(request.url())
-    if (url.origin === 'http://127.0.0.1:4174') return route.continue()
+    if (url.origin === 'http://127.0.0.1:4174') {
+      if (url.pathname === '/api/gold-price') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+        id: 'test-retail', source: 'jordan_scrape', quote_basis: 'retail', source_detail: 'Test retail quote',
+        price_24k: 104.7, price_22k: 95.975, price_21k: 91.2, price_18k: 80.8, price_14k: 66.4, fetched_at: new Date().toISOString(),
+      }) })
+      return route.continue()
+    }
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
     if (url.pathname === '/auth/v1/token') {
       const user = { id: member.user_id, email: 'test@example.com', aud: 'authenticated', role: 'authenticated', user_metadata: {} }
@@ -56,6 +62,36 @@ async function signIn(page: Page) {
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
   await expect(page.getByText('Weekly groceries')).toBeVisible()
 }
+
+test('retail gold and the daily Peep Easter egg preserve the right source and character', async ({ page }) => {
+  await mockSupabase(page)
+  await page.addInitScript(() => {
+    localStorage.setItem('pocket_expenses_welcome_seen', 'yes')
+    localStorage.setItem('pocket_expense_gold_spot_jod_v1', JSON.stringify({ price_21k: 1, price_24k: 2, fetched_at: new Date().toISOString() }))
+    localStorage.setItem('pocket_expense_gold_history_v1', JSON.stringify([{ timestamp: Date.now() - 86400000, price: 1 }]))
+  })
+  await page.goto('/')
+  await page.getByLabel('Email', { exact: true }).fill('test@example.com')
+  await page.getByLabel('Password', { exact: true }).fill('test-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  const card = page.getByRole('region', { name: 'Gold retail price in Jordanian dinars' })
+  await expect(card).toContainText('91.20')
+  await expect(card).toContainText('You pay')
+  await expect(card).toContainText('before workmanship')
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pocket_expense_gold_retail_history_v2') ?? '[]'))).toHaveLength(1)
+  const peep = page.getByRole('button', { name: 'Daily Peep' })
+  const character = await peep.locator('img').getAttribute('src')
+  for (let tap = 0; tap < 5; tap++) await peep.click()
+  await expect(page.locator('.home-peep-flight')).toHaveCount(0)
+  await peep.click()
+  await expect(page.locator('.home-peep-flight')).toHaveCount(1)
+  await expect(peep).toBeDisabled()
+  await expect(page.locator('.home-peep-flight')).toHaveAttribute('src', character!)
+  await expect(peep).toBeEnabled({ timeout: 5000 })
+  await expect(page.locator('.home-peep-flight')).toHaveCount(0)
+  await expect(peep.locator('img')).toHaveAttribute('src', character!)
+  await expect(page.locator('.monetra-home-header img[src*="app-icon"]')).toBeVisible()
+})
 
 test('standalone sign-in persists and saves to the existing Supabase schema', async ({ page }) => {
   const state = await mockSupabase(page)

@@ -1,4 +1,5 @@
 import HomePeep from '../components/HomePeep'
+import WeeklyAppIcon from '../components/WeeklyAppIcon'
 import RapidTapPeek from '../components/RapidTapPeek'
 import { SAVINGS_PLAN_CHANGED, readSavingsPlan } from '../lib/savingsPlan'
 import { useGoldPrice } from '../hooks/useGoldPrice'
@@ -7,7 +8,6 @@ import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react
 import { App as NativeApp } from '@capacitor/app'
 import { addDays, format, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import {
-  Wallet,
   LogOut,
   ArrowLeft,
   Fingerprint,
@@ -153,11 +153,12 @@ export default function Mobile({
   const { price: widgetGoldPrice, history: goldHistory, loading: goldLoading, refreshing: goldRefreshing, error: goldError, refresh: refreshGold } = useGoldPrice()
 
   useEffect(() => {
-    if (!standalone || !widgetGoldPrice) return
+    if (!standalone) return
     const snapshot = JSON.stringify({
-      price: Number(widgetGoldPrice.price_21k),
-      updatedAt: format(new Date(widgetGoldPrice.fetched_at), 'MMM d, h:mm a'),
-      history: goldHistory,
+      basis: 'retail',
+      price: widgetGoldPrice ? Number(widgetGoldPrice.price_21k) : null,
+      updatedAt: widgetGoldPrice ? format(new Date(widgetGoldPrice.fetched_at), 'MMM d, h:mm a') : '',
+      history: widgetGoldPrice ? goldHistory : [],
     })
     void ExpenseWidget.updateGoldWidget({ snapshot }).catch(() => {})
   }, [standalone, widgetGoldPrice, goldHistory])
@@ -514,9 +515,9 @@ export default function Mobile({
   }, [smsModalOpen, member, categoriesLoading, categoriesError, checkPendingBackgroundSms])
 
 
-  const mobileHeader = (tab: MobileTab) => <header className="monetra-header mb-6 flex items-center justify-between gap-3">
+  const mobileHeader = (tab: MobileTab) => <header className={`monetra-header mb-6 flex items-center justify-between gap-3 ${tab === 'home' ? 'monetra-home-header' : ''}`}>
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#5267f5] text-white"><Wallet size={19} /></span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center"><WeeklyAppIcon className="h-full w-full object-contain" /></span>
             <div className="min-w-0">
               <p className="text-base font-semibold text-slate-900 dark:text-white">{tab === 'home' ? 'Pocket Expenses' : tab === 'expenses' ? 'Expenses' : tab === 'income' ? 'Income' : 'Your finances'}</p>
 
@@ -524,6 +525,7 @@ export default function Mobile({
             {tab === 'home' && activeTab === 'home' && <HomePeep />}
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {tab === 'home' && <ThemeToggle />}
             <button type="button" onClick={() => { setSmsModalTab('pending'); setSmsModalOpen(true) }} aria-label="Review bank transactions" className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 dark:bg-gray-800 dark:text-gray-200">
               <Bell size={19} />
               {pendingSmsTxs.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-[#e95235] px-1.5 text-[10px] font-bold text-white">{pendingSmsTxs.length}</span>}
@@ -813,9 +815,9 @@ export default function Mobile({
 
                     {/* Device & Account settings */}
                     <div className="rounded-2xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 divide-y divide-slate-100 dark:divide-gray-700 overflow-hidden shadow-sm">
-                      <div className="flex items-center justify-between p-4">
-                        <div className="flex items-center gap-3.5">
-                          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-700 dark:text-gray-200">
+                      <div className="flex items-center justify-between gap-3 p-4">
+                        <div className="flex min-w-0 items-center gap-3.5">
+                          <div className="shrink-0 p-2.5 rounded-xl bg-slate-100 dark:bg-gray-700 text-slate-700 dark:text-gray-200">
                             <Sun size={20} className="dark:hidden" />
                             <Moon size={20} className="hidden dark:block" />
                           </div>
@@ -824,7 +826,7 @@ export default function Mobile({
                               Appearance
                             </p>
                             <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                              Toggle light / dark theme
+                              Light or dark mode
                             </p>
                           </div>
                         </div>

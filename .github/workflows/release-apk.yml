@@ -93,6 +93,10 @@ jobs:
       - name: Build standalone APK
         run: npm run android:apk
 
+      - name: Run Android widget and icon tests
+        working-directory: android
+        run: ./gradlew --no-daemon --console=plain --gradle-user-home ../.gradle-local -Drobolectric.dependency.repo.url=https://repo.maven.apache.org/maven2 testDebugUnitTest
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

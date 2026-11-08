@@ -312,11 +312,10 @@ Coin weights and carat follow how gold is actually traded in Jordan, which
 differs slightly from the original mint standards (a British sovereign is struck
 at 7.98805 g / 22k). Local convention is what the money changes hands on.
 
-Purity is `karat / 24`, with 24k treated as 1.0 rather than 0.999. The app
-derives every carat from the same spot-per-gram reference. Valuing an 8 g
-English lira through fine grams gives
-647.22 JD against 647.20 JD from the dealer-style `8 g × 21k rate`, a 0.003%
-difference that is just the source rounding its quote to two decimals.
+Purity is `karat / 24`, with 24k treated as 1.0 rather than 0.999. Fine-gram
+holdings use the 24k retail quote for a replacement estimate. Individual karat
+retail quotes can contain different shop margins, so this estimate can differ
+from the shop's per-karat price. It is not a buyback valuation.
 
 The Savings page shows both sides: a per-item breakdown with counts and weights,
 and the dinar value of each line. The transfer amount stays editable after the
@@ -325,13 +324,51 @@ market estimate is prefilled, because what you actually pay includes workmanship
 
 ### Price source
 
-The app calls `https://api.gold-api.com/price/XAU` directly from the client. It
-returns a public USD-per-troy-ounce spot quote with browser CORS enabled. The
-app converts it to JOD per gram using 31.1034768 grams per troy ounce and the
-Central Bank of Jordan's 0.709 JOD/USD peg, then derives 22k, 21k, 18k and 14k
-by purity. This is an indicative international spot reference, not a Jordanian
-jeweler's sell or buyback quote. The last successful quote is cached locally on
-the device for offline display; gold prices do not require Supabase.
+Gold prices come from the [Jordanian Jewelers Syndicate](https://www.jjsjo.com/).
+The app reads the **Selling price (JOD)** column, which is what a customer pays
+when buying from a shop. The card and widget label this **You pay**, excluding
+workmanship. 24k, 21k, 18k, and 14k use direct published quotes; 22k is estimated
+from 24k because it is absent from the source table. “Checked” records retrieval
+time; the source table does not publish a bulletin timestamp.
+
+Android loads the public syndicate page with Capacitor's native HTTP client.
+The web build uses the fixed-upstream `/api/gold-price` Vercel function to avoid
+browser CORS restrictions. Vite development/preview servers proxy this route to
+the syndicate page. Other web hosts need to supply the equivalent endpoint.
+No Supabase function or API key is required. A failed feed keeps the last cached
+retail quote, or shows an unavailable state; it never substitutes spot or buyback
+prices. Retail cache and daily history use new keys so earlier spot history is
+not mixed into the chart. Daily history accumulates on the device.
+
+### App artwork
+
+The two supplied icons are preserved at `resources/app-icon.png` and
+`resources/app-icon-alt.png`. Run
+`python3 scripts/generate-app-icons.py` (requires Pillow) to regenerate Android
+legacy/adaptive/round icons, web icons, and in-app branding assets.
+
+The Android launcher uses two activity aliases and alternates each local Monday.
+A non-waking weekly alarm checks the icon, with another check on app resume,
+reboot, package update, and clock/time-zone changes. No exact-alarm permission is
+needed. Android may deliver the weekly alarm after idle mode, and launcher icon
+caches can take time to refresh. Home and sign-in branding use the same week
+calculation. Installed web-app icons remain browser-managed.
+
+### Widget appearance and resizing
+
+Pocket Expenses and Gold use responsive glass cards with warm/lavender category
+chips, a glossy action button, and a shaded gold chart. Both support horizontal
+and vertical resizing down to 48 dp where the launcher grid permits it. Smaller
+layouts preserve the total/price; extra details and decorations appear with more
+space. Android 12+ receives exact launcher-size RemoteViews; older versions get
+portrait/landscape variants. Bitmap budgets account for the number of layouts.
+
+The gold pot animates with a small ViewFlipper frame loop hosted by the launcher,
+without periodic redraw broadcasts or a service. It becomes static when system
+animations are disabled. The gold card in the app uses matching SVG artwork and
+respects reduced motion. App chart periods filter real saved daily retail quotes
+(up to 365 days); the gold widget charts up to the last 30 saved quotes. No
+intraday or historical points are fabricated.
 
 ### Applying the schema
 

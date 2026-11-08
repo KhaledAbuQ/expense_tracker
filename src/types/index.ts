@@ -16,8 +16,9 @@ export interface GoldPrice {
   price_21k: number;
   price_18k: number;
   price_14k: number;
-  /** Direct global spot quote converted to JOD using the Central Bank peg. */
+  /** Source of the quote. New quotes use the syndicate's customer purchase rate. */
   source: 'jordan_scrape' | 'spot_peg';
+  quote_basis?: 'retail';
   source_detail: string | null;
   fetched_at: string;
 }

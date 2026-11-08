@@ -3,11 +3,9 @@ import { GoldItemType, GoldPrice, Karat, Transfer } from '../types'
 /**
  * Purity by carat, as a fraction of 24k.
  *
- * 24k is 1.0 rather than 0.999 on purpose. The price source derives its
- * per-carat rates as exactly `24k x karat/24` -- its 21k quote is 0.875 of its
- * 24k quote to the digit -- so treating 24k as 0.999 here would value holdings
- * on a slightly different basis than the prices being applied to them. "Fine
- * grams" throughout this app therefore means 24k-equivalent grams.
+ * "Fine grams" means 24k-equivalent grams. Holdings use the 24k retail quote
+ * to estimate replacement value, before workmanship. Direct retail quotes
+ * for other karats can include different shop margins.
  */
 export const KARAT_PURITY: Record<Karat, number> = {
   24: 1,

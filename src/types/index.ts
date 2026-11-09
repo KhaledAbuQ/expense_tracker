@@ -15,9 +15,9 @@ export interface GoldPrice {
   price_22k: number;
   price_21k: number;
   price_18k: number;
-  price_14k: number;
-  /** Source of the quote. New quotes use the syndicate's customer purchase rate. */
-  source: 'jordan_scrape' | 'spot_peg';
+  price_14k: number | null;
+  /** Source of the quote. New quotes use Roya's local shop selling rate. */
+  source: 'roya' | 'jordan_scrape' | 'spot_peg';
   quote_basis?: 'retail';
   source_detail: string | null;
   fetched_at: string;

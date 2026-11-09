@@ -1,26 +1,28 @@
-.theme-shard-mesh {
+.theme-electric-field {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
   pointer-events: none;
   z-index: 2147483647;
-  view-transition-name: theme-shards;
+  view-transition-name: theme-electric;
 }
 
-html.theme-shard-transition::view-transition { pointer-events: none; }
-/* Capture the final palette and thumb position, instead of a half-finished CSS transition. */
-html.theme-shard-transition *,
-html.theme-shard-transition *::before,
-html.theme-shard-transition *::after { transition: none !important; }
-html.theme-shard-transition::view-transition-group(root),
-html.theme-shard-transition::view-transition-group(theme-shards) { animation: none; }
-html.theme-shard-transition::view-transition-group(theme-shards) { z-index: 1; }
-html.theme-shard-transition::view-transition-old(root),
-html.theme-shard-transition::view-transition-new(root),
-html.theme-shard-transition::view-transition-new(theme-shards) {
-  animation: none;
+html.theme-electric-transition::view-transition { pointer-events: none; }
+/* Capture the final palette, not intermediate background/transform transitions. */
+html.theme-electric-transition *,
+html.theme-electric-transition *::before,
+html.theme-electric-transition *::after { transition: none !important; }
+html.theme-electric-transition::view-transition-group(root),
+html.theme-electric-transition::view-transition-group(theme-electric) { animation: none !important; }
+html.theme-electric-transition::view-transition-group(theme-electric) { z-index: 1; }
+html.theme-electric-transition::view-transition-image-pair(root) { isolation: isolate; }
+html.theme-electric-transition::view-transition-old(root),
+html.theme-electric-transition::view-transition-new(root),
+html.theme-electric-transition::view-transition-new(theme-electric) {
+  animation: none !important;
+  opacity: 1;
   mix-blend-mode: normal;
 }
-html.theme-shard-transition::view-transition-old(root) { z-index: 0; }
-html.theme-shard-transition::view-transition-new(root) { z-index: 1; }
+html.theme-electric-transition::view-transition-old(root) { z-index: 0; }
+html.theme-electric-transition::view-transition-new(root) { z-index: 1; }

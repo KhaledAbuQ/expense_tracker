@@ -5,6 +5,7 @@ import { BarChart3, CalendarDays, RefreshCw, TrendingDown, TrendingUp } from 'lu
 import type { GoldPrice } from '../types'
 import { isPriceStale } from '../lib/gold'
 import GoldPot from './GoldPot'
+import { GOLD_RETAIL_SOURCE } from '../lib/goldRetail'
 
 const ranges = [{ label: '1D', days: 1 }, { label: '1W', days: 7 }, { label: '1M', days: 30 }, { label: '3M', days: 90 }, { label: '1Y', days: 365 }]
 interface Props {
@@ -35,11 +36,12 @@ export default function GoldPriceCard({ price, history, loading, refreshing, err
       <div className="gold-market-copy">
         {price ? <>
           <strong className="gold-market-price">JOD {Number(price.price_21k).toFixed(2)}<small>/g</small></strong>
-          <a className="gold-market-source" href="https://www.jjsjo.com/" target="_blank" rel="noreferrer">You pay · JJSJO retail</a>
+          <a className="gold-market-source" href={GOLD_RETAIL_SOURCE} target="_blank" rel="noreferrer">You pay · Roya retail</a>
           <span className={`gold-market-change ${change !== null && change < 0 ? 'is-down' : ''}`}>
             {change === null ? 'First daily quote' : <><DownOrUp size={15}/>{percent! >= 0 ? '+' : ''}{percent!.toFixed(2)}% <small>(JOD {change >= 0 ? '+' : ''}{change.toFixed(2)})</small></>}
           </span>
           <span className="gold-market-note">before workmanship · 24k: {Number(price.price_24k).toFixed(2)} JOD/g</span>
+          {error && <span className="gold-market-stale" role="status">Could not refresh · showing saved price</span>}
           {isPriceStale(price) && <span className="gold-market-stale">Saved price may be out of date</span>}
         </> : <p role={error ? 'alert' : 'status'}>{loading ? 'Loading retail price…' : error ? `Could not load price: ${error}` : 'Open to load retail prices.'}</p>}
       </div>

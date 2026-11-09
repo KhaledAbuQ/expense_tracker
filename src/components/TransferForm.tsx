@@ -78,13 +78,14 @@ export default function TransferForm({
   // Value the metal at the rate for its own carat against its gross weight.
   const marketValue = useMemo(() => {
     if (!measurement || !price) return null
-    return measurement.grams * pricePerGram(price, measurement.karat)
+    const rate = pricePerGram(price, measurement.karat)
+    return rate === null ? null : measurement.grams * rate
   }, [measurement, price])
 
   // Prefill the dinar amount from the live price until the user overrides it.
   useEffect(() => {
-    if (!involvesGold || amountTouched || marketValue === null) return
-    setFormData(prev => ({ ...prev, amount: Number(marketValue.toFixed(3)) }))
+    if (!involvesGold || amountTouched) return
+    setFormData(prev => ({ ...prev, amount: marketValue === null ? 0 : Number(marketValue.toFixed(3)) }))
   }, [involvesGold, amountTouched, marketValue])
 
   const handleFromAccountChange = (value: TransferAccountType) => {
@@ -275,7 +276,7 @@ export default function TransferForm({
 
           {price && (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              {formatCurrency(pricePerGram(price, 24))}/g 24k spot reference
+              {formatCurrency(price.price_24k)}/g 24k retail · before workmanship
               {price.source === 'spot_peg' && ' (from world spot)'}
               {' '}&middot; {formatDate(price.fetched_at.slice(0, 10))}
               {isPriceStale(price) && (

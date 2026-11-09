@@ -324,21 +324,23 @@ market estimate is prefilled, because what you actually pay includes workmanship
 
 ### Price source
 
-Gold prices come from the [Jordanian Jewelers Syndicate](https://www.jjsjo.com/).
-The app reads the **Selling price (JOD)** column, which is what a customer pays
-when buying from a shop. The card and widget label this **You pay**, excluding
-workmanship. 24k, 21k, 18k, and 14k use direct published quotes; 22k is estimated
-from 24k because it is absent from the source table. “Checked” records retrieval
-time; the source table does not publish a bulletin timestamp.
+Gold prices come from [Roya's local Jordanian gold page](https://royanews.tv/goldprice)
+using its public latest-bulletin JSON feed (`type=1`). The app reads `sell_24k`,
+`sell_21k`, and `sell_18k`: **سعر البيع**, the shop's selling price, which is what
+**you pay** when buying gold, before workmanship. It never uses `buy_` (shop
+buyback) or international spot rates. 22k is explicitly estimated from 24k;
+a missing or zero 14k quote stays unavailable, and the transfer form requires a
+manual amount for that karat. “Checked” records retrieval time; Roya's update
+label is relative, not an exact publication timestamp.
 
-Android loads the public syndicate page with Capacitor's native HTTP client.
-The web build uses the fixed-upstream `/api/gold-price` Vercel function to avoid
-browser CORS restrictions. Vite development/preview servers proxy this route to
-the syndicate page. Other web hosts need to supply the equivalent endpoint.
-No Supabase function or API key is required. A failed feed keeps the last cached
-retail quote, or shows an unavailable state; it never substitutes spot or buyback
-prices. Retail cache and daily history use new keys so earlier spot history is
-not mixed into the chart. Daily history accumulates on the device.
+Android loads the fixed public Roya endpoint with Capacitor's native HTTP
+client. Web builds use the `/api/gold-price` Vercel function; Vite development
+and preview proxy the same local feed. Other web hosts need the equivalent
+endpoint. No Supabase function or API key is required. A failed feed keeps the
+last Roya quote with a saved-price message, or shows unavailable. Caches and
+daily history use new Roya-specific keys so old syndicate or spot values cannot
+contaminate the chart. The hook checks again on return to the app and every
+five minutes while visible. Daily history accumulates on the device.
 
 ### App artwork
 

@@ -1,4 +1,4 @@
-import { GOLD_RETAIL_SOURCE, parseRetailGold } from '../src/lib/goldRetail'
+import { GOLD_RETAIL_API_URL, GOLD_RETAIL_HEADERS, parseRetailGold } from '../src/lib/goldRetail'
 
 interface Response {
   status: (code: number) => Response
@@ -15,13 +15,13 @@ export default async function handler(request: { method?: string }, response: Re
     return
   }
   try {
-    const upstream = await fetch(GOLD_RETAIL_SOURCE, { signal: AbortSignal.timeout(10_000), headers: { Accept: 'text/html' } })
-    if (!upstream.ok) throw new Error('Syndicate feed unavailable')
-    const quote = parseRetailGold(await upstream.text())
-    response.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=300')
+    const upstream = await fetch(GOLD_RETAIL_API_URL, { signal: AbortSignal.timeout(10_000), headers: GOLD_RETAIL_HEADERS })
+    if (!upstream.ok) throw new Error('Roya feed unavailable')
+    const quote = parseRetailGold(await upstream.json())
+    response.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=60')
     response.status(200).json(quote)
   } catch {
     response.setHeader('Cache-Control', 'no-store')
-    response.status(502).json({ error: 'Could not load the syndicate retail gold price. Please try again.' })
+    response.status(502).json({ error: 'Could not load Roya local retail gold prices. Please try again.' })
   }
 }

@@ -3,25 +3,20 @@ import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { GoldPrice } from '../types'
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
-import { GOLD_RETAIL_SOURCE, parseRetailGold } from '../lib/goldRetail'
+import { GOLD_RETAIL_API_URL, GOLD_RETAIL_HEADERS, isRoyaRetailQuote, parseRetailGold } from '../lib/goldRetail'
 
 const GOLD_API_URL = '/api/gold-price'
-const LOCAL_CACHE_KEY = 'pocket_expense_gold_retail_jod_v2'
-const HISTORY_KEY = 'pocket_expense_gold_retail_history_v2'
+const LOCAL_CACHE_KEY = 'pocket_expense_gold_roya_retail_jod_v3'
+const HISTORY_KEY = 'pocket_expense_gold_roya_retail_history_v3'
 const HISTORY_LIMIT = 365
 const MIN_REFRESH_INTERVAL_MS = 60 * 1000
-function validRetailQuote(quote: GoldPrice): boolean {
-  return quote?.source === 'jordan_scrape' && quote.quote_basis === 'retail'
-    && Number.isFinite(Date.parse(quote.fetched_at))
-    && [quote.price_24k, quote.price_22k, quote.price_21k, quote.price_18k, quote.price_14k].every(value => typeof value === 'number' && Number.isFinite(value) && value > 0)
-}
 
 function readLocalCache(): GoldPrice | null {
   try {
     const raw = localStorage.getItem(LOCAL_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as GoldPrice
-    if (!validRetailQuote(parsed)) return null
+    if (!isRoyaRetailQuote(parsed)) return null
     return parsed
   } catch {
     return null
@@ -73,16 +68,14 @@ export function useGoldPrice() {
     try {
       let fresh: GoldPrice
       if (Capacitor.isNativePlatform()) {
-        const response = await CapacitorHttp.get({ url: GOLD_RETAIL_SOURCE, headers: { Accept: 'text/html' }, responseType: 'text', connectTimeout: 10_000, readTimeout: 10_000 })
-        if (response.status !== 200 || typeof response.data !== 'string') throw new Error('Could not load the syndicate retail price.')
-        fresh = parseRetailGold(response.data)
+        const response = await CapacitorHttp.get({ url: GOLD_RETAIL_API_URL, headers: GOLD_RETAIL_HEADERS, responseType: 'json', connectTimeout: 10_000, readTimeout: 10_000 })
+        if (response.status !== 200) throw new Error('Could not load Roya local retail prices.')
+        fresh = parseRetailGold(typeof response.data === 'string' ? JSON.parse(response.data) : response.data)
       } else {
         const response = await fetch(GOLD_API_URL, { headers: { Accept: 'application/json' }, cache: 'no-cache', signal: controller.signal })
         if (!response.ok) throw new Error(`Retail gold feed returned HTTP ${response.status}.`)
-        fresh = response.headers.get('content-type')?.includes('text/html')
-          ? parseRetailGold(await response.text())
-          : await response.json() as GoldPrice
-        if (!validRetailQuote(fresh)) throw new Error('The feed did not return a valid retail gold quote.')
+        const payload: unknown = await response.json()
+        fresh = isRoyaRetailQuote(payload) ? payload : parseRetailGold(payload)
       }
       if (currentRequest === requestId.current) {
         const cached = readLocalCache()
@@ -124,7 +117,13 @@ export function useGoldPrice() {
     await refresh({ silent: true })
   }, [refresh])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void load()
+    const onVisible = () => { if (document.visibilityState === 'visible') void load() }
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = window.setInterval(onVisible, 5 * 60 * 1000)
+    return () => { document.removeEventListener('visibilitychange', onVisible); window.clearInterval(timer) }
+  }, [load])
 
   return { price, history, loading, refreshing, error, refresh, reload: load }
 }

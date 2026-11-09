@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import './DayNightSwitch.css'
 
 type Point = { x: number; y: number }
@@ -30,7 +30,6 @@ const clampPosition = (position: number) => Math.max(0, Math.min(travel, positio
 interface DragGesture {
   pointerId: number
   startX: number
-  startY: number
   startPosition: number
   scale: number
   moved: boolean
@@ -50,9 +49,13 @@ export default function DayNightSwitch({ dark, onToggle, className = '' }: DayNi
   const current = dark ? moonPixels : sunPixels
   const previous = dark ? sunPixels : moonPixels
 
+  // Keep the released thumb in place until the new theme has been committed.
+  // Clearing it on pointerup used to snap back before the snapshot was taken.
+  useLayoutEffect(() => { setDragPosition(null) }, [dark])
+
   function cancelDrag(event: PointerEvent<HTMLButtonElement>) {
     if (gesture.current?.pointerId !== event.pointerId) return
-    suppressClick.current = gesture.current.moved
+    suppressClick.current = true
     gesture.current = null
     setDragPosition(null)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
@@ -75,7 +78,6 @@ export default function DayNightSwitch({ dark, onToggle, className = '' }: DayNi
         gesture.current = {
           pointerId: event.pointerId,
           startX: event.clientX,
-          startY: event.clientY,
           startPosition: clampPosition((thumb.left - track.left) / scale - 2),
           scale,
           moved: false,
@@ -86,12 +88,7 @@ export default function DayNightSwitch({ dark, onToggle, className = '' }: DayNi
         const drag = gesture.current
         if (!drag || drag.pointerId !== event.pointerId) return
         const dx = event.clientX - drag.startX
-        const dy = event.clientY - drag.startY
         if (!drag.moved) {
-          if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
-            cancelDrag(event)
-            return
-          }
           if (Math.abs(dx) < 4) return
           drag.moved = true
         }
@@ -103,16 +100,24 @@ export default function DayNightSwitch({ dark, onToggle, className = '' }: DayNi
         const drag = gesture.current
         if (!drag || drag.pointerId !== event.pointerId) return
         gesture.current = null
-        setDragPosition(null)
         if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
-        if (!drag.moved) return
         suppressClick.current = true
-        const position = clampPosition(drag.startPosition + (event.clientX - drag.startX) / drag.scale)
-        if ((position < travel / 2) !== dark) {
+        if (!drag.moved) {
           setClicks(value => value + 1)
           onToggle(event)
+          return
+        }
+        const position = clampPosition(drag.startPosition + (event.clientX - drag.startX) / drag.scale)
+        const nextDark = position < travel / 2
+        if (nextDark !== dark) {
+          setDragPosition(nextDark ? 0 : travel)
+          setClicks(value => value + 1)
+          onToggle(event)
+        } else {
+          setDragPosition(null)
         }
       }}
+      onContextMenu={event => event.preventDefault()}
       onPointerCancel={cancelDrag}
       onLostPointerCapture={cancelDrag}
       onClick={event => {

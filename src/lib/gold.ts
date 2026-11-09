@@ -82,13 +82,13 @@ export function measureGoldItem(
 }
 
 /** Price per gram for a given carat, from a fetched price row. */
-export function pricePerGram(price: GoldPrice, karat: Karat): number {
+export function pricePerGram(price: GoldPrice, karat: Karat): number | null {
   switch (karat) {
     case 24: return Number(price.price_24k)
     case 22: return Number(price.price_22k)
     case 21: return Number(price.price_21k)
     case 18: return Number(price.price_18k)
-    case 14: return Number(price.price_14k)
+    case 14: return price.price_14k === null ? null : Number(price.price_14k)
   }
 }
 
@@ -102,7 +102,7 @@ export function pricePerGram(price: GoldPrice, karat: Karat): number {
  */
 export function valueOfFineGrams(fine: number, price: GoldPrice | null): number {
   if (!price || !Number.isFinite(fine)) return 0
-  return fine * pricePerGram(price, 24)
+  return fine * price.price_24k
 }
 
 /**

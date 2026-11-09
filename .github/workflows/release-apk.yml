@@ -68,21 +68,29 @@ jobs:
 
 
 
-      - name: Restore Android signing material (optional)
+      - name: Restore and verify permanent Android release key
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
           SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
         run: |
-          if [ -n "$SIGNING_KEYSTORE_BASE64" ] && [ -n "$SIGNING_PASSWORD" ]; then
-            mkdir -p android/.signing
-            echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > android/.signing/pocket-expenses.jks
-            echo -n "$SIGNING_PASSWORD" > android/.signing/password
-            chmod 700 android/.signing
-            chmod 600 android/.signing/pocket-expenses.jks android/.signing/password
-            echo "Restored private signing key from repository secrets."
-          else
-            echo "No custom signing key provided in secrets. build-apk.mjs will generate a self-signed release key."
+          set -euo pipefail
+          if [ -z "$SIGNING_KEYSTORE_BASE64" ] || [ -z "$SIGNING_PASSWORD" ]; then
+            echo "::error::Set ANDROID_SIGNING_KEYSTORE_BASE64 and ANDROID_SIGNING_PASSWORD repository secrets. A new signing key will not be generated in CI."
+            exit 1
           fi
+          umask 077
+          mkdir -p android/.signing
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > android/.signing/pocket-expenses.jks
+          printf '%s' "$SIGNING_PASSWORD" > android/.signing/password
+          if ! fingerprint=$(keytool -exportcert -keystore android/.signing/pocket-expenses.jks -storepass:file android/.signing/password -alias pocket-expenses 2>/dev/null | sha256sum | cut -d ' ' -f1); then
+            echo "::error::Cannot unlock the release key. Check the keystore, password, and pocket-expenses alias."
+            exit 1
+          fi
+          if [ "$fingerprint" != "7888357edc1817cb7fa36d802ab8b400ed536663968d260fd493b5114b77b513" ]; then
+            echo "::error::Signing certificate does not match the permanent app release key. Use the same approved secret values in both repositories."
+            exit 1
+          fi
+          echo "Verified permanent release certificate SHA-256: $fingerprint"
 
       - name: Install dependencies
         run: npm ci

@@ -38,6 +38,7 @@ if (existsSync(keystore) !== existsSync(passwordFile)) {
   throw new Error('Incomplete Android signing material. Restore android/.signing from your backup before building.')
 }
 if (!existsSync(keystore)) {
+  if (env.CI) throw new Error('CI requires the permanent Android release key. Restore the repository signing secrets before building; no replacement key will be generated.')
   writeFileSync(passwordFile, randomBytes(32).toString('hex'), { mode: 0o600 })
   const keytool = env.JAVA_HOME ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'keytool.exe' : 'keytool') : 'keytool'
   run(keytool, ['-genkeypair', '-keystore', keystore, '-storetype', 'JKS', '-alias', 'pocket-expenses',

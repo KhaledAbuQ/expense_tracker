@@ -419,7 +419,8 @@ and Android build dependencies. Only the Supabase publishable/anon key is
 bundled; builds reject privileged keys. No database migration is required.
 
 **Back up `android/.signing/` privately.** It is ignored by Git and contains the
-key needed to install future updates over this APK. Increase `versionCode` in
+key needed to install future updates over this APK. Local APKs signed with a
+different key cannot update GitHub release APKs. Increase `versionCode` in
 `android/app/build.gradle` for new releases. Losing the key means future builds
 cannot update the installed application without uninstalling it first.
 
@@ -434,11 +435,14 @@ that would introduce a dependency on a hosted site. No service worker is used.
 The repository includes a GitHub Actions workflow (`.github/workflows/release-apk.yml`)
 that builds the standalone APK and attaches it as a downloadable release asset.
 
-1. Configure GitHub repository secrets (**Settings** -> **Secrets and variables** -> **Actions**):
-   - `VITE_SUPABASE_URL`: Your Supabase HTTPS URL (e.g. `https://xxxx.supabase.co`).
-   - `VITE_SUPABASE_ANON_KEY`: Your Supabase publishable/anon key.
-   - `ANDROID_SIGNING_KEYSTORE_BASE64` *(optional)*: Base64-encoded `android/.signing/pocket-expenses.jks` (`base64 -i android/.signing/pocket-expenses.jks | pbcopy`) to sign CI builds with your existing key.
-   - `ANDROID_SIGNING_PASSWORD` *(optional)*: Contents of `android/.signing/password`.
+1. Configure **repository secrets** in both repositories (**Settings** -> **Secrets and variables** -> **Actions**):
+   - `ANDROID_SIGNING_KEYSTORE_BASE64` **(required)**: Base64-encoded permanent app release keystore, using alias `pocket-expenses`.
+   - `ANDROID_SIGNING_PASSWORD` **(required)**: The keystore/key password.
+   Use the exact same values in both repositories and retain a private backup.
+   The workflow verifies the approved release certificate and fails if either
+   secret is missing, unreadable, or belongs to another key. CI never generates
+   a replacement key. Standalone users enter Supabase connection details in the
+   app; no Supabase build secrets are required.
 2. Push a version tag:
    ```bash
    git tag v1.0.0
